@@ -4,8 +4,17 @@ A rhythm-game firmware for the **M-VAVE FM-1** synthesizer. Turn a MIDI song int
 The FM-1 plays the backing on its own synth engines while notes fall towards the keys on its screen. Play them on
 the real keys in real time: every press is judged PERFECT, GREAT, GOOD or MISS.
 
-This is based on [Felucca](https://github.com/hugelton/Felucca)** by Leo Kuroshita (@kurogedelic),
+This is based on **[Felucca](https://github.com/hugelton/Felucca)** by Leo Kuroshita (@kurogedelic),
 Hügelton Instruments. It keeps Felucca's sound engines, audio, display, storage and USB, and replaces its groovebox side (step sequencer, arpeggiator, pattern editing) with the game.
+
+## Try it
+
+- **[Midi-Mania Studio](https://shan-sherif.github.io/fm-1-midi-mania/webapp/studio/)**: the FM-1 in your browser,
+  the same code the instrument runs. Play the built-in songs or FREE PLAY, and drop your own MIDI files on the page
+  to load them as songs. No FM-1 needed; Chrome, Edge, Firefox or Safari.
+- **[The installer](https://shan-sherif.github.io/fm-1-midi-mania/webapp/installer/)**: puts Midi-Mania on your FM-1
+  over USB, from Chrome or Edge (not published yet: it appears once a build has been tried on a real FM-1).
+- **[The site](https://shan-sherif.github.io/fm-1-midi-mania/)**: both, from one page.
 
 > **Status: early.** Working on the desktop and browser builds:
 > - **SONGS** (the SEQ button): the songs in `midi/`, built into the firmware;
