@@ -1,0 +1,20 @@
+# the Felucca reference clone (README.md, Based on Felucca): read-only, never part of this repository
+/Felucca/
+
+# your MIDI files: built into your firmware, never published (copyrighted songs, arrangements). A song that may be
+# shared goes in with its source and licence noted (README TODO)
+/midi/*.mid
+/midi/*.midi
+/midi/*.MID
+
+build/
+.DS_Store
+__pycache__/
+*.pyc
+*.fwsc
+# the desktop build's simulated flash (build/sdl/midi-mania writes it where it is started)
+midi-mania_flash.bin
+midi-mania_plugins.txt
+
+# my own task list (TODO.md: not in the repository)
+/TODO.md

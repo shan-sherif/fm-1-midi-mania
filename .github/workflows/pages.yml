@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 fm-1-midi-mania contributors
+# The site on GitHub Pages (Settings > Pages > Source: GitHub Actions), on every push to main:
+#   /                     the start page (web/site_index.html)
+#   /webapp/studio/       Midi-Mania Studio: the browser build (platforms/web, build/web)
+#   /webapp/installer/    the installer and the FM-1 package (web/make_site.py), only while the repository variable
+#                         PUBLISH_INSTALLER is "true" (Settings > Secrets and variables > Actions > Variables): set it
+#                         once a build has been installed and tried on a real FM-1. It builds the firmware with
+#                         JieLi's toolchain (from JieLi's server) and the AC79 SDK (from gitee) as a release of the
+#                         version in firmware/src/midimania.c (MM_VERSION).
+name: pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tools
+        run: pip3 install --break-system-packages Pillow fonttools mido
+      - uses: mymindstorm/setup-emsdk@v14
+      - name: Midi-Mania Studio (the browser build)
+        run: |
+          ./build.sh gen
+          ./build.sh web
+      - name: The FM-1 package (PUBLISH_INSTALLER)
+        if: vars.PUBLISH_INSTALLER == 'true'
+        run: |
+          tools/get_toolchain.sh
+          git clone --depth 1 --branch AC79NN_SDK_V1.2.1_2023-12-13 \
+              https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git "$HOME/fw-AC79_AIoT_SDK"
+          VER=$(sed -n 's/^#define MM_VERSION "v\([^"]*\)".*/\1/p' firmware/src/midimania.c | head -n 1)
+          echo "VER=$VER" >> "$GITHUB_ENV"
+          ./build.sh --release "$VER"
+      - name: The site
+        run: |
+          mkdir -p site/webapp
+          if [ -n "$VER" ]; then
+            python3 web/make_site.py "build/midi-mania-$VER.fwsc" "$VER" site
+            cp web/site_index.html site/index.html
+          else
+            sed '/<!--INSTALLER-BEGIN-->/,/<!--INSTALLER-END-->/d' web/site_index.html > site/index.html
+          fi
+          cp -r build/web site/webapp/studio
+          touch site/.nojekyll
+          find site -maxdepth 3 | sort
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

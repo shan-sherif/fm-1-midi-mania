@@ -1,0 +1,55 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-only
+     Copyright (C) 2026 fm-1-midi-mania contributors
+     The site's start page (.github/workflows/pages.yml): Midi-Mania Studio, and the installer once a release has
+     one (the workflow takes the block between INSTALLER-BEGIN and INSTALLER-END out when it has none). -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Midi-Mania</title>
+<meta name="description" content="Midi-Mania: a keyboard rhythm game firmware for the M-VAVE FM-1. Play it in your browser, load your own MIDI files, install it on your FM-1.">
+<style>
+  :root { --bg: #f4f4f5; --fg: #111; --dim: #555; --card: #fff; --rule: #d4d4d8; --accent: #1d4ed8; color-scheme: light; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #111113; --fg: #f4f4f5; --dim: #a1a1aa; --card: #1c1c1f; --rule: #2e2e33; --accent: #93b4ff; color-scheme: dark; }
+  }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 40px 16px 48px; }
+  h1 { margin: 0 0 4px; font-size: 28px; }
+  .lead { margin: 0 0 28px; color: var(--dim); }
+  .cards { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  a.card { display: block; padding: 18px; background: var(--card); border: 1px solid var(--rule); border-radius: 12px;
+           color: inherit; text-decoration: none; }
+  a.card:hover, a.card:focus-visible { border-color: var(--accent); outline: none; }
+  a.card h2 { margin: 0 0 6px; font-size: 18px; color: var(--accent); }
+  a.card p { margin: 0; color: var(--dim); }
+  footer { margin-top: 36px; font-size: 13px; color: var(--dim); }
+  footer a { color: inherit; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Midi-Mania</h1>
+  <p class="lead">A keyboard rhythm game firmware for the M-VAVE FM-1: songs from MIDI files, notes falling to the keys, the FM-1 playing the backing.</p>
+  <div class="cards">
+    <a class="card" href="webapp/studio/">
+      <h2>Midi-Mania Studio</h2>
+      <p>Play the FM-1 in your browser, and load your own MIDI files as songs. No FM-1 needed.</p>
+    </a>
+<!--INSTALLER-BEGIN-->
+    <a class="card" href="webapp/installer/">
+      <h2>Install on your FM-1</h2>
+      <p>Put Midi-Mania on your FM-1 over USB, from Chrome or Edge. The official firmware can be put back the same way.</p>
+    </a>
+<!--INSTALLER-END-->
+  </div>
+  <footer>
+    Midi-Mania by Shan-Sherif · <a href="https://www.gnu.org/licenses/gpl-3.0.html">GPL-3.0</a> ·
+    <a href="https://github.com/shan-sherif/fm-1-midi-mania">Source</a><br>
+    Based on <a href="https://github.com/hugelton/Felucca">Felucca</a> by Leo Kuroshita, Hügelton Instruments.
+    M-VAVE and FM-1 are trademarks of their respective owners; Midi-Mania is not affiliated with or endorsed by them.
+  </footer>
+</main>
+</body>
+</html>

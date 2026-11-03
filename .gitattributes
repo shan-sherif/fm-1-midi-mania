@@ -1,0 +1,9 @@
+# LF in the repository and in every checkout: the build runs in Linux (WSL, Docker), where CRLF breaks shell scripts
+* text=auto eol=lf
+*.bat text eol=crlf
+*.wav binary
+*.ttf binary
+*.woff binary
+*.png binary
+*.jpg binary
+*.bin binary
