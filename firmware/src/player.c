@@ -266,6 +266,70 @@ static int mm_mine(const chart_note_t *c)       /* a note of your part, in your 
 
 static const mm_song_t *pl_song(void) { return mm_song(pl.song % (mm_nsongs() ? mm_nsongs() : 1u)); }
 
+/* ---- the score (PLAY YOU): judge.c over your notes, the ones HOME draws (your part, your RANGE, on a key or a pad).
+ * A song started with PLAY YOU is judged (pl_sc.on): a key pressed on your part takes the note it meets
+ * (player_judge_key: PERFECT 30 ms, GREAT 60, GOOD 110 either side; GAME's OFFSET moves the presses), a note nobody
+ * pressed is a MISS once its window has passed (player_block). HOME shows the last grade, the combo and the score
+ * (ui_graph.c nt_score); when the song ends, the result (pl_sc.done: ui_graph.c graph_result) until the next one */
+#include "judge.c"
+#define PL_GRADE_MAX (MM_SONG_SIZE / (uint32_t)sizeof(chart_note_t))   /* the most notes a song can hold */
+static uint8_t pl_grade[PL_GRADE_MAX] __attribute__((section(".pool")));
+static judge_t pl_judge;
+static struct {
+    volatile uint8_t on;                 /* ISR: this song is judged (YOU at its start) */
+    volatile uint8_t done;               /* ISR: it played to its end: the result to show (ui_graph.c graph_result) */
+    volatile uint8_t last;               /* ISR: the last grade, J_PERFECT .. J_MISS */
+    volatile int16_t dt_ms;              /* ISR: its press minus its note, ms (negative: early; a MISS: 0) */
+    volatile uint32_t seq;               /* ISR: +1 a grade (the UI shows each new one) */
+} pl_sc;
+static int pl_judge_mine(const chart_note_t *c)
+{
+    return mm_mine(c) && ((c->flags & CN_DRUM) || c->key < CHART_NKEYS);
+}
+static uint32_t pl_judge_key(const chart_note_t *c) { return (c->flags & CN_DRUM) ? pl_drum_key(c->pitch) : c->key; }
+static int32_t pl_judge_offset(void) { return (int32_t)pl.offset * (int32_t)CHART_FS / 500; }   /* (2 ms a step) */
+static void pl_judge_start(const mm_song_t *s)   /* ISR: song s starts */
+{
+    judge_init(&pl_judge, s->note, s->nnote < PL_GRADE_MAX ? s->nnote : PL_GRADE_MAX, pl_grade);
+    pl_judge.mine = pl_judge_mine;
+    pl_judge.key = pl_judge_key;
+    pl_judge.offset = pl_judge_offset();
+    pl_sc.last = J_NONE;
+    pl_sc.dt_ms = 0;
+    pl_sc.on = pl.you;
+}
+static void pl_judge_tick(uint32_t now)          /* ISR: the notes whose window has passed: MISS */
+{
+    uint32_t miss = pl_judge.count[J_MISS];
+    pl_judge.offset = pl_judge_offset();         /* (OFFSET turned while playing) */
+    judge_tick(&pl_judge, now);
+    if (pl_judge.count[J_MISS] != miss) {
+        pl_sc.last = J_MISS;
+        pl_sc.dt_ms = 0;
+        pl_sc.seq++;
+    }
+}
+/* ISR (seq.c keyboard_block; MIDI IN, mm_midi_note): key k pressed on part */
+static void player_judge_key(uint32_t part, uint32_t k)
+{
+    int32_t dt = 0;
+    uint32_t g;
+    if (!pl_sc.on || !pl.playing || pl.free || pl.pre || part != pl.mode % NPART)
+        return;
+    g = judge_press(&pl_judge, k, pl.pos, &dt);
+    if (g == J_NONE)
+        return;                                  /* (no note of yours near: not counted) */
+    pl_sc.last = (uint8_t)g;
+    pl_sc.dt_ms = (int16_t)((int64_t)dt * 1000 / (int32_t)CHART_FS);
+    pl_sc.seq++;
+}
+/* the result: accuracy, 0..100 % (a PERFECT for every note: 100) */
+static uint32_t pl_judge_accuracy(void)
+{
+    uint32_t n = pl_judge.count[J_PERFECT] + pl_judge.count[J_GREAT] + pl_judge.count[J_GOOD] + pl_judge.count[J_MISS];
+    return n ? (pl_judge.score * 100u + n * 3u / 2u) / (n * 3u) : 0u;
+}
+
 static void pl_off(uint32_t i)                     /* sounding note i ends */
 {
     if (!pl.on[i].quiet)
@@ -337,6 +401,8 @@ static void player_block(uint32_t n)
         pl_all_off();
         pl.playing = 0;
         pl.free = 0;
+        pl_sc.on = 0;                              /* (a stop, a new song: the score's over; the result gone) */
+        pl_sc.done = 0;
         if (r == PL_REQ_START && pl.req_song == PL_FREE) {   /* FREE PLAY: the clock alone (HOME draws your presses) */
             pl.free = 1;
             pl.pos = 0;
@@ -360,6 +426,7 @@ static void player_block(uint32_t n)
                 pl.cin_c0 = (int32_t)b0 - (int32_t)(pl.cin_n * pl.cin_len);
                 pl.pre = pl.cin_c0 < 0 ? (uint32_t)-pl.cin_c0 : 0u;
             }
+            pl_judge_start(pl_song());             /* PLAY YOU: scored */
         }
         pl.req = PL_REQ_NONE;
         pl_keys();
@@ -396,8 +463,16 @@ static void player_block(uint32_t n)
     }
     pl.pos = end;
     pl_keys();
-    if (pl.next >= s->nnote && !pl.on_n)           /* the last note has ended: done */
+    if (pl_sc.on)
+        pl_judge_tick(end);
+    if (pl.next >= s->nnote && !pl.on_n) {         /* the last note has ended: done */
         pl.playing = 0;
+        if (pl_sc.on) {                            /* (the notes still pending: MISS), the result shown */
+            pl_judge_tick(end + CHART_FS);
+            pl_sc.on = 0;
+            pl_sc.done = 1;
+        }
+    }
 }
 
 /* MIDI IN on your part (midi_control.c, in the audio ISR): the keys its notes would sit on, for FREE PLAY (ui_graph.c
@@ -434,6 +509,7 @@ static void mm_midi_note(uint32_t part, uint32_t note, int on)
     mm_midi_k[note] = (uint8_t)(k + 1u);
     mm_midi_n[k]++;
     mm_midi_keys |= 1u << k;
+    player_judge_key(part, k);                    /* (PLAY YOU: a MIDI keyboard's notes are judged as the keys') */
 }
 
 /* main loop */

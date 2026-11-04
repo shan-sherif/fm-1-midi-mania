@@ -21,7 +21,8 @@ typedef struct {
     uint32_t perfect, great, good;   /* half-widths of the windows, samples (judge_init: the defaults) */
 } judge_win_t;
 
-typedef struct {
+typedef struct judge judge_t;
+struct judge {
     const chart_note_t *note;        /* the chart's notes, by time */
     uint32_t n;
     uint8_t *grade;                  /* per note: 0 pending, else its J_*; the caller's, n bytes, zeroed */
@@ -30,9 +31,15 @@ typedef struct {
     int32_t offset;                  /* the player's calibration, samples, added to every press (+: they press early) */
     uint32_t count[J_N];
     uint32_t combo, max_combo, score;
-} judge_t;
+    /* which notes are the player's, and the key each one is on: by default the chart's own marks (CN_PLAY, its
+     * key); Midi-Mania's player gives its own (player.c: your part and RANGE, a drum's pad) */
+    int (*mine)(const chart_note_t *c);
+    uint32_t (*key)(const chart_note_t *c);
+};
 
 static const uint8_t JUDGE_POINTS[J_N] = {0, 3, 2, 1, 0};
+static int judge_mine(const judge_t *j, const chart_note_t *c) { return j->mine ? j->mine(c) : (c->flags & CN_PLAY) != 0u; }
+static uint32_t judge_key(const judge_t *j, const chart_note_t *c) { return j->key ? j->key(c) : c->key; }
 
 static void judge_init(judge_t *j, const chart_note_t *note, uint32_t n, uint8_t *grade)
 {
@@ -71,7 +78,7 @@ static uint32_t judge_press(judge_t *j, uint32_t key, uint32_t t, int32_t *dt)
         const chart_note_t *c = &j->note[i];
         if ((int64_t)c->time > at + j->win.good)
             break;                                   /* by time: nothing later can be in the window */
-        if (!(c->flags & CN_PLAY) || c->key != key || j->grade[i] != J_NONE)
+        if (j->grade[i] != J_NONE || judge_key(j, c) != key || !judge_mine(j, c))
             continue;
         if ((int64_t)c->time + j->win.good < at)
             continue;                                /* too long ago (judge_tick makes it a MISS) */
@@ -91,7 +98,7 @@ static void judge_tick(judge_t *j, uint32_t now)
     int64_t at = (int64_t)now + j->offset;
     while (j->head < j->n) {
         const chart_note_t *c = &j->note[j->head];
-        if ((c->flags & CN_PLAY) && j->grade[j->head] == J_NONE) {
+        if (j->grade[j->head] == J_NONE && judge_mine(j, c)) {
             if ((int64_t)c->time + j->win.good >= at)
                 break;                               /* still pressable */
             judge_count(j, j->head, J_MISS);
@@ -105,6 +112,6 @@ static uint32_t judge_total(const judge_t *j)
 {
     uint32_t i, n = 0;
     for (i = 0; i < j->n; i++)
-        n += (j->note[i].flags & CN_PLAY) != 0u;
+        n += judge_mine(j, &j->note[i]) != 0;
     return n;
 }

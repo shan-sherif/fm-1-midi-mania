@@ -113,6 +113,66 @@ int main(int argc, char **argv)
         mix_block(out, CTL);
     check("..and no voice is held after it", voices_now() == 0u);
 
+    /* PLAY YOU's score (player.c pl_sc, judge.c): every note of yours pressed in the block it starts in (PERFECT), but
+     * every 7th left (MISS); a press near no note counts for nothing; at the end, the result */
+    {
+        uint32_t mode = pl.mode, k, n = 0, skipped = 0, pressed = 0, run = 0, best = 0, seq0, extra;
+        for (k = 0; k < s->nnote; k++)
+            n += pl_judge_mine(&s->note[k]);
+        pl.you = 1;
+        player_start(0);
+        mix_block(out, CTL);
+        check("PLAY YOU: the song is judged from its start, nothing graded yet",
+              pl_sc.on && !pl_sc.done && judge_total(&pl_judge) == n && n > 0u && !pl_judge.score);
+        seq0 = pl_sc.seq;
+        player_judge_key(pl.mode, 0);                  /* (before any note of key 0 is near) */
+        extra = pl_sc.seq != seq0 || pl_judge.count[J_PERFECT] + pl_judge.count[J_GREAT] + pl_judge.count[J_GOOD];
+        for (b = 0, k = 0; b < blocks + 400u && (pl.playing || pl.req); b++) {
+            mix_block(out, CTL);
+            for (; k < s->nnote && s->note[k].time < pl.pos; k++) {
+                const chart_note_t *c = &s->note[k];
+                if (!pl_judge_mine(c))
+                    continue;
+                if ((pressed + skipped) % 7u == 6u) {   /* left: a MISS once its window passes */
+                    skipped++;
+                    run = 0;
+                    continue;
+                }
+                player_judge_key(pl.mode, pl_judge_key(c));
+                pressed++;
+                if (++run > best)
+                    best = run;
+            }
+        }
+        printf("player: PLAY YOU: %u notes, %u pressed: PERFECT %u GREAT %u GOOD %u MISS %u, max combo %u, %u %%\n",
+               (unsigned)n, (unsigned)pressed, (unsigned)pl_judge.count[J_PERFECT], (unsigned)pl_judge.count[J_GREAT],
+               (unsigned)pl_judge.count[J_GOOD], (unsigned)pl_judge.count[J_MISS], (unsigned)pl_judge.max_combo,
+               (unsigned)pl_judge_accuracy());
+        check("a press with no note of yours near: not counted", !extra);
+        check("every note pressed in its block is PERFECT, every one left a MISS",
+              pl_judge.count[J_PERFECT] == pressed && pl_judge.count[J_MISS] == skipped && pressed + skipped == n &&
+              !pl_judge.count[J_GREAT] && !pl_judge.count[J_GOOD]);
+        /* (a note left becomes a MISS once its window has passed, 110 ms on: the presses before that still add to the
+         * combo, so the longest run is at least the one between skips, and not much more) */
+        check("the combo: the longest run between misses (and the presses in a miss's window); the score 3 a PERFECT",
+              pl_judge.max_combo >= best && pl_judge.max_combo < 2u * best && pl_judge.score == 3u * pressed);
+        check("the song ended: its result shown (done), no longer judging; accuracy under 100 %",
+              !pl.playing && pl_sc.done && !pl_sc.on && pl_judge_accuracy() == (3u * pressed * 100u + n * 3u / 2u) / (n * 3u) &&
+              pl_judge_accuracy() < 100u);
+        player_start(0);
+        mix_block(out, CTL);
+        check("the next song: the result gone, judged afresh", !pl_sc.done && pl_sc.on && !pl_judge.score);
+        player_stop();
+        mix_block(out, CTL);
+        pl.you = 0;
+        player_start(0);
+        mix_block(out, CTL);
+        check("PLAY AUTO: not judged", !pl_sc.on);
+        player_stop();
+        mix_block(out, CTL);
+        pl.mode = (uint8_t)mode;
+    }
+
     /* the tempo: song time runs at bpm / the song's own */
     {
         uint32_t want;

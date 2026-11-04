@@ -51,7 +51,7 @@
 #define FM1_CRASH_CTX_N 1u         /* chip/fm1_irq.h: the registers of the last crash only (80 B of .noinit; four would
                                     * not fit beside the project slots) */
 #ifndef MM_VERSION
-#define MM_VERSION "v0.2.0" /* Midi-Mania's version: shown in the splash, the menu, the console and the editor;
+#define MM_VERSION "v0.3.0" /* Midi-Mania's version: shown in the splash, the menu, the console and the editor;
                                   * build.py --release X.Y (forked from Felucca v1.9.0) */
 #endif
 #if MM_OTA && !MM_FLASH

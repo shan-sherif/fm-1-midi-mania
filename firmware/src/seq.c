@@ -166,6 +166,7 @@ static uint32_t kb_pitch(const track_t *t, uint32_t k, int32_t oct)
 
 static int32_t mm_drum_key_note(uint32_t k);   /* player.c (Midi-Mania: the drum lanes' keys) */
 static int32_t player_key_note(uint32_t part, uint32_t k);   /* .. PLAY YOU: the song's note a key meets */
+static void player_judge_key(uint32_t part, uint32_t k);     /* .. PLAY YOU: the press judged (the score) */
 static uint32_t kb_map(const track_t *t, uint32_t k)
 {
     int32_t n;
@@ -851,8 +852,10 @@ static void keyboard_block(void)
                 kb_note[k] = KB_SILENT;
             else if (song.grid == 1u)             /* the DRUM grid: a lane key plays its lane, the rest are the UI's */
                 kb_note[k] = grid_key_note(k);
-            else
+            else {
+                player_judge_key(trk_index(&trk[kb_trk[k]]), k);   /* (Midi-Mania: PLAY YOU's score; the press alone) */
                 kb_note[k] = (uint8_t)kb_map(&trk[kb_trk[k]], k);
+            }
             if (kb_note[k] == KB_SILENT)
                 continue;
             key_on(k, &trk[kb_trk[k]]);

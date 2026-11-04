@@ -4,7 +4,7 @@
 
 **FM-1 Midi-Mania** (Midi-Mania for short) is a rhythm-game firmware for the **M-VAVE FM-1** synthesizer. Turn a MIDI song into a chart and load it onto the FM-1.
 The FM-1 plays the backing on its own synth engines while notes fall towards the keys on its screen, and you play
-your part on its real keys. (Scoring, every press judged PERFECT, GREAT, GOOD or MISS, is still to come.)
+your part on its real keys, every press judged PERFECT, GREAT, GOOD or MISS, with a combo and a score.
 
 This is based on **[Felucca](https://github.com/hugelton/Felucca)** by Leo Kuroshita (@kurogedelic),
 Hügelton Instruments. It keeps Felucca's sound engines, audio, display, storage and USB, and replaces its groovebox side (step sequencer, arpeggiator, pattern editing) with the game.
@@ -21,13 +21,14 @@ Hügelton Instruments. It keeps Felucca's sound engines, audio, display, storage
 - **[The site](https://shan-sherif.github.io/fm-1-midi-mania/)**: all of them, from one page.
 - **[Releases](https://github.com/shan-sherif/fm-1-midi-mania/releases)**: each version's package and notes.
 
-> **Status: early.** Working on the FM-1 and in the desktop and browser builds:
+> **Status: alpha (0.3.0).** Working on the FM-1 and in the desktop and browser builds:
 > - **SONGS** (the SEQ button): the built-in songs, then your own (sent from Studio over USB, or loaded in Studio itself);
 > - the **play page** (HOME): your part's notes falling to the hit line, the keys lit as they sound; **PLAY YOU**
->   leaves your part to you (a key on time plays the song's note);
+>   leaves your part to you (a key on time plays the song's note) and scores it: each press PERFECT, GREAT, GOOD or
+>   MISS, the combo and the score on screen, the result when the song ends;
 > - the chart format (`firmware/src/chart.h`) and the timing judge (`firmware/src/judge.c`, with its test).
 >
-> Not yet: judging your presses on screen (scores).
+> Not yet: high scores kept, GUITAR and BASS as your part.
 
 ## Playing a MIDI file
 
@@ -70,7 +71,11 @@ Hügelton Instruments. It keeps Felucca's sound engines, audio, display, storage
      **OCT-** puts it back;
    - **KNOB 3 PLAY:** **AUTO**, the FM-1 plays your part, or **YOU**, your part is silent and you play it on the keys
      (its keys still light as the notes arrive). A note you don't press stays silent; a key pressed within 110 ms of
-     one of your notes on it plays the song's note, otherwise the key's own sound;
+     one of your notes on it plays the song's note, otherwise the key's own sound. **YOU is scored:** each of your
+     notes is PERFECT (within 30 ms), GREAT (60 ms), GOOD (110 ms) or, not pressed, MISS; the grade shows over the hit
+     line (GREAT and GOOD say EARLY or LATE), the combo in the middle, the score at the left (300 a PERFECT, 200 a
+     GREAT, 100 a GOOD). When the song plays to its end, HOME shows the result: the score, the accuracy, each grade's
+     count and the longest combo, until the next song. A MIDI keyboard on your part is scored the same;
    - **KNOB 4 RANGE:** which of your part's notes are yours (the FM-1 plays the rest): for KEYS, GUITAR and BASS,
      **ALL**, **RIGHT HAND** (middle C and up), **LEFT HAND** (below it) or **NO LOW** (C3 and up); for DRUMS,
      **ALL 8**, **5 PADS** (no TOM, BELL, CLAP), **4 PADS** (KICK, SNR, CH, OH) or **2 PADS** (KICK, SNR);
@@ -95,7 +100,8 @@ Hügelton Instruments. It keeps Felucca's sound engines, audio, display, storage
    - **KNOB 1 SCROLL:** **DOWN**, notes fall to a line at the bottom of the panel, or **UP**, they rise to a line at
      the top (the keyboard strip and the drum pads move with it);
    - **KNOB 2 NOTE SPEED:** 1 (slow: 4 s from the top of the panel to the line) to 16 (fastest: 0.4 s); 4 is 2 s, 8 is 1 s. Kept for each part: DRUMS start at 8, the others at 4;
-   - **KNOB 3 OFFSET:** −100 to +100 ms, your timing calibration for the judge to come; **OCT-** sets it to 0;
+   - **KNOB 3 OFFSET:** −100 to +100 ms, your timing calibration for the score (moves every press by it: if you are
+     judged LATE when on time, turn it down); **OCT-** sets it to 0;
    - **HOME** or **FX** goes back to the game.
 5. **METRONOME** (SCL), the same settings as MENU's, kept after power-off:
    - **KNOB 1 CLICK:** OFF / ON: the playing song's beats click, the first of each bar higher (it follows TEMPO);
@@ -167,7 +173,8 @@ How a file is fitted to the FM-1 (`tools/gen_songs.py`): four modes, one per par
    (`firmware/src/editor_songs.c`, [docs/CHART_FORMAT.md](docs/CHART_FORMAT.md)), or built into the firmware
    (`assets/songs/`, `midi/`).
 3. **On the FM-1**, the audio interrupt plays the backing with sample-accurate timing. It sounds your keys and passes
-   each press, timed by the key scan to about 0.1 ms, to the judge.
+   each press to the judge (`firmware/src/judge.c`, through `player.c` `player_judge_key`), timed to the audio block
+   it arrives in (2.9 ms).
 
 More: [docs/GAME_ARCHITECTURE.md](docs/GAME_ARCHITECTURE.md) · [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) ·
 [docs/CHART_FORMAT.md](docs/CHART_FORMAT.md) · and from Felucca: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md),

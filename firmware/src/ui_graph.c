@@ -2193,6 +2193,54 @@ static int32_t fp_y(int32_t hit, uint32_t t, uint32_t now)   /* the row of a pre
     return hit - (int32_t)((int64_t)(int32_t)(now - t) * hit / (int32_t)NT_AHEAD);
 }
 static void free_draw(int32_t hit, int32_t top, int drums);
+
+/* PLAY YOU's score over the notes (player.c pl_sc, pl_judge): the last grade, a moment, just above the hit line
+ * (GREAT and GOOD say EARLY or LATE), the combo from 2 in the middle, the score at the left over the line. In
+ * their own colours on every palette; turned with SCROLL UP as the rest (nt_up) */
+#define SC_POP_MS 450u
+#define SC_PERFECT 0xFE60u                           /* #F8CC00: gold */
+static char *sg_uint(char *b, uint32_t v);           /* ui_songs.c */
+static const char *const SC_NAME[J_N] = {"", "PERFECT", "GREAT", "GOOD", "MISS"};
+static const uint16_t SC_COLOUR[J_N] = {0, SC_PERFECT, DR_GREEN, DR_BLUE, DR_RED};
+static void nt_text_f(int32_t x, int32_t y, const aafont_t *f, const char *s, uint16_t c)   /* (nt_text, any font) */
+{
+    cv_text(x, nt_up ? nt_h - y - (int32_t)f->h : y, f, s, c);
+}
+static void nt_text_sh(int32_t x, int32_t y, const aafont_t *f, const char *s, uint16_t c)   /* .. a shadow under it */
+{
+    nt_text_f(x + 1, y + 1, f, s, 0x0000u);         /* (readable over the notes it crosses) */
+    nt_text_f(x, y, f, s, c);
+}
+static void nt_score(int32_t hit, int32_t top)
+{
+    static uint32_t seq, t0;
+    char b[16];
+    if (!pl_sc.on || nt_free())
+        return;
+    if (pl_sc.seq != seq) {                          /* a new grade: shown from now */
+        seq = pl_sc.seq;
+        t0 = fm1_ms;
+    }
+    cv_rgb = 1;
+    if (pl_judge.combo >= 2u) {                      /* the combo: big, in the middle */
+        int32_t y = top + (hit - top) / 2 - (int32_t)(AF_L.h + AF_S.h) / 2;
+        sg_uint(b, pl_judge.combo);
+        nt_text_sh(120 - ink_w(&AF_L, b) / 2, y, &AF_L, b, T_TEXT);
+        nt_text_sh(120 - ink_w(&AF_S, "COMBO") / 2, y + (int32_t)AF_L.h - 4, &AF_S, "COMBO", T_MID);
+    }
+    if (pl_sc.last != J_NONE && pl_sc.last < J_N && fm1_ms - t0 < SC_POP_MS) {   /* the grade */
+        const char *w = SC_NAME[pl_sc.last], *el = pl_sc.last == J_GREAT || pl_sc.last == J_GOOD ?
+                        (pl_sc.dt_ms < 0 ? "EARLY" : "LATE") : 0;
+        int32_t y = hit - (int32_t)AF_M.h - 3, x = 120 - ink_w(&AF_M, w) / 2;
+        nt_text_sh(x, y, &AF_M, w, SC_COLOUR[pl_sc.last]);
+        if (el)
+            nt_text_sh(x + ink_w(&AF_M, w) + 5, y + (int32_t)(AF_M.h - AF_S.h) - 1, &AF_S, el, T_MID);
+    }
+    sg_uint(b, pl_judge.score * 100u);               /* the score: 300 a PERFECT, 200 GREAT, 100 GOOD */
+    nt_text_f(NT_X0 + 2, hit - (int32_t)AF_S.h - 3, &AF_S, b, T_MID);
+    cv_rgb = 0;
+}
+
 static void graph_drums(void)
 {
     const mm_song_t *s = pl_song();
@@ -2232,6 +2280,7 @@ static void graph_drums(void)
         if (c->vel >= 100)
             nt_rect(x, y1 - 5, NT_DW - 3, 1, T_TEXT);   /* an accent: a bright edge, away from the line */
     }
+    nt_score(hit, top);                              /* PLAY YOU: the grade, the combo, the score */
     nt_rect(NT_X0, hit, NLANE * NT_DW, 1, T_TEXT);    /* the hit line */
     for (p = 0; p < NLANE; p++)                       /* the pads: lit in their lane's colour (unused: dark) */
         nt_rect(NT_X0 + (int32_t)p * NT_DW + 2, hit + 2, NT_DW - 3, kb,
@@ -2335,6 +2384,7 @@ static void graph_notes(void)
         if (c->time >= now && y1 - y0 >= 4)
             nt_rect(x, y1 - 2, w, 2, T_TEXT);         /* its start: a bright edge (still to come) */
     }
+    nt_score(hit, 4);                                /* PLAY YOU: the grade, the combo, the score */
     nt_rect(NT_X0, hit, 16 * NT_WW, 1, T_TEXT);      /* the hit line */
     for (k = 0, white = 0; k < CHART_NKEYS; k++)      /* the keyboard strip: white keys, then the black over them */
         if (!key_is_black(k)) {
@@ -2396,6 +2446,47 @@ static void graph_tall(void)
     nt_prev_ok = 1;
 }
 
+/* HOME, stopped after a judged song played to its end (player.c pl_sc.done): its result in the panel, until the next
+ * song starts: the score and the accuracy, each grade's count, the longest combo */
+static void graph_result(void)
+{
+    static const uint8_t ORDER[4] = {J_PERFECT, J_GREAT, J_GOOD, J_MISS};
+    char b[32], *e;
+    uint32_t i;
+    int32_t y = 8, row = (int32_t)AF_S.h + 4;
+    cv_rgb = 1;
+    cv_text(14, y, &AF_S, "RESULT", T_MID);
+    str_cpy(b, pl_song()->title, sizeof b - 2u);
+    if (ink_w(&AF_S, b) > 140) {                     /* (a long title: cut at a word's end where it can be, and "..") */
+        uint32_t n = str_len(b);
+        while (n > 1u && ink_w(&AF_S, b) > 128) {
+            b[--n] = 0;
+            while (n > 1u && b[n - 1u] == ' ')
+                b[--n] = 0;
+        }
+        str_cpy(b + n, "..", 3);
+    }
+    cv_text(226 - ink_w(&AF_S, b), y, &AF_S, b, T_MID);
+    y += row;
+    sg_uint(b, pl_judge.score * 100u);
+    cv_text(14, y, &AF_L, b, T_TEXT);
+    e = sg_uint(b, pl_judge_accuracy());
+    str_cpy(e, "%", 2);
+    cv_text(226 - ink_w(&AF_M, b), y + (int32_t)AF_L.asc - (int32_t)AF_M.asc, &AF_M, b, T_THEME);
+    y += (int32_t)AF_L.h;
+    for (i = 0; i < 4u; i++) {                       /* PERFECT GREAT / GOOD MISS, two to a row */
+        int32_t x = i & 1u ? 124 : 14, yy = y + (int32_t)(i / 2u) * row;
+        cv_text(x, yy, &AF_S, SC_NAME[ORDER[i]], SC_COLOUR[ORDER[i]]);
+        sg_uint(b, pl_judge.count[ORDER[i]]);
+        cv_text(x + 96 - ink_w(&AF_S, b), yy, &AF_S, b, T_TEXT);
+    }
+    y += 2 * row;
+    cv_text(14, y, &AF_S, "MAX COMBO", T_MID);
+    sg_uint(b, pl_judge.max_combo);
+    cv_text(110 - ink_w(&AF_S, b), y, &AF_S, b, T_TEXT);
+    cv_rgb = 0;
+}
+
 static void draw_graph(void)
 {
     const page_t *pg = cur_page();
@@ -2444,6 +2535,8 @@ static void draw_graph(void)
             nt_h = (int32_t)cv_h;
             graph_notes();
         }
+        else if (pl_sc.done)             /* .. a judged song played to its end: its result */
+            graph_result();
         else
             graph_scope(c);
     } else {
