@@ -1,7 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments
-# Build Felucca (see BUILDING.md).
+# Build Midi-Mania (see BUILDING.md).
 #   ./build.sh [--release X.Y.Z]   the FM-1 firmware: build/midi-mania.fwsc (needs the JieLi toolchain, the SDK, Docker)
 #   ./build.sh gen                 the generated headers only, build/gen (Python 3, Pillow, fontTools)
 #   ./build.sh web | sdl              a host platform (platforms/*/build.sh), after gen
@@ -30,7 +30,8 @@ host)
     pillow_ok
     "$PY" tools/build.py --gen
     if command -v emcc >/dev/null 2>&1; then sh platforms/web/build.sh; else echo "build.sh: no emcc: not the web build"; fi
-    if command -v sdl2-config >/dev/null 2>&1; then sh platforms/sdl/build.sh; else echo "build.sh: no SDL2: not the desktop build"; fi ;;
+    if command -v sdl2-config >/dev/null 2>&1; then sh platforms/sdl/build.sh; else echo "build.sh: no SDL2: not the desktop build"; fi
+    exit 0 ;;
 test)
     exec sh tests/run_tests.sh ;;
 ""|--*) ;;
