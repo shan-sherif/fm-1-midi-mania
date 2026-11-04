@@ -272,7 +272,7 @@ int main(int argc, char **argv)
         memset(region, 0xFF, sizeof region);          /* (erased flash) */
         mm_song_base = region;
         mm_song_scan();
-        ok &= mm_nstored == 0u && mm_store_end == 0u && mm_nsongs() == MM_NSONGS;
+        ok &= mm_nstored == 0u && mm_song_room(1u) == 0 && mm_song_free_sectors() == MM_SONG_NSEC && mm_nsongs() == MM_NSONGS;
         o1 = put_chart(region, 0, s, 0xFFu);
         mm_song_scan();
         t = mm_song(MM_NSONGS);
@@ -281,10 +281,10 @@ int main(int argc, char **argv)
               t->beat0 == s->beat0 && t->parts == s->parts && !memcmp(t->part, s->part, sizeof t->part) &&
               !memcmp(t->note, s->note, s->nnote * sizeof *s->note) && !memcmp(t->beat, s->beat, s->nbeat * 4u) &&
               (const uint8_t *)t->note > region && (const uint8_t *)t->note < region + sizeof region &&
-              mm_store_end == (o1 + 0xFFFu) / 0x1000u * 0x1000u;
+              mm_song_room(1u) == (int32_t)((o1 + 0xFFFu) / 0x1000u * 0x1000u);
         check("stored songs: none in an erased region; one chart listed after the built-in songs, as the song it came "
               "from (title, beats, notes, parts), read in place", ok);
-        n0 = mm_store_end;
+        n0 = (uint32_t)mm_song_room(1u);
         o2 = put_chart(region, n0, s, 0x00u);         /* deleted */
         at3 = (n0 + o2 + 0xFFFu) / 0x1000u * 0x1000u;
         o3 = put_chart(region, at3, s, 0xFFu);
@@ -292,7 +292,27 @@ int main(int argc, char **argv)
         put_chart(region, at3 + (o3 + 0xFFFu) / 0x1000u * 0x1000u, s, 0xFFu);
         mm_song_scan();
         check("stored songs: a deleted one and a damaged one (its CRC) skipped, the scan going on past them: 2 listed",
-              mm_nstored == 2u && mm_store_end > at3);
+              mm_nstored == 2u && !mm_sec_used[n0 / 0x1000u] && !mm_sec_used[at3 / 0x1000u]);
+        {   /* a song deleted by erasing its sectors (editor_songs.c): a gap the scan goes past, and the first gap a
+             * new chart fits in is where it goes; no room: -1 */
+            uint32_t sz = put_chart(region, 0, s, 0xFFu), sec = (sz + 0xFFFu) / 0x1000u, g;
+            memset(region, 0xFF, sizeof region);
+            for (g = 0; g < 3u; g++)
+                put_chart(region, g * sec * 0x1000u, s, 0xFFu);
+            memset(region + sec * 0x1000u, 0xFF, sec * 0x1000u);   /* the second one deleted */
+            mm_song_scan();
+            ok = mm_nstored == 2u && mm_stored_off[1] == 2u * sec * 0x1000u && mm_stored_size[1] == sz &&
+                 mm_song_room(sz) == (int32_t)(sec * 0x1000u) && mm_song_room(sec * 0x1000u + 1u) == (int32_t)(3u * sec * 0x1000u) &&
+                 mm_song_free_sectors() == MM_SONG_NSEC - 2u * sec && mm_song_room(MM_SONG_SIZE + 1u) == -1 &&
+                 mm_song_largest_gap() == MM_SONG_NSEC - 3u * sec;
+            check("stored songs: an erased song's sectors a gap the scan goes past, the first gap that fits a new one", ok);
+            memset(region, 0xFF, sizeof region);
+            for (g = 0; g < MM_SONG_MAX + 1u && (g + 1u) * sec <= MM_SONG_NSEC; g++)
+                put_chart(region, g * sec * 0x1000u, s, 0xFFu);
+            mm_song_scan();
+            check("stored songs: at most 16 listed, the sectors of any beyond them still in use",
+                  g <= MM_SONG_MAX || (mm_nstored == MM_SONG_MAX && mm_song_free_sectors() == MM_SONG_NSEC - g * sec));
+        }
         {   /* the stored song plays: every note started, the song ends by itself */
             uint32_t k;
             player_start(MM_NSONGS);

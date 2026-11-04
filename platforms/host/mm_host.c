@@ -469,17 +469,21 @@ FH_API void fh_test_heavy(void)
     transport_req = 1;                               /* (Midi-Mania: PLAY plays songs; the pattern starts here) */
 }
 FH_API void fh_test_stop(void) { transport_req = 2; player_stop(); }
-/* the stored songs (player.c): the region's offset in fh_nor(), its size, the first free sector's offset in it (where
- * a page writes a new chart: docs/CHART_FORMAT.md), and a rescan after writing (the songs listed: built in + stored) */
+/* the stored songs (player.c): the region's offset in fh_nor(), its size, where a chart of n bytes goes (the first gap
+ * it fits: docs/CHART_FORMAT.md; -1 none), the bytes in use, and a rescan after writing (the songs listed: built in +
+ * stored; SONGS checks its selection, ui_songs.c sg_check) */
 FH_API uint32_t fh_song_base(void) { return MM_SONG_BASE; }
 FH_API uint32_t fh_song_size(void) { return MM_SONG_SIZE; }
-FH_API uint32_t fh_song_free(void) { return mm_store_end; }
+FH_API int32_t fh_song_room(uint32_t n) { return mm_song_room(n); }
+FH_API uint32_t fh_song_used(void) { return (MM_SONG_NSEC - mm_song_free_sectors()) * MM_SONG_SECTOR; }
+FH_API uint32_t fh_song_count(void) { return mm_nstored; }   /* the stored songs listed, as SONGS lists them: */
+FH_API uint32_t fh_song_off(uint32_t i) { return i < mm_nstored ? mm_stored_off[i] : 0u; }    /* each one's offset */
+FH_API uint32_t fh_song_len(uint32_t i) { return i < mm_nstored ? mm_stored_size[i] : 0u; }   /* .. and size */
 FH_API uint32_t fh_songs_rescan(void)
 {
     mm_song_scan();
-    sg.list_sig = sg.opt_sig = 0;                 /* (SONGS drawn again) */
     return mm_nsongs();
-}   /* the heavy song and any song stopped */
+}
 /* engine e's presets p, p + 1, p + 2 (wrapping) on T1..T3 in the heavy song's chords, T4 its drums
  * (platforms/sdl --engines-check: an engine and its plugin alike); returns the engine's number of presets */
 FH_API uint32_t fh_test_engine(uint32_t e, uint32_t p)

@@ -100,6 +100,33 @@ ok([0, 1, 2, 6].every((id) => target.objs.get(id).every((v, i) => v === objs.fin
   await restoreBackup(to103b.request, newFile);
   ok(to103b.objs.get(9).every((v, i) => v === patches[i]), "backup: a 1.0.3 archive restores id 9");
 }
+{   /* Midi-Mania 0.2.0: the format's name, and the stored songs in the file (web/fm1songs.js captureSongs) */
+  const chart = (title, nnote, seed) => {          // a chart's bytes: an MMC1 header and nnote notes, 2 beats
+    const c = rnd(72 + 8 + nnote * 12, seed), v = new DataView(c.buffer);
+    v.setUint32(0, 0x31434d4d, true); v.setUint16(4, 2, true); v.setUint16(6, 72, true);
+    v.setUint32(8, 2, true); v.setUint32(12, nnote, true);
+    return { title, bytes: c };
+  };
+  const songs = [chart("Song A", 3, 1), chart("Song B", 400, 2)];
+  ok(file.format === "midi-mania-backup", "backup: new files are \"midi-mania-backup\"");
+  const old = JSON.parse(JSON.stringify(file)); old.format = "felucca-backup"; delete old.songs;
+  ok(readBackup(old).songs.length === 0, "backup: a \"felucca-backup\" file (the installers before 0.2.0) still reads, no songs");
+  const withSongs = await captureBackup(device(objs).request, "FM-1 MIDI-MANIA v0.2.0", () => {}, songs);
+  const back = readBackup(JSON.stringify(withSongs)).songs;
+  ok(withSongs.songs.length === 2 && back.length === 2 && back[1].title === "Song B" && back[1].size === 4880 &&
+     back.every((s, i) => s.bytes.every((v, k) => v === songs[i].bytes[k])), "backup: the songs kept in the file, byte for byte");
+  const hurt = JSON.parse(JSON.stringify(withSongs)); hurt.songs[1].crc ^= 1;
+  ok(throws(() => readBackup(hurt)), "backup: a song whose checksum fails is refused (the whole file)");
+  const notChart = JSON.parse(JSON.stringify(withSongs));
+  notChart.songs[0] = { ...notChart.songs[0], size: 117, data: btoa(String.fromCharCode(...rnd(117, 9))) };
+  notChart.songs[0].crc = bkCrc(rnd(117, 9));
+  ok(throws(() => readBackup(notChart)), "backup: a song that is not a chart (no MMC1, its size not the header's) is refused");
+  const many = JSON.parse(JSON.stringify(withSongs)); many.songs = Array(17).fill(many.songs[0]);
+  ok(throws(() => readBackup(many)), "backup: more than 16 songs is refused");
+  const target2 = device([]);
+  await restoreBackup(target2.request, withSongs);
+  ok(target2.log.filter((x) => typeof x === "number").at(-1) === 0, "backup: restoreBackup takes a file with songs (the songs go separately)");
+}
 const failing = device([], { failChunk: 2 });
 ok(await athrows(() => restoreBackup(failing.request, file)) && failing.log.includes("abort 2") && !failing.log.includes(0), "backup: a refused chunk aborts that object and stops before the live music");
 

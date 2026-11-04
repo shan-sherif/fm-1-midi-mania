@@ -1055,13 +1055,14 @@ static void graph_title(void)
     cv_text_in(0, y, 240, f, ti, T_THEME, T_SURF);
 }
 
+static int nt_tall(void);                            /* (below) */
 static uint32_t graph_signature(void)
 {
     const page_t *pg = cur_page();
     const track_t *t = TSEL;
     uint32_t h = 2166136261u, i;
-    if (ui.home)
-        return h ^ (ui.frame / 2u);                  /* scope: redraw every other frame */
+    if (ui.home)                                     /* scope: redraw every other frame; the notes full screen every */
+        return h ^ (nt_tall() ? ui.frame : ui.frame / 2u);   /* frame (only their changed rows sent: graph_tall) */
     h ^= (uint32_t)pg->graph * 131u + TSEL->eng_req + song.sel * 7777u + ui.page * 1291u;
     if (strip_kind() == SK_TITLE)                    /* MENU > LARGE: the page's title (its engine, its number) */
         return h ^ 0x5A17u;
@@ -2104,6 +2105,9 @@ static int32_t nt_y(int32_t hit, uint32_t t, uint32_t now)   /* the panel row of
  * which turn the panel upside down: the strip and the line at the top, the notes rising, text still upright */
 static uint8_t nt_up;
 static int32_t nt_h;                                 /* the panel's height (the tall one: more than the canvas, graph_tall) */
+/* the song time the frame shows: pl.pos read once a frame (draw_graph), so graph_tall's two strips, the second drawn
+ * after the first has gone out (~27 ms later), show the same moment (else a note jumps where they meet) */
+static uint32_t nt_now;
 static void nt_rect(int32_t x, int32_t y, int32_t w, int32_t h, uint16_t c)
 {
     cv_rect(x, nt_up ? nt_h - y - h : y, w, h, c);
@@ -2192,7 +2196,7 @@ static void free_draw(int32_t hit, int32_t top, int drums);
 static void graph_drums(void)
 {
     const mm_song_t *s = pl_song();
-    uint32_t now = pl.pos, keys = fm1_in.notes | mm_midi_keys | (nt_free() ? 0u : player_keys(MM_DRUMS)), i, p,
+    uint32_t now = nt_now, keys = fm1_in.notes | mm_midi_keys | (nt_free() ? 0u : player_keys(MM_DRUMS)), i, p,
              used = nt_free() ? 0xFFu : nt_used();
     int32_t h = nt_h, kb = h >= 80 ? 12 : 6, hit = h - kb - 3, top = h >= 80 ? 18 : 4;
     for (p = 0; p < NLANE; p++)                       /* the lanes none of your hits come down: greyed out */
@@ -2259,7 +2263,7 @@ static void nt_lane(uint32_t k, int32_t *x, int32_t *w)   /* key k's lane on the
  * pad's a hit (5 rows) at where it was struck, in its lane's colour; keys off the pads: none */
 static void free_draw(int32_t hit, int32_t top, int drums)
 {
-    uint32_t now = pl.pos, i, p;
+    uint32_t now = nt_now, i, p;
     for (i = 0; i < FP_N; i++) {
         int32_t y0, y1, x, w;
         if (!fp[i].used)
@@ -2287,7 +2291,7 @@ static void free_draw(int32_t hit, int32_t top, int drums)
 static void graph_notes(void)
 {
     const mm_song_t *s = pl_song();
-    uint32_t now = pl.pos, mode = pl.mode % MM_NMODES, keys = fm1_in.notes | mm_midi_keys | (nt_free() ? 0u : player_keys(mode)), i, k,
+    uint32_t now = nt_now, mode = pl.mode % MM_NMODES, keys = fm1_in.notes | mm_midi_keys | (nt_free() ? 0u : player_keys(mode)), i, k,
              white = 0, used;
     int32_t h = nt_h, kb = h >= 80 ? 12 : 6, hit = h - kb - 3, x, w;
     nt_up = pl.up;
@@ -2349,19 +2353,47 @@ static void graph_notes(void)
 #define NT_TALL_H (Y_GRAPH + H_GRAPH - Y_LABEL)
 static int game_cards_shown(void);                   /* ui_songs.c */
 static int nt_tall(void) { return ui.home && player_busy() && !game_cards_shown(); }
+/* Only the rows that changed go to the screen: the whole panel is 240 x 170 px, 81.6 KB, about 33 ms at 20 MHz (54 at
+ * 12), each frame; between two frames the notes move a few rows, so most rows are as they were (a note's inside, the
+ * lanes, the strip). nt_prev holds what the screen shows there; a row is sent when it differs. It holds only while
+ * every frame since it was drawn went through draw_graph with this view (nt_prev_ok: a dialog, a menu or the cards
+ * drawn over it clear it) and nothing asked for it all (ui.force): else all of it goes, as before */
+#define NT_TALL_PX (240u * NT_TALL_H)
+static uint16_t nt_prev[NT_TALL_PX] __attribute__((section(".pool")));
+static uint8_t nt_prev_ok;                           /* nt_prev is what the screen shows */
+static uint32_t nt_sent_rows;                        /* rows sent by the last frame (tests) */
 static void graph_tall(void)
 {
     uint32_t y, sh = NT_TALL_H / 2u;
+    int all = ui.force || !nt_prev_ok;
+    nt_sent_rows = 0;
     for (y = 0; y < NT_TALL_H; y += sh) {
-        cv_begin(240, y + sh > NT_TALL_H ? NT_TALL_H - y : sh, T_BG);
+        uint32_t h = y + sh > NT_TALL_H ? NT_TALL_H - y : sh, r = 0, r0;
+        uint16_t *prev = nt_prev + y * 240u;
+        cv_begin(240, h, T_BG);
         cv_oy = -(int32_t)y;
         cv_rrect(3, 0, 234, NT_TALL_H, 5, T_SURF, T_BG);
         cv_bg = T_SURF;
         nt_h = NT_TALL_H;
         graph_notes();
         cv_oy = 0;
-        cv_blit(0, NT_TALL_Y + y);
+        if (all) {
+            cv_blit(0, NT_TALL_Y + y);
+            nt_sent_rows += h;
+        } else
+            while (r < h) {                          /* runs of changed rows, each one transfer */
+                while (r < h && !memcmp(cv_px + r * 240u, prev + r * 240u, 480u))
+                    r++;
+                for (r0 = r; r < h && memcmp(cv_px + r * 240u, prev + r * 240u, 480u); r++)
+                    ;
+                if (r > r0) {
+                    lcd_blit(0, NT_TALL_Y + y + r0, 240, r - r0, cv_px + r0 * 240u);
+                    nt_sent_rows += r - r0;
+                }
+            }
+        memcpy(prev, cv_px, h * 480u);               /* (the DMA only reads cv_px: copying alongside it is safe) */
     }
+    nt_prev_ok = 1;
 }
 
 static void draw_graph(void)
@@ -2370,6 +2402,10 @@ static void draw_graph(void)
     const track_t *t = TSEL;
     uint16_t c = ACC;
     uint32_t sig;
+    static uint32_t seen;                            /* ui.frame of the last call: a gap, a frame drawn by something else */
+    if (ui.frame != seen + 1u || !nt_tall())         /* (a dialog, a menu, the cards): graph_tall sends all next time */
+        nt_prev_ok = 0;
+    seen = ui.frame;
     free_track();                                    /* (FREE PLAY: the keys' presses, every frame) */
     if (!ui.home && pg->graph == GR_TRK) {
         draw_tracks();
@@ -2384,6 +2420,7 @@ static void draw_graph(void)
     if (!ui.force && sig == ui.graph_sig)
         return;
     ui.graph_sig = sig;
+    nt_now = pl.pos;                                 /* (one song time for the whole frame) */
     if (nt_tall()) {                                 /* Midi-Mania: the cards hidden */
         graph_tall();
         return;

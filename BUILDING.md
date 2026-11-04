@@ -107,6 +107,10 @@ Build options (environment, `0` or `1`; defaults in `firmware/src/midimania.c`, 
 `MM_USB_LAYOUT` (`0` to `3`, default `0`) picks other USB descriptor layouts for testing; see
 `firmware/bsp/chip/usb.c`.
 
+`LCD_BAUD` (`1` to `4`, default `2`) sets the screen's SPI clock, 60 MHz / (`LCD_BAUD` + 1): `2` is 20 MHz (the
+default since 0.2.0, tried on an FM-1), `4` 12 MHz (Felucca's), `1` 30 MHz (not tried). If a build shows a garbled
+picture, `LCD_BAUD=4` puts Felucca's clock back (`firmware/src/lcd.c`).
+
 ## Samples
 
 The CC0 instrument samples that the SAMPLE engine uses are in `assets/samples-cc0/`

@@ -139,6 +139,7 @@ run "FM6 voice bank: write / read, power cuts, CRC, SLOT B1..B32" "$OUT/fm6bank_
 $T -DMM_NO_USER_SAMPLES=0 -o "$OUT/editor_test" tests/editor_test.c -lm   # (with Felucca's sample slots: their code)
 run "editor protocol: real C protocol, malformed transfers, queue recovery, MENU settings" \
     env MENU_JSON="$OUT/menu.json" "$OUT/editor_test"
+$T -o "$OUT/songs_bridge" tests/songs_bridge.c -lm   # (as the FM-1's build: the song uploads, web/test_songs_usb.mjs)
 $T -DMM_NO_USER_SAMPLES=0 -o "$OUT/robust_test" tests/robust_test.c -lm   # (Felucca's sample slots, off in Midi-Mania: their code)
 run "robustness: crafted sample slots, engine numbers, retained old projects, preset patterns, malformed requests" \
     "$OUT/robust_test"
@@ -242,6 +243,7 @@ run "installer CLI (fm1_install.py) against a simulated FM-1" python3 tests/inst
 if command -v node >/dev/null 2>&1; then
     run "web pages: package builder, update protocol" node web/test_web.mjs
     run "web backup: capture, validation before writes, restore order" node web/test_backup.mjs
+    run "song uploads: the page's code against the firmware's protocol (upload, list, power-on, delete, errors)"         node web/test_songs_usb.mjs "$OUT/songs_bridge" assets/songs
     run "the converter in the browser (web/mm_songs.js) = tools/gen_songs.py, chart for chart, byte for byte; damaged files refused" \
         node web/test_songs.mjs "$OUT/charts" assets/songs midi
 else

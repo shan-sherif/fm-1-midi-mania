@@ -31,6 +31,7 @@ static void fm1_wdt_feed(void)
 {
     fm1_ms++;
     if (host_progress && transport_req == 2u) { seq_stop(); transport_req = 0; }
+    if (host_progress && pl.req == PL_REQ_STOP) { pl.playing = 0; pl.req = PL_REQ_NONE; }   /* (the audio ISR's) */
 }
 static void fm1_irq_off(void) {}
 static void fm1_irq_on(void) {}
@@ -171,7 +172,7 @@ static int preferences(void)
     uint8_t a[4] = {0, 7, 0, 0};
     reset();
     uint32_t n = request(ED_INFO, a, 0);
-    uint32_t e = n - 6u;                                  /* (1.5.5: 4B 01 NCOND, 1.6: 45 01 5 last, below) */
+    uint32_t e = n - 9u;                                  /* (1.5.5: 4B 01 NCOND, 1.6: 45 01 5, Midi-Mania 47 01 16 last) */
     bad += check("INFO explicitly tags display capabilities after SONG without changing command 33",
         ED_SONG == 33 && ED_UI_STATE == 34 && ED_FAV_SET == 38 &&
         host_wire[e - 47] == CHAIN_ROWS && host_wire[e - 46] == 0x55 &&
@@ -192,9 +193,11 @@ static int preferences(void)
         host_wire[e - 7] == 0x56 && host_wire[e - 6] == 1 && host_wire[e - 5] == 32 &&   /* 1.4.1: FM6 voice bank */
         host_wire[e - 4] == 0x43 && host_wire[e - 3] == 1 && host_wire[e - 2] == ML_N);   /* 1.5: MIDI LEARN */
     bad += check("INFO 1.5.5: 4B 01 11, a step's condition after its nudge",
-        host_wire[n - 7] == 0x4B && host_wire[n - 6] == 1 && host_wire[n - 5] == NCOND);
-    bad += check("INFO 1.6: 45 01 5, CUSTOM's colours, last",
-        host_wire[n - 4] == 0x45 && host_wire[n - 3] == 1 && host_wire[n - 2] == 5);
+        host_wire[n - 10] == 0x4B && host_wire[n - 9] == 1 && host_wire[n - 8] == NCOND);
+    bad += check("INFO 1.6: 45 01 5, CUSTOM's colours",
+        host_wire[n - 7] == 0x45 && host_wire[n - 6] == 1 && host_wire[n - 5] == 5);
+    bad += check("INFO Midi-Mania: 47 01 16, the stored songs over USB (cmds 88..93), last",
+        host_wire[n - 4] == 0x47 && host_wire[n - 3] == 1 && host_wire[n - 2] == MM_SONG_MAX);
     request(ED_UI_SET, a, 2);
     bad += check("UI_SET updates the actual palette and reports RAM-only saving",
         host_wire[5] == 3 && settings.palette == 7 && T_BG == UI_PALETTES[7].c1);
@@ -1218,6 +1221,177 @@ static uint32_t pal_send(uint32_t op, const uint16_t *c)
     return palette_cmd(ED_PALETTE_SET, a, 16);
 }
 static uint16_t rgb565(uint32_t r, uint32_t g, uint32_t b) { return (uint16_t)((r >> 3) << 11 | (g >> 2) << 5 | b >> 3); }
+/* Midi-Mania: the stored songs over USB (editor_songs.c, cmds 88..93) against the simulated song region */
+static uint8_t sg_chart[3u * 4096u + 100u];
+static uint32_t sg_make(uint32_t nnote, const char *title, uint8_t seed)   /* a chart: its size */
+{
+    chart_head_t h;
+    uint32_t nbeat = 8u, i, n;
+    memset(&h, 0, sizeof h);
+    h.magic = CHART_MAGIC; h.version = CHART_VERSION; h.head_size = sizeof h; h.nbeat = nbeat; h.nnote = nnote;
+    h.length = 44100u * 30u; h.bpm_x10 = 1200; h.beats_per_bar = 4; h.level = 1; h.parts = 3; h.live = 0xFF;
+    strncpy(h.title, title, sizeof h.title);
+    n = sizeof h + nbeat * 4u + nnote * (uint32_t)sizeof(chart_note_t);
+    for (i = sizeof h; i < n; i++)
+        sg_chart[i] = (uint8_t)(i * 7u + seed);
+    h.crc32 = mm_crc32(sg_chart + sizeof h, n - sizeof h);
+    memcpy(sg_chart, &h, sizeof h);
+    return n;
+}
+static uint32_t sg_rc;                               /* the last reply's rc */
+/* BEGIN, the WRITEs (all, or the first `writes` of them), END: END's rc (BEGIN's or a WRITE's when they fail; 99 when
+ * the END is left out) */
+static uint32_t sg_upload(uint32_t size, uint32_t writes, int end)
+{
+    static uint8_t a[400];
+    uint32_t off, k = 0, len;
+    a[0] = (uint8_t)(size & 127u); a[1] = (uint8_t)(size >> 7 & 127u); a[2] = (uint8_t)(size >> 14 & 127u);
+    if (request(ED_SONG_BEGIN, a, 3) != 8u || host_wire[5])
+        return 100u + host_wire[5];
+    for (off = 256u; off < size && k < writes; off += 256u, k++) {
+        len = size - off < 256u ? size - off : 256u;
+        a[0] = (uint8_t)(off & 127u); a[1] = (uint8_t)(off >> 7 & 127u); a[2] = (uint8_t)(off >> 14 & 127u);
+        if (request(ED_SONG_WRITE, a, 3u + pack7(sg_chart + off, len, a + 3)) != 10u || host_wire[8])
+            return 200u + host_wire[8];
+    }
+    if (!end)
+        return 99u;
+    request(ED_SONG_END, a, pack7(sg_chart, size < 256u ? size : 256u, a));
+    return sg_rc = host_wire[5];
+}
+static uint32_t sg_sec_erased(uint32_t sec)
+{
+    uint32_t i;
+    for (i = 0; i < 4096u; i++)
+        if (host_samples[0][sec * 4096u + i] != 0xFF)
+            return 0;
+    return 1;
+}
+static int stored_songs(void)
+{
+    int bad = 0;
+    uint8_t a[400];
+    uint32_t n, big, small, i;
+    reset();
+    memset(host_samples, 0xFF, sizeof host_samples);
+    mm_song_base = &host_samples[0][0];
+    mm_song_scan();
+    n = request(ED_SONG_LIST, a, 0);
+    bad += check("SONG_LIST, none stored: built in, 0 stored, 16 at most, 60 sectors, 60 free, a 60-sector gap",
+                 n == 12u && host_wire[5] == MM_NSONGS && !host_wire[6] && host_wire[7] == 16u && host_wire[8] == 60u &&
+                 host_wire[9] == 60u && host_wire[10] == 60u);
+    big = sg_make(1000u, "Big One", 1);              /* 12,104 bytes: 3 sectors */
+    bad += check("an upload (BEGIN, 47 WRITEs, END): rc 0, listed after the built-in songs, read in place",
+                 sg_upload(big, 999u, 1) == 0u && mm_nstored == 1u && mm_stored_off[0] == 0u &&
+                 !strcmp(mm_song(MM_NSONGS)->title, "Big One") && !memcmp(host_samples[0], sg_chart, big));
+    small = sg_make(5u, "Tiny", 2);                  /* under 256 bytes: END alone */
+    bad += check("a chart under 256 bytes: BEGIN and END only, into the next free sector",
+                 sg_upload(small, 999u, 1) == 0u && mm_nstored == 2u && mm_stored_off[1] == 3u * 4096u);
+    n = request(ED_SONG_LIST, a, 0);
+    bad += check("SONG_LIST: 2 stored, 56 free; each one's sector, sectors, parts, BPM x 10, seconds, title",
+                 host_wire[6] == 2u && host_wire[9] == 56u && host_wire[10] == 56u &&
+                 host_wire[11] == 0u && host_wire[12] == 3u && host_wire[13] == 3u &&
+                 (host_wire[14] | host_wire[15] << 7) == 1200u && (host_wire[16] | host_wire[17] << 7) == 30u &&
+                 !strcmp((const char *)host_wire + 18, "Big One") && host_wire[26] == 3u && host_wire[27] == 1u &&
+                 !strcmp((const char *)host_wire + 33, "Tiny") && n == 5u + 6u + 15u + 12u + 1u);
+    {   /* SONG_READ (the backup): a stored chart back, 256 bytes a reply, byte for byte */
+        static uint8_t back[3u * 4096u];
+        uint32_t off, got = 0;
+        int ok = 1;
+        for (off = 0; off < big && ok; off += 256u) {
+            uint32_t len = big - off < 256u ? big - off : 256u, k, o = 0;
+            a[0] = 0; a[1] = (uint8_t)(off & 127u); a[2] = (uint8_t)(off >> 7 & 127u); a[3] = (uint8_t)(off >> 14 & 127u);
+            n = request(ED_SONG_READ, a, 4);
+            ok &= n == 10u + len + (len + 6u) / 7u + 1u && !host_wire[5] && (host_wire[6] | host_wire[7] << 7) == off &&
+                  !host_wire[9];
+            for (k = 10u; ok && o < len; ) {             /* (pack7: a mask byte, then up to 7 bytes) */
+                uint32_t m = host_wire[k++], j;
+                for (j = 0; j < 7u && o < len; j++)
+                    back[off + o++] = (uint8_t)(host_wire[k++] | ((m >> j) & 1u) << 7);
+            }
+            got += o;
+        }
+        bad += check("SONG_READ: the 3-sector song read back whole, 256 bytes a reply, the same bytes as stored",
+                     ok && got == big && !memcmp(back, host_samples[0], big));
+        a[0] = 0; a[1] = 44; a[2] = 2; a[3] = 0;     /* off 300: off the grid */
+        ok = request(ED_SONG_READ, a, 4) == 11u && host_wire[9] == 2u;
+        a[1] = 0; a[2] = (uint8_t)((big + 255u) / 256u * 2u & 127u); a[3] = (uint8_t)((big + 255u) / 256u * 2u >> 7);
+        ok &= request(ED_SONG_READ, a, 4) == 11u && host_wire[9] == 2u;   /* (past its end) */
+        a[0] = 1; a[2] = 0; a[3] = 0;                /* (inside the song, not its start) */
+        ok &= request(ED_SONG_READ, a, 4) == 11u && host_wire[9] == 1u;
+        bad += check("SONG_READ refuses an offset off the grid or past the end (rc 2), a sector no song starts at (rc 1)", ok);
+        a[0] = 3;
+        n = request(ED_SONG_READ, a, 4);
+        bad += check("SONG_READ of a song under 256 bytes: all of it in one reply",
+                     !host_wire[9] && n == 10u + small + (small + 6u) / 7u + 1u);
+    }
+    sg_make(1000u, "Broken", 3);
+    sg_chart[700] ^= 0x10u;                          /* (a byte changed on the way: its CRC fails) */
+    bad += check("a chart whose CRC fails: END rc 3, its header never written, not listed",
+                 sg_upload(big, 999u, 1) == 3u && mm_nstored == 2u && host_samples[0][4u * 4096u] == 0xFF);
+    sg_make(1000u, "Cut Short", 4);
+    sg_upload(big, 20u, 0);                          /* (the cable pulled: 20 WRITEs, no END) */
+    mm_song_scan();                                  /* (the next power-on) */
+    bad += check("an upload cut short (no END) and a power-on: not listed, its sectors free again",
+                 mm_nstored == 2u && mm_song_room(big) == 4 * 4096 && mm_song_free_sectors() == 56u);
+    a[0] = 0; a[1] = 2; a[2] = 0;                    /* off 256 */
+    request(ED_SONG_END, a, 0);
+    bad += check("WRITE and END without a BEGIN: rc 4, rc 1; nothing written",
+                 request(ED_SONG_WRITE, a, 3u + pack7(sg_chart, 256u, a + 3)) == 10u && host_wire[8] == 4u &&
+                 request(ED_SONG_END, a, pack7(sg_chart, 256u, a)) == 8u && host_wire[5] == 1u);
+    sg_make(1000u, "Checked", 5);
+    a[0] = (uint8_t)(big & 127u); a[1] = (uint8_t)(big >> 7 & 127u); a[2] = 0;
+    request(ED_SONG_BEGIN, a, 3);
+    {
+        const uint32_t OFFS[4][2] = {{0u, 256u}, {300u, 256u}, {256u, 100u}, {big - (big % 256u) + 256u, 256u}};
+        int ok = !host_wire[5];
+        for (i = 0; i < 4u; i++) {                   /* the header's bytes, off the grid, short but not the last, past the end */
+            uint32_t off = OFFS[i][0];
+            a[0] = (uint8_t)(off & 127u); a[1] = (uint8_t)(off >> 7 & 127u); a[2] = (uint8_t)(off >> 14 & 127u);
+            ok &= request(ED_SONG_WRITE, a, 3u + pack7(sg_chart + 256u, OFFS[i][1], a + 3)) == 10u && host_wire[8] == 1u;
+        }
+        bad += check("WRITE refuses the header's bytes, an offset off the 256-byte grid, a short chunk not the last, "
+                     "and past the chart's end (rc 1)", ok);
+    }
+    sg_make(1001u, "Wrong Size", 6);
+    request(ED_SONG_END, a, pack7(sg_chart, 256u, a));
+    bad += check("END of a header whose size is not BEGIN's: rc 2", host_wire[5] == 2u && mm_nstored == 2u);
+    sg_make(10u, "Third", 7);
+    sg_upload(sg_make(10u, "Third", 7), 999u, 1);    /* sector 4 */
+    pl.playing = 1; pl.free = 0; pl.song = (uint8_t)(MM_NSONGS + 1u); host_progress = 0;
+    a[0] = 3;
+    bad += check("DELETE while a song plays and the audio cannot stop it: rc 5, nothing erased",
+                 request(ED_SONG_DELETE, a, 1) == 8u && host_wire[5] == 5u && !sg_sec_erased(3) && mm_nstored == 3u);
+    host_progress = 1;
+    bad += check("DELETE of the middle song: the song playing stopped, its sector erased, the others where they were",
+                 request(ED_SONG_DELETE, a, 1) == 8u && !host_wire[5] && !pl.playing && sg_sec_erased(3) &&
+                 mm_nstored == 2u && mm_stored_off[0] == 0u && mm_stored_off[1] == 4u * 4096u);
+    a[0] = 1;
+    bad += check("DELETE of a sector no song starts at (inside one, or empty): rc 1",
+                 request(ED_SONG_DELETE, a, 1) == 8u && host_wire[5] == 1u && mm_nstored == 2u);
+    sg_make(5u, "Into The Gap", 8);
+    bad += check("the next upload goes into the gap the deleted song left",
+                 sg_upload(small, 999u, 1) == 0u && mm_nstored == 3u && mm_stored_off[1] == 3u * 4096u &&
+                 !strcmp(mm_song(MM_NSONGS + 1u)->title, "Into The Gap"));
+    bad += check("BEGIN of a chart bigger than the largest gap: rc 2; smaller than a header: rc 1",
+                 sg_upload(MM_SONG_SIZE, 0u, 1) == 102u && sg_upload(10u, 0u, 1) == 101u);
+    for (i = mm_nstored; i < MM_SONG_MAX; i++)
+        sg_upload(sg_make(5u, "Filler", (uint8_t)i), 999u, 1);
+    bad += check("16 songs stored: BEGIN refuses a 17th (rc 3)",
+                 mm_nstored == MM_SONG_MAX && sg_upload(small, 999u, 1) == 103u);
+    for (i = 0; i < MM_SONG_MAX; i++) {             /* each one deleted: every sector free again */
+        a[0] = (uint8_t)(mm_stored_off[0] / 4096u);
+        request(ED_SONG_DELETE, a, 1);
+    }
+    bad += check("every song deleted: none listed, all 60 sectors erased and free",
+                 !mm_nstored && mm_song_free_sectors() == 60u && sg_sec_erased(0) && sg_sec_erased(59));
+    mm_song_base = 0;
+    mm_song_scan();
+    bad += check("no song region (no flash): BEGIN refused (rc 5)", sg_upload(small, 999u, 1) == 105u);
+    memset(host_samples, 0, sizeof host_samples);
+    return bad;
+}
+
 static int custom_palette(void)
 {
     int bad = 0, ok;
@@ -1347,7 +1521,7 @@ int main(void)
 {
     int bad = preferences() + motion_locks() + framing() + uart_recovery() + steps() + samples() + song_protocol() + malformed_saves() +
               fm6_patches() + user_preset_roundtrip() + live_sync() + usb_burst() + menu_protocol() + drum_kit_retired() +
-              learn_protocol() + custom_palette();
+              learn_protocol() + custom_palette() + stored_songs();
     printf("%s\n", bad ? "EDITOR TEST FAILED" : "editor test passed");
     return bad != 0;
 }

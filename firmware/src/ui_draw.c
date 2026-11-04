@@ -1381,7 +1381,7 @@ static void draw_columns(void)
 #define SPL_X0 ((240u - SPL_SQ) / 2u)               /* its top-left on the screen (x and y) */
 #define SPL_PAD 16                                  /* the text's inset: left (its ink), top and bottom (the capitals) */
 #define SPL_PITCH 20                                /* line to line */
-static const char *const SPLASH_LINES[] = {"Midi-Mania", MM_VERSION, "Based on Felucca", "H\xFCgelton Instruments"};
+static const char *const SPLASH_LINES[] = {"FM-1 Midi-Mania", MM_VERSION, "Based on Felucca", "H\xFCgelton Instruments"};
 /* a band of two lines, h tall, at y on the screen: the first line's top at ly; the two lines' capitals declared
  * against al0..al1 (mode: AL_V the band centred there, AL_B the last baseline on al1) */
 static void splash_band(uint32_t y, uint32_t h, int32_t ly, const char *const *l, uint32_t mode, int32_t al0,
@@ -1393,12 +1393,32 @@ static void splash_band(uint32_t y, uint32_t h, int32_t ly, const char *const *l
     cv_text_on(SPL_PAD, ly + SPL_PITCH, &AF_M, l[1], T_TEXT, T_RAISE);
     cv_blit(SPL_X0, y);
 }
+/* FM-1 Midi-Mania's logo: four keys, the one in the middle pink and pressed down, on its cream tile; the artwork's
+ * 1024 px square (assets/logo.png) scaled to LOGO_SZ (a 16th). Its own colours on every palette. Drawn from these boxes, not stored as
+ * a picture (a few hundred bytes of code; a 64 x 64 picture would be 8 KB) */
+#define LOGO_SZ 64
+#define LOGO_CREAM 0xF79Du                          /* #F4F1E8 */
+#define LOGO_INK 0x10A3u                            /* #17151F */
+#define LOGO_PINK 0xFA71u                           /* #FF4F8B */
+static void draw_logo(int32_t x, int32_t y, uint16_t under)   /* on the canvas: the tile's top-left at x, y */
+{
+    static const uint8_t KEY[4][4] = {{10, 11, 8, 42}, {21, 19, 8, 20}, {35, 19, 8, 20}, {46, 11, 8, 42}};   /* x y w h */
+    uint32_t i;
+    cv_rrect(x, y, LOGO_SZ, LOGO_SZ, -8, LOGO_CREAM, under);
+    for (i = 0; i < 4u; i++)
+        cv_rrect(x + KEY[i][0], y + KEY[i][1], KEY[i][2], KEY[i][3], -2, LOGO_INK, LOGO_CREAM);
+    cv_rrect(x + 28, y + 34, 8, 19, -2, LOGO_PINK, LOGO_CREAM);   /* the pink key, over the two short ones' edges: */
+    cv_rect(x + 28, y + 34, 8, 2, LOGO_PINK);                     /* its top corners square (they lie on the ink) */
+}
 static void draw_splash(void)
 {
     int32_t h = SPL_PAD - AF_M_CAP_Y + SPL_PITCH + AF_M.h;     /* a band: its two lines, the descenders in */
     int32_t lb = h - SPL_PAD - AF_M_CAP_H - AF_M_CAP_Y;         /* the bottom band's last line: its top */
     lcd_fill(0, 0, 240, 240, T_BG);
     lcd_fill(SPL_X0, SPL_X0, SPL_SQ, SPL_SQ, T_RAISE);
+    cv_begin(LOGO_SZ, LOGO_SZ, T_RAISE);                        /* the logo, between the bands, its left at the text's */
+    draw_logo(0, 0, T_RAISE);
+    cv_blit(SPL_X0 + SPL_PAD, SPL_X0 + (uint32_t)h + (SPL_SQ - 2u * (uint32_t)h - LOGO_SZ) / 2u);
     splash_band(SPL_X0, (uint32_t)h, SPL_PAD - AF_M_CAP_Y, SPLASH_LINES, AL_V, SPL_PAD,
                 SPL_PAD + SPL_PITCH + AF_M_CAP_H, "splash name + version SPL_PAD from the top");
     splash_band(SPL_X0 + SPL_SQ - (uint32_t)h, (uint32_t)h, lb - SPL_PITCH, SPLASH_LINES + 2, AL_B, 0, h - SPL_PAD,

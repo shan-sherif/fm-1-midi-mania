@@ -84,8 +84,26 @@ static void sg_pick(uint32_t i)                   /* song i selected: its own te
     sg_mode_fix();
 }
 
+/* the stored songs changed (player.c mm_song_scan: a song uploaded or deleted over USB, editor_songs.c; the browser
+ * build's page): the selection kept if it is still a song, else the first; drawn again */
+static uint32_t sg_gen;
+static void sg_check(void)
+{
+    if (sg_gen == mm_songs_gen)
+        return;
+    sg_gen = mm_songs_gen;
+    if (sg.sel >= mm_nsongs())
+        sg.sel = 0;
+    if (!mm_nsongs())
+        sg.free = 1;
+    if (mm_nsongs())
+        sg_pick(sg.sel);
+    sg.list_sig = sg.opt_sig = sg.prog_sig = 0;
+}
+
 static void songs_open(void)
 {
+    sg_check();
     sg.on = 1;
     sg.list_sig = sg.opt_sig = sg.prog_sig = 0;
     if (player_busy()) {                          /* (the song playing selected, its tempo as set) */
@@ -147,8 +165,12 @@ static char *sg_bpm(char *b, uint32_t bpm_x10)    /* "114" or "114.5" */
  * picked for it (SAVE > PRESETS); the keys play your part */
 static void songs_play(uint32_t i)
 {
-    const mm_song_t *s = mm_song(i);
+    const mm_song_t *s;
     uint32_t p;
+    sg_check();
+    if (i >= mm_nsongs())                            /* (a stored song deleted meanwhile) */
+        return;
+    s = mm_song(i);
     for (p = 0; p < CHART_NPART; p++) {
         track_t *t = &trk[p];
         if (!((s->parts >> p) & 1u))
@@ -194,6 +216,7 @@ static const char *mm_sound_name(uint32_t part)    /* the sound part plays: its 
 static void songs_input(uint32_t pressed, uint32_t home, uint32_t oct)
 {
     int32_t d = panel_enc(EN_SELECT), m = panel_enc(EN_ALGO), t = panel_enc(EN_K2), so = panel_enc(EN_PRESET);
+    sg_check();
     {   /* Midi-Mania: SONGS is on SEQ; HOME, ARP or SEQ the game, EDIT the MIXER, SCL the METRONOME, FX GAME, SAVE
          * PRESETS (mm_nav) */
         static const uint8_t NAV[6] = {B_ARP, B_SEQ, B_EDIT, B_SCL, B_FX, B_SAVE};
@@ -384,6 +407,7 @@ static void sg_progress(void)
 
 static void songs_draw(void)
 {
+    sg_check();
     uint32_t playing = player_busy(), pal = palette_cur() * 7919u;
     uint32_t list = 1u + sg_row() * 131u + (playing ? 7u + pl.song * 977u + (uint32_t)player_is_free() * 31u : 0u) + pal;
     uint32_t opt = 1u + sg_row() * 31u + pl.mode * 7u + sg.bpm_x10 * 1009u + pl.you * 104729u + pl.range * 7907u + pal +
@@ -407,7 +431,8 @@ static void songs_draw(void)
  * The game's settings, on the FX button (ui_input.c page_tap; Midi-Mania has no effects pages), over
  * the whole screen as SONGS is. A knob a row:
  *   KNOB 1  SCROLL      DOWN: HOME's notes fall to a line at the bottom; UP: they rise to one at the top (pl.up)
- *   KNOB 2  NOTE SPEED  1 (slow: 4 s from the top of the panel to the line) .. 8 (fast: 1 s); 4: 2 s (PL_SPEED)
+ *   KNOB 2  NOTE SPEED  1 (slow: 4 s from the top of the panel to the line) .. 8 (1 s) .. 16 (fastest: 0.4 s); 4: 2 s
+ *                       (PL_SPEED)
  *   KNOB 3  OFFSET      -100 .. +100 ms, 2 ms a detent: the player's timing calibration, for the judge (pl.offset);
  *                       OCT- puts it back to 0
  *   HOME or FX: back. Not kept after power-off yet */
@@ -570,6 +595,8 @@ static void game_draw(void)
         e = sg_uint(n, ms / 1000u);
         *e++ = '.';
         e = sg_uint(e, ms % 1000u / 100u);
+        if (ms % 100u >= 10u)                        /* (0.55, 0.45: the hundredths too) */
+            e = sg_uint(e, ms % 100u / 10u);
         str_cpy(e, " S", sizeof n - (uint32_t)(e - n));
         gm_row(1, "K2 SPEED", v, n);
     }
@@ -743,6 +770,7 @@ static int mm_page_tap(uint32_t b)
 /* PLAY, no song playing (ui_input.c): the song selected, and the game */
 static void mm_play_selected(void)
 {
+    sg_check();
     if (sg.free || !mm_nsongs()) {
         mm_free_start();
     } else {

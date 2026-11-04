@@ -1,6 +1,6 @@
 # Licensing
 
-fm-1-midi-mania is a modified version of Felucca and is licensed the same way: GPL-3.0-only as a whole, with the
+FM-1 Midi-Mania (`fm-1-midi-mania`) is a modified version of Felucca and is licensed the same way: GPL-3.0-only as a whole, with the
 parts below keeping their own licences. Wherever this file says "Felucca", the same applies to this firmware. Files
 this project added carry `Copyright (C) 2026 fm-1-midi-mania contributors` and are GPL-3.0-only.
 

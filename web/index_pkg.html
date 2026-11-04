@@ -5,7 +5,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Midi-Mania</title>
+<title>FM-1 Midi-Mania installer</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%201024%201024%22%3E%3Ctitle%3EFM-1%20Midi-Mania%3C/title%3E%3Crect%20width=%221024%22%20height=%221024%22%20fill=%22%23F4F1E8%22/%3E%3Cg%20fill=%22%2317151F%22%3E%3Crect%20x=%22160%22%20y=%22181%22%20width=%22136%22%20height=%22662%22%20rx=%2228%22/%3E%3Crect%20x=%22331%22%20y=%22307%22%20width=%22136%22%20height=%22320%22%20rx=%2228%22/%3E%3Crect%20x=%22557%22%20y=%22307%22%20width=%22136%22%20height=%22320%22%20rx=%2228%22/%3E%3Crect%20x=%22728%22%20y=%22181%22%20width=%22136%22%20height=%22662%22%20rx=%2228%22/%3E%3C/g%3E%3Crect%20x=%22444%22%20y=%22536%22%20width=%22136%22%20height=%22306%22%20rx=%2228%22%20fill=%22%23FF4F8B%22/%3E%3C/svg%3E">
 <style>
   :root { --bg: #fff; --fg: #000; --dim: #777; }
   @media (prefers-color-scheme: dark) {
@@ -15,6 +16,7 @@
   body { margin: 0; background: var(--bg); color: var(--fg);
          font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; }
   main { max-width: 520px; margin: 0 auto; padding: 48px 16px; }
+  h1 .logo { vertical-align: middle; border-radius: 22%; margin: -4px 10px 0 0; }
   h1 { font-size: 24px; font-weight: 600; margin: 0 0 24px; }
   .lang { float: right; font-size: 13px; color: var(--dim); cursor: pointer; text-decoration: underline; background: none; padding: 0; color: var(--dim); }
   p { margin: 0 0 16px; }
@@ -29,7 +31,7 @@
 <body>
 <main>
   <button class="lang" id="lang"></button>
-  <h1>Midi-Mania</h1>
+  <h1><img class="logo" src="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%201024%201024%22%3E%3Ctitle%3EFM-1%20Midi-Mania%3C/title%3E%3Crect%20width=%221024%22%20height=%221024%22%20fill=%22%23F4F1E8%22/%3E%3Cg%20fill=%22%2317151F%22%3E%3Crect%20x=%22160%22%20y=%22181%22%20width=%22136%22%20height=%22662%22%20rx=%2228%22/%3E%3Crect%20x=%22331%22%20y=%22307%22%20width=%22136%22%20height=%22320%22%20rx=%2228%22/%3E%3Crect%20x=%22557%22%20y=%22307%22%20width=%22136%22%20height=%22320%22%20rx=%2228%22/%3E%3Crect%20x=%22728%22%20y=%22181%22%20width=%22136%22%20height=%22662%22%20rx=%2228%22/%3E%3C/g%3E%3Crect%20x=%22444%22%20y=%22536%22%20width=%22136%22%20height=%22306%22%20rx=%2228%22%20fill=%22%23FF4F8B%22/%3E%3C/svg%3E" alt="" width="30" height="30">FM-1 Midi-Mania</h1>
   <p data-t="intro"></p>
   <p data-t="warn"></p>
   <p class="small" data-t="direct"></p>
@@ -45,6 +47,13 @@
     <p><button id="stock-go" disabled data-t="stockGo"></button></p>
     <p class="small" data-t="stockBackup"></p>
     <p class="small"><label><input id="stock-recovery" type="checkbox"> <span data-t="stockRecovery"></span></label></p>
+  </details>
+  <details style="margin-top:12px">
+    <summary data-t="restoreTitle"></summary>
+    <p class="small" data-t="restoreAbout"></p>
+    <p><label><span data-t="restoreFile"></span><br><input id="restore-file" type="file" accept=".json,application/json"></label></p>
+    <p class="small" id="restore-info"></p>
+    <p><button id="restore-go" disabled data-t="restoreGo"></button></p>
   </details>
   <progress id="bar" max="100" value="0"></progress>
   <p id="status"></p>
@@ -68,7 +77,15 @@ const TEXT = {
     beta: "Midi-Mania は実地テスト版です。不具合は GitHub で知らせてください。このカスタムファームウェアを使ったことで FM-1 が壊れたり不具合が起きたりしても、作者は一切の責任を負いません。自己責任でお使いください。",
     back: "M-VAVEから公式FM-1 V15を取得し、未変更のFM-1.fwscを選んでください。ファイルはこのブラウザ内で検証し、サーバーへ送りません。",
     stockTitle: "公式V15に戻す", stockFile: "公式FM-1.fwsc", stockGo: "バックアップして公式V15へ戻す",
-    stockBackup: "現在の曲・保存曲・音色バンク・サンプル・設定を先に保存します。全体バックアップ非対応版は、Midi-Maniaを更新してから行ってください。アーカイブはこのパソコンにファイルとして保存されます。",
+    stockBackup: "設定・音色・アップロードした曲を先にバックアップします。全体バックアップ非対応版は、Midi-Maniaを更新してから行ってください。バックアップはこのパソコンにファイルとして保存され、Midi-Maniaに戻したあと「バックアップを戻す」で元に戻せます。",
+    restoreTitle: "バックアップを戻す",
+    restoreAbout: "このページで保存したバックアップファイルを、Midi-Mania（0.2.0 以降）を入れた FM-1 に戻します：設定・音色・アップロードした曲。FM-1 にある曲はそのまま残り、まだない曲が追加されます。",
+    restoreFile: "バックアップファイル (.json)", restoreGo: "FM-1 に戻す", restoreRead: "バックアップ: ", restoreSongs: " 曲",
+    restoreBad: "戻せないファイルです: ",
+    restoreConfirm: "このバックアップを FM-1 に戻しますか？ FM-1 の設定と現在の音色は置き換えられます。",
+    restoreUnsupported: "この FM-1 には戻せません。先に Midi-Mania（0.2.0 以降）をインストールしてください。",
+    restoring: "復元中 ", restoringSongs: "曲を復元中 ", restored: "戻しました。",
+    songsAdded: "曲の追加 ", songsHad: "・すでにある曲 ", songsFailed: "・入らなかった曲 ",
     stockRecovery: "更新中断の再開：全体バックアップはすでにパソコンへ保存済み",
     stockValid: "公式V15を確認しました", stockConfirm: "全体バックアップファイルをパソコンに保存できましたか？ 続けると公式V15へ戻します。Midi-Maniaの曲は公式V15では開けません。",
     stockNeedBackup: "書き込みモードからはバックアップできません。保存済みバックアップがある場合だけ、更新中断の再開にチェックしてください。",
@@ -98,7 +115,15 @@ const TEXT = {
     beta: "Midi-Mania is a field-testing release; please report problems on GitHub. The author accepts no responsibility if your FM-1 is damaged or misbehaves because of this custom firmware. Use it at your own risk.",
     back: "Get official FM-1 V15 from M-VAVE and select the unmodified FM-1.fwsc. The browser validates it locally; it is not sent to a server.",
     stockTitle: "Return to official V15", stockFile: "Official FM-1.fwsc", stockGo: "Back up and return to official V15",
-    stockBackup: "Current music, saved music, sound banks, samples and settings are saved first. Older firmware needs a Midi-Mania update for complete backups. The archive is a file kept on this computer.",
+    stockBackup: "Your settings, sounds and uploaded songs are backed up first. Older firmware needs a Midi-Mania update for complete backups. The backup is a file kept on this computer: after you come back to Midi-Mania, put it back with Restore a backup.",
+    restoreTitle: "Restore a backup",
+    restoreAbout: "Puts a backup file from this page back onto an FM-1 running Midi-Mania 0.2.0 or later: your settings, sounds and uploaded songs. Songs already on the FM-1 stay; the backup's other songs are added.",
+    restoreFile: "Backup file (.json)", restoreGo: "Restore to the FM-1", restoreRead: "Backup: ", restoreSongs: " songs",
+    restoreBad: "Not a backup this page can restore: ",
+    restoreConfirm: "Restore this backup to the FM-1? Its settings and current sounds replace the FM-1's.",
+    restoreUnsupported: "This FM-1 cannot take the backup. Install Midi-Mania 0.2.0 or later first.",
+    restoring: "Restoring ", restoringSongs: "Restoring songs ", restored: "Restored. ",
+    songsAdded: "Songs added: ", songsHad: ", already there: ", songsFailed: ", did not fit: ",
     stockRecovery: "Resume an interrupted update: I already saved a complete backup to this computer",
     stockValid: "Official V15 verified", stockConfirm: "Has the complete backup file been saved to this computer? Continue to return to official V15. Official V15 cannot open Midi-Mania music.",
     stockNeedBackup: "An update loader cannot export a backup. Only select resume if you already saved a complete backup.",
@@ -137,8 +162,10 @@ const log = (t) => { $("log").textContent += t + "\n"; };
 let image = null;
 const meta = /*META*/;
 
-let writing = false, stock = null, stockFileEpoch = 0;
-const lockInstaller = (on) => { writing = on; $("go").disabled = on || !image; $("stock-go").disabled = on || !stock; $("stock-file").disabled = on; $("stock-recovery").disabled = on; };
+let writing = false, stock = null, stockFileEpoch = 0, restore = null;   /* restore: {raw, parsed}, the chosen backup */
+const lockInstaller = (on) => { writing = on; $("go").disabled = on || !image; $("stock-go").disabled = on || !stock; $("stock-file").disabled = on; $("stock-recovery").disabled = on;
+  $("restore-go").disabled = on || !restore; $("restore-file").disabled = on; };
+const pct = (done, total) => `${Math.round(done / Math.max(1, total) * 100)}%`;
 window.addEventListener("beforeunload", (e) => { if (writing) { e.preventDefault(); e.returnValue = t("leave"); } });
 
 (async () => {
@@ -208,7 +235,7 @@ function archiveInfo(a) {
   const engines = a[pos]; pos += 5;
   for (let i = 0; i < engines; i++) { const end = a.indexOf(0,pos); if (end < 0) throw new Error("Invalid INFO"); pos = end + 1; }
   const ext = a.slice(pos + 1);
-  const supported = /^MIDI-MANIA /i.test(version) && ext[0] === 16 && ext[1] === 0x55 && ext[2] === 1 &&
+  const supported = /^(FM-1 )?MIDI-MANIA /i.test(version) && ext[0] === 16 && ext[1] === 0x55 && ext[2] === 1 &&
     ext[4] === 0x4d && ext[5] === 1 && ext[8] === 0x42 && ext[9] === 1 && (ext[10] & 1);
   return {version,supported};
 }
@@ -234,12 +261,56 @@ $("stock-go").addEventListener("click", async () => {
       link = new BackupConnection(input, output);
       const info = archiveInfo(await link.request([1,[]]));
       if (!info.supported) { sayK("stockUnsupported"); return; }
-      const archive = await captureBackup((r,o) => link.request(r,o), info.version,
-        (done,total) => sayK("backup", `${Math.round(done / Math.max(1,total) * 100)}%`));
+      const req = (r,o) => link.request(r,o);
+      const songs = await captureSongs(req, (done,total) => sayK("backup", pct(done, total) + " (songs)"));   /* (0.1.0: none) */
+      const archive = await captureBackup(req, info.version, (done,total) => sayK("backup", pct(done, total)), songs);
+      log(`backup: ${archive.objects.length} objects, ${songs ? songs.length : 0} songs`);
       saveArchive(archive); link.close(); link = null;
       if (!confirm(t("stockConfirm"))) return;
       await up.install(selected.image, selected.product, step);
     }
+  } catch (e) {
+    if (e.code && TEXT[lang][e.code]) sayK(e.code,e.detail || ""); else sayK("error",e.message);
+    log(String(e.stack || e));
+  } finally { if (link) link.close(); lockInstaller(false); }
+});
+
+/* Restore a backup (the file saved before Return to official V15): checked whole here first (readBackup: every byte
+ * against its CRC, the songs' charts), then the settings and sounds (restoreBackup), then the songs not already on the
+ * FM-1 (fm1songs.js restoreSongs: uploads, as Studio sends them) */
+$("restore-file").addEventListener("change", async () => {
+  const file = $("restore-file").files[0]; restore = null; $("restore-info").textContent = ""; lockInstaller(false);
+  if (!file) return;
+  try {
+    const raw = JSON.parse(await file.text()), parsed = readBackup(raw);
+    restore = { raw, parsed };
+    $("restore-info").textContent = `${t("restoreRead")}${String(parsed.created || "").slice(0, 10)} · ${parsed.firmware || "?"} · ` +
+      `${parsed.songs.length}${t("restoreSongs")}`;
+  } catch (e) { $("restore-info").textContent = t("restoreBad") + e.message; }
+  lockInstaller(false);
+});
+$("restore-go").addEventListener("click", async () => {
+  if (!restore || writing) return;
+  const { raw, parsed } = restore; lockInstaller(true);
+  let link = null;
+  try {
+    let midi;
+    try { midi = await navigator.requestMIDIAccess({sysex:true}); } catch (e) { sayK("denied"); return; }
+    const device = await new Updater(midi, log).find(id => id.model === "FM-1");
+    if (!device) { sayK("notfound"); return; }
+    const input = device.link.input, output = device.link.output; device.link.close();
+    link = new BackupConnection(input, output);
+    const req = (r,o) => link.request(r,o);
+    const info = archiveInfo(await link.request([1,[]]));
+    if (!info.supported || (parsed.songs.length && !(await listSongs(req)))) { sayK("restoreUnsupported"); return; }
+    if (!confirm(t("restoreConfirm"))) return;
+    await restoreBackup(req, raw, (done,total) => sayK("restoring", pct(done, total)));
+    log(`restore: ${parsed.objects.length} objects`);
+    let res = { sent: 0, skipped: 0, failed: [] };
+    if (parsed.songs.length) res = await restoreSongs(req, parsed.songs, (done,total) => sayK("restoringSongs", pct(done, total)));
+    for (const f of res.failed) log(`song not restored: ${f.title}: ${f.error}`);
+    $("bar").value = 100;
+    sayK("restored", `${t("songsAdded")}${res.sent}${t("songsHad")}${res.skipped}${t("songsFailed")}${res.failed.length}`);
   } catch (e) {
     if (e.code && TEXT[lang][e.code]) sayK(e.code,e.detail || ""); else sayK("error",e.message);
     log(String(e.stack || e));

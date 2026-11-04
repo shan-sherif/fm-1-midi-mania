@@ -1,33 +1,41 @@
-# fm-1-midi-mania
+<img src="assets/logo.svg" width="96" height="96" alt="The FM-1 Midi-Mania logo: four keys, the middle one pink">
 
-A rhythm-game firmware for the **M-VAVE FM-1** synthesizer. Turn a MIDI song into a chart and load it onto the FM-1.
-The FM-1 plays the backing on its own synth engines while notes fall towards the keys on its screen. Play them on
-the real keys in real time: every press is judged PERFECT, GREAT, GOOD or MISS.
+# FM-1 Midi-Mania
+
+**FM-1 Midi-Mania** (Midi-Mania for short) is a rhythm-game firmware for the **M-VAVE FM-1** synthesizer. Turn a MIDI song into a chart and load it onto the FM-1.
+The FM-1 plays the backing on its own synth engines while notes fall towards the keys on its screen, and you play
+your part on its real keys. (Scoring, every press judged PERFECT, GREAT, GOOD or MISS, is still to come.)
 
 This is based on **[Felucca](https://github.com/hugelton/Felucca)** by Leo Kuroshita (@kurogedelic),
 Hügelton Instruments. It keeps Felucca's sound engines, audio, display, storage and USB, and replaces its groovebox side (step sequencer, arpeggiator, pattern editing) with the game.
 
 ## Try it
 
-- **[Midi-Mania Studio](https://shan-sherif.github.io/fm-1-midi-mania/webapp/studio/)**: the FM-1 in your browser,
+- **[FM-1 Midi-Mania Studio](https://shan-sherif.github.io/fm-1-midi-mania/webapp/studio/)**: the FM-1 in your browser,
   the same code the instrument runs. Play the built-in songs or FREE PLAY, and drop your own MIDI files on the page
-  to load them as songs. No FM-1 needed; Chrome, Edge, Firefox or Safari.
+  to load them as songs. No FM-1 needed; Chrome, Edge, Firefox or Safari. **Have an FM-1?** Connect it by USB on the
+  same page (Chrome or Edge; Midi-Mania 0.2.0 or later) to send your songs to it, and to list and delete the ones on
+  it. Up to 16 songs, 240 KB in all.
 - **[The installer](https://shan-sherif.github.io/fm-1-midi-mania/webapp/installer/)**: puts Midi-Mania on your FM-1
-  over USB, from Chrome or Edge (not published yet: it appears once a build has been tried on a real FM-1).
-- **[The site](https://shan-sherif.github.io/fm-1-midi-mania/)**: both, from one page.
+  over USB, from Chrome or Edge. **Return to official V15** on the same page puts the stock firmware back.
+- **[The site](https://shan-sherif.github.io/fm-1-midi-mania/)**: all of them, from one page.
+- **[Releases](https://github.com/shan-sherif/fm-1-midi-mania/releases)**: each version's package and notes.
 
-> **Status: early.** Working on the desktop and browser builds:
-> - **SONGS** (the SEQ button): the songs in `midi/`, built into the firmware;
+> **Status: early.** Working on the FM-1 and in the desktop and browser builds:
+> - **SONGS** (the SEQ button): the built-in songs, then your own (sent from Studio over USB, or loaded in Studio itself);
 > - the **play page** (HOME): your part's notes falling to the hit line, the keys lit as they sound; **PLAY YOU**
 >   leaves your part to you (a key on time plays the song's note);
 > - the chart format (`firmware/src/chart.h`) and the timing judge (`firmware/src/judge.c`, with its test).
 >
-> Not yet: judging your presses on screen (scores), and a test on a real FM-1.
+> Not yet: judging your presses on screen (scores).
 
 ## Playing a MIDI file
 
-1. Put a `.mid` file in `midi/`. Files there are git-ignored: songs are usually copyrighted, so they stay on your
-   computer. (Or load them into **Midi-Mania Studio**, the browser build: Your songs.) Two songs are always built in, to try straight
+1. The easy way: drop it on **[FM-1 Midi-Mania Studio](https://shan-sherif.github.io/fm-1-midi-mania/webapp/studio/)**
+   (Your songs) to try it in the browser, then connect your FM-1 there and send it on. It is converted in the
+   browser as below.
+   To build songs into the firmware instead, put `.mid` files in `midi/`. Files there are git-ignored: songs are
+   usually copyrighted, so they stay on your computer. Two songs are always built in, to try straight
    away on the FM-1 and in the browser ([assets/songs/](assets/songs/README.md) records their sources):
    - **Bach's Prelude in C (BWV 846)** for KEYS, from the
      [Mutopia Project](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=5) (public domain);
@@ -86,7 +94,7 @@ Hügelton Instruments. It keeps Felucca's sound engines, audio, display, storage
 4. **GAME** (FX), the same settings on a page of their own:
    - **KNOB 1 SCROLL:** **DOWN**, notes fall to a line at the bottom of the panel, or **UP**, they rise to a line at
      the top (the keyboard strip and the drum pads move with it);
-   - **KNOB 2 NOTE SPEED:** 1 (slow: 4 s from the top of the panel to the line) to 8 (fast: 1 s); 4 is 2 s. Kept for each part: DRUMS start at 8, the others at 4;
+   - **KNOB 2 NOTE SPEED:** 1 (slow: 4 s from the top of the panel to the line) to 16 (fastest: 0.4 s); 4 is 2 s, 8 is 1 s. Kept for each part: DRUMS start at 8, the others at 4;
    - **KNOB 3 OFFSET:** −100 to +100 ms, your timing calibration for the judge to come; **OCT-** sets it to 0;
    - **HOME** or **FX** goes back to the game.
 5. **METRONOME** (SCL), the same settings as MENU's, kept after power-off:
@@ -155,8 +163,9 @@ How a file is fitted to the FM-1 (`tools/gen_songs.py`): four modes, one per par
    - the notes you play, each placed on one of the FM-1's 27 keys;
    - the backing parts, fitted to the FM-1's 4 synth parts and 8 voices;
    - the beat times.
-2. **The chart goes to the FM-1:** built into the firmware today (`midi/`); later uploaded over USB and stored in its
-   flash.
+2. **The chart goes to the FM-1:** sent over USB from Studio and stored in its flash
+   (`firmware/src/editor_songs.c`, [docs/CHART_FORMAT.md](docs/CHART_FORMAT.md)), or built into the firmware
+   (`assets/songs/`, `midi/`).
 3. **On the FM-1**, the audio interrupt plays the backing with sample-accurate timing. It sounds your keys and passes
    each press, timed by the key scan to about 0.1 ms, to the judge.
 
@@ -176,7 +185,7 @@ firmware/loader/    the update loader
 platforms/          host builds on a simulated FM-1: desktop (SDL2) and browser (platforms/host/mm_host.c)
 tools/              build, generators, installer, MIDI → chart converter (gen_songs.py)
 tests/              tests that run on a computer (tests/run_tests.sh)
-web/                the installer page; the MIDI converter (mm_songs.js) the pages share
+web/                the installer; the MIDI converter (mm_songs.js) and the FM-1 song upload (fm1songs.js) Studio uses
 assets/             fonts, icons, samples
 docs/               documentation
 ```
@@ -190,16 +199,21 @@ The repository stands alone: no submodules. A normal `git clone` has everything.
 - **The desktop and browser builds** run the same firmware on a simulated FM-1.
 - With WSL you still test everything from Windows:
   - the desktop build opens a window on Windows (WSLg);
-  - the browser build, **Midi-Mania Studio**, opens in Chrome or Edge;
+  - the browser build, **FM-1 Midi-Mania Studio**, opens in Chrome or Edge;
   - the FM-1 is installed from the browser on Windows.
 
 The installer page (`web/`) only installs; it doesn't build anything.
 See [BUILDING.md](BUILDING.md), and [docs/BUILDING_WINDOWS.md](docs/BUILDING_WINDOWS.md) for Windows.
 
 ## Renamed from Felucca
-- The device: the USB product "Midi-Mania" (manufacturer "Shan-Sherif"; the update loader "Midi-Mania Update"), the
-  version string "MIDI-MANIA vX.Y" (the installer page checks it), the serial console's banner, the
-  desktop build's MIDI port; the tools find the FM-1 by these names.
+- The name: **FM-1 Midi-Mania** (the power-on splash with its logo, MENU > ABOUT, the crash screen, the web pages'
+  titles and icons, the desktop build's window, this README), Midi-Mania for short in running text; the repository
+  `fm-1-midi-mania`. The logo: [assets/logo.svg](assets/logo.svg) (the artwork: `assets/logo.png`; on the FM-1 it is
+  drawn, `firmware/src/ui_draw.c` `draw_logo`).
+- The device: the USB product "FM-1 Midi-Mania" (manufacturer "Shan-Sherif"; the update loader "FM-1 Midi-Mania
+  Update"), the version string "FM-1 MIDI-MANIA vX.Y" (the installer and Studio check it), the serial console's
+  banner, the desktop build's MIDI port "FM-1 Midi-Mania". Before 0.2.0 they were "Midi-Mania", "Midi-Mania Update"
+  and "MIDI-MANIA vX.Y"; the tools and pages find the FM-1 by "midi-mania" in its name, so both.
 - The package identity `FM-1_8XY` (`tools/build.py`; Felucca's are `FM-1_9XY`, the stock firmware's `FM-1_015`) and
   the loader mark `MIDIMANIA-LOADER-1`. The way back to stock (the installer's **Return to official V15**) is
   unchanged.
@@ -208,13 +222,19 @@ See [BUILDING.md](BUILDING.md), and [docs/BUILDING_WINDOWS.md](docs/BUILDING_WIN
   build's storage keys.
 - Kept as Felucca's: the copyright notices, the credits and "based on Felucca" lines; the vendored libraries' own
   names (Felucca-Engines' `felucca_engine.h`, felucca-bsp); the editor's sound file formats (`felucca-patch`,
-  `felucca-library`), so sounds saved with Felucca still load.
+  `felucca-library`), so sounds saved with Felucca still load. The backup file is `"midi-mania-backup"` since 0.2.0
+  (with the stored songs); `"felucca-backup"` files still restore.
 
 ## Installing on an FM-1
 
-Not possible yet. When it is, installing is at your own risk. M-VAVE's updater, or the installer's **Return to
-official V15**, takes the FM-1 back to stock. If an install fails and the FM-1 does not start, recovery needs
+Use [the installer](https://shan-sherif.github.io/fm-1-midi-mania/webapp/installer/) in Chrome or Edge, at your own
+risk. Its **Return to official V15** (with the official `FM-1.fwsc` from M-VAVE) takes the FM-1 back to stock. If an install fails and the FM-1 does not start, recovery needs
 [FM-1-transporter](https://github.com/kurogedelic/FM-1-transporter).
+
+Before **Return to official V15**, the installer saves a backup file to your computer (`Midi-Mania-backup-DATE.json`):
+your settings, sounds and uploaded songs. After installing Midi-Mania again, **Restore a backup** on the same page puts
+it back. Songs already on the FM-1 stay, and the backup's other songs are added. The file is `"midi-mania-backup"`;
+older ones, saved as `"felucca-backup"` (Felucca's name for the same format) before 0.2.0, still restore, without songs.
 
 ## Based on Felucca
 

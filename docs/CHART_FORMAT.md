@@ -62,10 +62,23 @@ across them) while the song still sounds as written.
 
 ## In the FM-1's flash
 
-Stored songs live in the song region, flash `0xA0000..0xDBFFF` (240 KiB; Felucca's user sample slots). Each chart
-starts on a 4 KiB sector boundary, one after the other from the region's start; the first sector that holds no chart
-(no `MMC1`, or a chart that does not fit) ends the list. At power-on the firmware lists every chart whose CRC holds and
-whose `live` is 0xFF, after the built-in songs (`firmware/src/player.c` `mm_song_scan`), and plays them in place.
-Writing one: erase its sectors from the first free one, program the chart; deleting one: program its `live` to 0.
-The browser build writes charts into its simulated flash the same way (`fh_song_base`, `fh_song_free`,
-`fh_songs_rescan` in `platforms/host/mm_host.h`).
+Stored songs live in the song region, flash `0xA0000..0xDBFFF` (240 KiB, 60 sectors of 4 KiB; Felucca's user sample
+slots). Each chart starts on a sector boundary. At power-on the firmware (`firmware/src/player.c` `mm_song_scan`)
+looks at every sector:
+
+- a chart there whose CRC holds and whose `live` is 0xFF is listed after the built-in songs (16 at most) and played in
+  place; its sectors are in use, and the scan goes on after its last one;
+- anything else (erased, a deleted chart, a broken upload) is free, and the scan goes on at the next sector.
+
+**Writing a song:** it goes into the first run of free sectors it fits (`mm_song_room`). Its first sector is erased,
+then the rest of the chart from byte 256 on is written, each further sector erased as the writes reach it. The first
+256 bytes, with the header, go last, once the CRC over the whole chart holds. A cut before then leaves no `MMC1` at
+the sector's start, so nothing is listed and the sectors stay free.
+
+**Deleting a song:** its sectors are erased, the header's first. The other songs never move, so a power cut loses at
+most the song being written or deleted. (`live` = 0 still marks a chart deleted, but the firmware no longer writes it.)
+
+Over USB: the editor protocol's song commands (`firmware/src/editor_songs.c`, `web/EDITOR_PROTOCOL.md` "Songs"), used
+by Studio to send its songs on to a real FM-1 (`platforms/web/index.html` "On your FM-1", `web/fm1songs.js`). The browser build stores charts in its
+simulated flash the same way (`fh_song_room`, `fh_song_used`, `fh_songs_rescan` in `platforms/host/mm_host.h`;
+`platforms/web/worklet.js` `songsAdd`, `songsRemove`).

@@ -60,15 +60,39 @@ export function bkManifest(a) {
   });
 }
 const bkBase64 = (bytes) => { let s = ""; for (const b of bytes) s += String.fromCharCode(b); return btoa(s); };
+const BK_B64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+// The file: "midi-mania-backup" (Midi-Mania 0.2.0 on); "felucca-backup", Felucca's name for the same format, from
+// the installers before it, still reads. Midi-Mania's adds "songs": the stored songs (charts, docs/CHART_FORMAT.md),
+// read back over USB (web/fm1songs.js captureSongs) and put back as uploads (restoreSongs)
+export const BACKUP_FORMAT = "midi-mania-backup";
+const BACKUP_FORMATS = [BACKUP_FORMAT, "felucca-backup"];
+const BK_SONG_MAX = 16, BK_SONG_AREA = 60 * 4096;
+function bkSongs(list) {
+  if (list == null) return [];
+  if (!Array.isArray(list) || list.length > BK_SONG_MAX) throw new Error("Invalid backup songs");
+  return list.map((s) => {
+    if (!s || typeof s.title !== "string" || s.title.length > 24 || !Number.isInteger(s.size) || s.size < 72 ||
+        s.size > BK_SONG_AREA || !Number.isInteger(s.crc) || s.crc < 0 || s.crc > 0xffffffff ||
+        typeof s.data !== "string" || s.data.length !== 4 * Math.ceil(s.size / 3) || !BK_B64.test(s.data))
+      throw new Error("Invalid backup song");
+    const bytes = Uint8Array.from(atob(s.data), (c) => c.charCodeAt(0)), view = new DataView(bytes.buffer);
+    if (bytes.length !== s.size || bkCrc(bytes) !== s.crc) throw new Error("Backup song checksum mismatch");
+    if (view.getUint32(0, true) !== 0x31434D4D ||
+        view.getUint16(6, true) + view.getUint32(8, true) * 4 + view.getUint32(12, true) * 12 !== s.size)
+      throw new Error("Invalid backup song");
+    return { title: s.title, size: s.size, crc: s.crc, bytes };
+  });
+}
 export function readBackup(file) {
   if (typeof file === "string") file = JSON.parse(file);
   const ids = file && Array.isArray(file.objects) ? idsOf(file.objects.length) : null;
-  if (!file || file.format !== "felucca-backup" || file.version !== 1 || !ids)
+  if (!file || !BACKUP_FORMATS.includes(file.format) || file.version !== 1 || !ids)
     throw new Error("Not a complete Midi-Mania backup");
+  const songs = bkSongs(file.songs);
   const objects = file.objects.map((o, i) => {
     if (!o || o.id !== ids[i] || !Number.isInteger(o.size) || o.size < 0 || o.size > (o.id >= 32 ? 81920 : 3840) ||
         !Number.isInteger(o.crc) || o.crc < 0 || o.crc > 0xffffffff || typeof o.data !== "string" ||
-        o.data.length !== 4 * Math.ceil(o.size / 3) || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(o.data))
+        o.data.length !== 4 * Math.ceil(o.size / 3) || !BK_B64.test(o.data))
       throw new Error("Invalid backup object");
     const bytes = Uint8Array.from(atob(o.data), (c) => c.charCodeAt(0));
     if (bytes.length !== o.size || bkCrc(bytes) !== o.crc) throw new Error("Backup checksum mismatch");
@@ -87,9 +111,10 @@ export function readBackup(file) {
     return { ...o, bytes };
   });
   if (!objects[0].size || !objects[1].size) throw new Error("Backup is missing the current music or settings");
-  return { ...file, objects };
+  return { ...file, objects, songs };
 }
-export async function captureBackup(request, firmware, onProgress = () => {}) {
+// songs: [{title, bytes}] (web/fm1songs.js captureSongs), kept in the file with the rest; null or none: no "songs"
+export async function captureBackup(request, firmware, onProgress = () => {}, songs = null) {
   const manifest = bkManifest(await request([BACKUP_CMD.LIST, []], { timeout: 3000, retries: 0 }));
   const objects = [], total = manifest.reduce((n, o) => n + o.size, 0); let done = 0;
   for (const o of manifest) {
@@ -105,7 +130,8 @@ export async function captureBackup(request, firmware, onProgress = () => {}) {
     if (bkCrc(bytes) !== o.crc) throw new Error("The device changed during backup. Try again while stopped.");
     objects.push({ ...o, data: bkBase64(bytes) });
   }
-  const file = { format: "felucca-backup", version: 1, firmware, created: new Date().toISOString(), objects };
+  const file = { format: BACKUP_FORMAT, version: 1, firmware, created: new Date().toISOString(), objects };
+  if (songs) file.songs = songs.map((s) => ({ title: s.title, size: s.bytes.length, crc: bkCrc(s.bytes), data: bkBase64(s.bytes) }));
   readBackup(file); return file;
 }
 export async function restoreBackup(request, file, onProgress = () => {}) {

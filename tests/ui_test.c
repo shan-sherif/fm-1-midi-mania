@@ -515,6 +515,27 @@ static int test_songs(void)
         ok_at(!game_cards_shown() && nt_tall());
         frame();
         mm_shot("part_tall");
+        {   /* the notes full screen send only their changed rows (graph_tall), every frame: after frames of the song
+             * playing, the screen is what a full redraw at the same moment gives, for fewer rows */
+            static uint16_t inc[240u * 240u];
+            uint32_t k, sent = 0, steps = 0;
+            for (k = 0; k < 12u; k++) {
+                for (b = 0; b < 25u; b++)                 /* (~17 ms of song a frame) */
+                    mix_block(o, CTL);
+                frame();
+                sent += nt_sent_rows;
+                steps += nt_sent_rows > 0u;
+            }
+            memcpy(inc, host_screen, sizeof inc);
+            ui.force = 1;
+            frame();
+            ok_at(nt_tall() && steps >= 6u && nt_sent_rows == NT_TALL_H && sent < 12u * NT_TALL_H / 2u &&
+                  !memcmp(inc + NT_TALL_Y * 240u, host_screen + NT_TALL_Y * 240u, NT_TALL_PX * 2u));
+            printf("ui: the notes full screen: %u of %u rows sent over 12 frames\n", (unsigned)sent,
+                   (unsigned)(12u * NT_TALL_H));
+            frame();                                       /* (the same moment: nothing changed, nothing sent) */
+            ok_at(nt_sent_rows == 0u && !memcmp(inc + NT_TALL_Y * 240u, host_screen + NT_TALL_Y * 240u, NT_TALL_PX * 2u));
+        }
         ok_at(nt_used() != 0u && (pl.mode == MM_DRUMS || (nt_used() & player_keys(pl.mode)) == player_keys(pl.mode)));
         {   /* RANGE narrower: fewer columns used (the rest greyed out), none new */
             uint32_t all = nt_used(), r = pl.range;
@@ -584,7 +605,7 @@ static int test_songs(void)
         turn(EN_K2, 2);
         ok_at(PL_SPEED == 6u && pl_ahead() == CHART_FS * 14u / 10u);
         turn(EN_K2, 20);
-        ok_at(PL_SPEED == PL_SPEED_MAX);
+        ok_at(PL_SPEED == PL_SPEED_MAX && PL_SPEED_MAX == 16u && pl_ahead() == CHART_FS * 4u / 10u);
         turn(EN_K2, -3);
         turn(EN_K3, -5);
         ok_at(pl.offset == -5);

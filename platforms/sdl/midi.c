@@ -2,9 +2,9 @@
  * Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments */
 /* MIDI in for platforms/sdl/mm_sdl.c: channel messages into the device as USB MIDI packets arrive
  * (mm_host.c fh_midi: notes, CC, program change, pressure, pitch bend; not the clock or SysEx yet).
- *   - Linux, MM_ALSA (build.sh: when pkg-config finds alsa): an ALSA sequencer port "Midi-Mania", subscribed to
+ *   - Linux, MM_ALSA (build.sh: when pkg-config finds alsa): an ALSA sequencer port "FM-1 Midi-Mania", subscribed to
  *     every source there at start (others: aconnect);
- *   - macOS: CoreMIDI, a virtual destination "Midi-Mania" and every source there at start;
+ *   - macOS: CoreMIDI, a virtual destination "FM-1 Midi-Mania" and every source there at start;
  *   - else: none.
  * midi_poll runs on the main loop (the device is the main loop's only); CoreMIDI's thread only fills a ring. */
 static uint32_t midi_count;                     /* messages into the device (mm_sdl.c --midi-check) */
@@ -36,16 +36,16 @@ static void midi_read(const MIDIPacketList *pl, void *a, void *b)
 static void midi_open(void)
 {
     ItemCount i, n;
-    if (MIDIClientCreate(CFSTR("Midi-Mania"), 0, 0, &midi_client) != noErr ||
-        MIDIInputPortCreate(midi_client, CFSTR("Midi-Mania in"), midi_read, 0, &midi_port) != noErr) {
+    if (MIDIClientCreate(CFSTR("FM-1 Midi-Mania"), 0, 0, &midi_client) != noErr ||
+        MIDIInputPortCreate(midi_client, CFSTR("FM-1 Midi-Mania in"), midi_read, 0, &midi_port) != noErr) {
         fprintf(stderr, "felucca: no MIDI (CoreMIDI)\n");
         midi_client = 0;
         return;
     }
-    MIDIDestinationCreate(midi_client, CFSTR("Midi-Mania"), midi_read, 0, &midi_dest);
+    MIDIDestinationCreate(midi_client, CFSTR("FM-1 Midi-Mania"), midi_read, 0, &midi_dest);
     for (i = 0, n = MIDIGetNumberOfSources(); i < n; i++)
         MIDIPortConnectSource(midi_port, MIDIGetSource(i), 0);
-    fprintf(stderr, "midi-mania: MIDI in: \"Midi-Mania\" and %u sources\n", (unsigned)n);
+    fprintf(stderr, "midi-mania: MIDI in: \"FM-1 Midi-Mania\" and %u sources\n", (unsigned)n);
 }
 static int midi_byte(uint8_t *b)
 {
@@ -88,8 +88,8 @@ static void midi_open(void)
         midi_seq = 0;
         return;
     }
-    snd_seq_set_client_name(midi_seq, "Midi-Mania");
-    port = snd_seq_create_simple_port(midi_seq, "Midi-Mania", SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE,
+    snd_seq_set_client_name(midi_seq, "FM-1 Midi-Mania");
+    port = snd_seq_create_simple_port(midi_seq, "FM-1 Midi-Mania", SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE,
                                       SND_SEQ_PORT_TYPE_MIDI_GENERIC | SND_SEQ_PORT_TYPE_APPLICATION);
     self = snd_seq_client_id(midi_seq);
     snd_seq_client_info_alloca(&ci);

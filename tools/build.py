@@ -212,6 +212,10 @@ def build_app():
     v = os.environ.get("MM_USB_LAYOUT")   # firmware/src/usb.c: how the USB composite presents itself (#67), 0..3
     if v in ("0", "1", "2", "3"):
         flags.append(f"-DMM_USB_LAYOUT={v}")
+    v = os.environ.get("LCD_BAUD")   # firmware/src/lcd.c: the screen's SPI clock, 60 MHz / (LCD_BAUD + 1): 2 = 20 MHz
+    if v in ("1", "2", "3", "4"):    # (the default), 4 = 12 (Felucca's), 1 = 30
+        flags.append(f"-DLCD_BAUD={v}u")
+        print(f"build: LCD_BAUD={v} (the screen's SPI at {60 // (int(v) + 1)} MHz)")
     flags.append(f'-DMM_ID="{PRODUCT}"')
     if VERSION:
         flags.append(f'-DMM_VERSION="{VERSION}"')

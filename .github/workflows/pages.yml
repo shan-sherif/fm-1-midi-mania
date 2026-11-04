@@ -2,7 +2,8 @@
 # Copyright (C) 2026 fm-1-midi-mania contributors
 # The site on GitHub Pages (Settings > Pages > Source: GitHub Actions), on every push to main:
 #   /                     the start page (web/site_index.html)
-#   /webapp/studio/       Midi-Mania Studio: the browser build (platforms/web, build/web)
+#   /webapp/studio/       Midi-Mania Studio: the browser build (platforms/web, build/web); also sends your songs to
+#                         a real FM-1 over USB
 #   /webapp/installer/    the installer and the FM-1 package (web/make_site.py), only while the repository variable
 #                         PUBLISH_INSTALLER is "true" (Settings > Secrets and variables > Actions > Variables): set it
 #                         once a build has been installed and tried on a real FM-1. It builds the firmware with

@@ -78,7 +78,7 @@ class FakeFM1 {
       this.waiting = null;
       this.served++;
       if (this.served >= this.unplugAfter) { this.input.state = this.output.state = "disconnected"; return; }
-      if (addr === 0xE0000000) setTimeout(() => this.boot("ota-FM-1_800", "Midi-Mania Update"), 300);
+      if (addr === 0xE0000000) setTimeout(() => this.boot("ota-FM-1_800", "FM-1 Midi-Mania Update"), 300);
       else if (addr === 0xF0000000) setTimeout(() => this.boot("FM-1_800", "Midi-Mania"), 300);
       else this.next();
     }
@@ -105,7 +105,7 @@ async function updater() {
     `fm1ota.js: install: running firmware -> loader -> Midi-Mania (${dev.served} reads)`);
 
   const dev2 = new FakeFM1(image, { unplugAfter: 3 });
-  dev2.boot("ota-FM-1_800", "Midi-Mania Update");
+  dev2.boot("ota-FM-1_800", "FM-1 Midi-Mania Update");
   const t0 = Date.now();
   const done = await new Updater(dev2.access).resume(image);
   ok(done === false && Date.now() - t0 < 6000, "fm1ota.js: unplugged during the write -> stops at once");

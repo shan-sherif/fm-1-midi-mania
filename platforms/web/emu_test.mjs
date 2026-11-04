@@ -11,7 +11,7 @@
 // Then the cost: 1 s of a heavy song (FM6, PHYS, GRAIN chords, DRUM) against real time (BENCH_MAX, default 0.5:
 // fails above half of real time on this machine).
 import fs from "fs";
-import { storeSectors, restoreSectors, midiKnob, KNOB_CC, MASTER_CC, songsAdd, songsList, songsRemove } from "./worklet.js";
+import { storeSectors, restoreSectors, midiKnob, KNOB_CC, MASTER_CC, songsAdd, songsList, songsRemove, songsChart } from "./worklet.js";
 import { convertMidi, chartBytes } from "../../web/mm_songs.js";
 import { testMidi } from "../../web/test_midi.mjs";
 
@@ -142,7 +142,7 @@ check("a fresh instance with the kept sectors has it; one without does not",
   const n0 = d.ex.fh_songs_rescan(), add = songsAdd(d.ex, chartBytes(song)), n1 = d.ex.fh_songs_rescan();
   const list = songsList(d.ex);
   check(`Your songs: a MIDI file converted here and loaded: listed after the ${n0} built in (${list.map((s) => s.title).join(", ")})`,
-        add.ok && n1 === n0 + 1 && list.length === 1 && list[0].title === "Test Song" && list[0].live);
+        add.ok && n1 === n0 + 1 && list.length === 1 && list[0].title === "Test Song");
   const kept = storeSectors(new Uint8Array(d.mem.buffer, d.ex.fh_nor(), d.ex.fh_nor_size()));
   const e = await device(kept);
   e.render(600);
@@ -155,6 +155,21 @@ check("a fresh instance with the kept sectors has it; one without does not",
   songsRemove(e.ex, songsList(e.ex)[0].off);
   check(`Your songs: one too big refused (${full.error}); removed: none left`,
         !full.ok && /no room/.test(full.error) && e.ex.fh_songs_rescan() === n0 && songsList(e.ex).length === 0);
+  // as the FM-1 stores them (editor_songs.c): a removed one's sectors erased, the others staying where they are; the
+  // next one goes into the first gap it fits
+  const c3 = ["A", "B", "C"].map((t) => chartBytes(convertMidi(testMidi(), `${t}.mid`)));
+  for (const c of c3) songsAdd(e.ex, c);
+  const l3 = songsList(e.ex), mid = l3[1].off;
+  songsRemove(e.ex, mid);
+  const l2 = songsList(e.ex);
+  const again = songsAdd(e.ex, chartBytes(convertMidi(testMidi(), "D.mid"))), l4 = songsList(e.ex);
+  check(`Your songs: the middle one of 3 removed, the others kept in place; the next one into its gap (${l4.map((s) => `${s.title}@${s.off}`).join(", ")})`,
+        l3.length === 3 && l2.length === 2 && l2[0].off === l3[0].off && l2[1].off === l3[2].off &&
+        again.ok && l4.length === 3 && l4[1].off === mid && l4[1].title === "D");
+  // the bytes the page sends on to a real FM-1 (song-get): the chart as it was made, byte for byte
+  const dChart = chartBytes(convertMidi(testMidi(), "D.mid")), got = songsChart(e.ex, mid);
+  check("Your songs: songsChart gives back the stored chart byte for byte (sent on to an FM-1); none at a free place",
+        got && got.length === dChart.length && got.every((b, i) => b === dChart[i]) && songsChart(e.ex, 999) === null);
 }
 
 // ---- the panel's knobs from a MIDI controller: the page turns them by midiKnob (worklet.js), as a drag does

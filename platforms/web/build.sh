@@ -4,7 +4,7 @@
 # Felucca in the browser: the host (platforms/host/mm_host.c: the firmware against a simulated FM-1) compiled to
 # WebAssembly with Emscripten, its API (mm_host.h) as the wasm's exports, plus the page (index.html, the
 # AudioWorklet worklet.js). After X0X's web/emu/build.sh (charlesvestal/fm1-x0x, GPL-3.0).
-#   platforms/web/build.sh   ->  build/web/{index.html, worklet.js, midi-mania.wasm, fonts/}
+#   platforms/web/build.sh   ->  build/web/{index.html, worklet.js, midi-mania.wasm, the page's modules, fonts/}
 # After ./build.sh gen (build/gen). WEB_OPT replaces -O2, WEB_CFLAGS adds flags (WEB_CFLAGS=-msimd128: let the
 # compiler vectorise; every browser with AudioWorklet has wasm SIMD). The page shows the version (MM_VERSION)
 # marked "(preview)" before its release; WEB_PREVIEW=0 drops the mark.
@@ -23,5 +23,6 @@ emcc ${WEB_OPT:--O2} $HOST_CFLAGS ${WEB_CFLAGS:-} "-DMM_VERSION=\"$VERSION\"" $H
 sed -e "s/@VERSION@/$VERSION/g" -e "s/@PREVIEW@/$PREVIEW/g" platforms/web/index.html > build/web/index.html
 cp platforms/web/worklet.js build/web/
 cp web/mm_songs.js build/web/                 # (the page's MIDI converter: Your songs)
+cp web/fm1ota.js web/fm1backup.js web/fm1songs.js build/web/   # (Your songs onto a real FM-1 over USB)
 cp platforms/web/fonts/DotGothic16-subset.woff platforms/web/fonts/OFL.txt build/web/fonts/
 echo "web: build/web ($(wc -c < build/web/midi-mania.wasm | tr -d ' ') B wasm, $VERSION)"

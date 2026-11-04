@@ -1,6 +1,6 @@
 # Game architecture
 
-fm-1-midi-mania is a firmware for the M-VAVE FM-1, forked from [Felucca](https://github.com/hugelton/Felucca)
+FM-1 Midi-Mania is a firmware for the M-VAVE FM-1, forked from [Felucca](https://github.com/hugelton/Felucca)
 ([README.md](../README.md#based-on-felucca)). Felucca's code supplies the sound and the hardware support. The game replaces its
 groovebox side (sequencer, arpeggiator, pattern editing): the device plays a song's backing and shows the notes you
 play on the keys, then judges your timing.

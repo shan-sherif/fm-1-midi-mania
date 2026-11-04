@@ -87,10 +87,15 @@ FH_API uint32_t fh_test_engine(uint32_t e, uint32_t p);
 FH_API uint32_t fh_test_user_preset(uint32_t i);   /* user preset slot i holds one */
 FH_API uint32_t fh_test_click(void);
 FH_API void fh_test_stop(void);
-/* stored songs: the song region's offset in fh_nor() and its size, the first free sector in it (a new chart goes
- * there: docs/CHART_FORMAT.md), and the rescan after writing one (returns the songs listed, built in + stored) */
+/* stored songs: the song region's offset in fh_nor() and its size, where a chart of n bytes goes (the first gap of
+ * free sectors it fits: docs/CHART_FORMAT.md; -1 none), the bytes in use, and the rescan after writing or erasing
+ * one (returns the songs listed, built in + stored) */
 FH_API uint32_t fh_song_base(void);
 FH_API uint32_t fh_song_size(void);
-FH_API uint32_t fh_song_free(void);
-FH_API uint32_t fh_songs_rescan(void);                     /* the heavy song (and a song) stopped */                /* METRONOME's CLICK: 0 OFF, 2 ON */
+FH_API int32_t fh_song_room(uint32_t n);
+FH_API uint32_t fh_song_used(void);
+FH_API uint32_t fh_song_count(void);                       /* the stored songs listed (in SONGS' order): */
+FH_API uint32_t fh_song_off(uint32_t i);                   /* song i's offset in the region */
+FH_API uint32_t fh_song_len(uint32_t i);                   /* .. and its size, bytes */
+FH_API uint32_t fh_songs_rescan(void);
 #endif /* MM_HOST_H */

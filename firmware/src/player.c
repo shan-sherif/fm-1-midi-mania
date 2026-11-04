@@ -29,33 +29,39 @@ typedef struct {
 #include "midimania_songs.h"             /* build/gen: MM_NSONGS, MM_SONGS[] */
 
 /* Stored songs: charts (chart.h, docs/CHART_FORMAT.md) in the flash's song region (once Felucca's user sample slots),
- * loaded from MIDI files on a computer (the browser build's page; later a USB upload). Each starts on a 4 KiB sector
- * boundary, one after another; they are read in place (mm_song_base: the region as the CPU sees it: the FM-1's XIP
- * window, the host's simulated flash; 0: none). mm_song_scan lists those whose CRC holds and that are not deleted,
- * after the built-in songs: mm_nsongs, mm_song(i) */
+ * loaded from MIDI files on a computer (Midi-Mania Studio's page; the FM-1's over USB: editor_songs.c). Each starts on
+ * a 4 KiB sector boundary and is read in place (mm_song_base: the region as the CPU sees it: the FM-1's XIP window,
+ * the host's simulated flash; 0: none). mm_song_scan looks at every sector: a chart whose CRC holds and that is not
+ * deleted is listed (after the built-in songs: mm_nsongs, mm_song(i)) and its sectors are in use; anything else is
+ * free. A song is deleted by erasing its sectors and a new one goes into the first gap it fits (mm_song_room): songs
+ * never move, so a power cut loses at most the one being written or deleted */
 #define MM_SONG_BASE 0xA0000u                    /* .. 0xDBFFF (240 KiB) */
 #define MM_SONG_SIZE 0x3C000u
 #define MM_SONG_SECTOR 0x1000u
+#define MM_SONG_NSEC (MM_SONG_SIZE / MM_SONG_SECTOR)   /* 60 */
 #define MM_SONG_MAX 16u                          /* stored songs listed at once */
 static const uint8_t *mm_song_base;
 static mm_song_t mm_stored[MM_SONG_MAX];
 static char mm_stored_title[MM_SONG_MAX][25];
 static uint32_t mm_stored_off[MM_SONG_MAX];      /* each one's offset in the region */
+static uint32_t mm_stored_size[MM_SONG_MAX];     /* .. and its size, bytes */
 static uint32_t mm_nstored;
-static uint32_t mm_store_end;                    /* the first free sector's offset (what a new song is written at) */
-static uint32_t mm_crc32(const uint8_t *p, uint32_t n)   /* zlib's CRC-32 (Python zlib.crc32, JavaScript the same) */
+static uint8_t mm_sec_used[MM_SONG_NSEC];        /* a sector a song is in (mm_song_room: the rest are free) */
+static uint32_t mm_songs_gen;                    /* +1 a scan: SONGS checks its selection (ui_songs.c sg_check) */
+static uint32_t mm_crc32_add(uint32_t c, const uint8_t *p, uint32_t n)   /* (from 0xFFFFFFFF; the CRC is ~c) */
 {
     static const uint32_t T[16] = {0x00000000u, 0x1DB71064u, 0x3B6E20C8u, 0x26D930ACu, 0x76DC4190u, 0x6B6B51F4u,
                                    0x4DB26158u, 0x5005713Cu, 0xEDB88320u, 0xF00F9344u, 0xD6D6A3E8u, 0xCB61B38Cu,
                                    0x9B64C2B0u, 0x86D3D2D4u, 0xA00AE278u, 0xBDBDF21Cu};
-    uint32_t c = 0xFFFFFFFFu;
     while (n--) {
         c ^= *p++;
         c = (c >> 4) ^ T[c & 15u];
         c = (c >> 4) ^ T[c & 15u];
     }
-    return ~c;
+    return c;
 }
+/* zlib's CRC-32 (Python zlib.crc32, JavaScript the same) */
+static uint32_t mm_crc32(const uint8_t *p, uint32_t n) { return ~mm_crc32_add(0xFFFFFFFFu, p, n); }
 /* the chart at off in the region: its size (header, beats, notes), 0 if it is no chart or does not fit */
 static uint32_t mm_chart_size(uint32_t off)
 {
@@ -69,15 +75,25 @@ static uint32_t mm_chart_size(uint32_t off)
 }
 static void mm_song_scan(void)
 {
-    uint32_t off = 0, n;
+    uint32_t off = 0, n, i;
     mm_nstored = 0;
-    mm_store_end = 0;
+    mm_songs_gen++;
+    for (i = 0; i < MM_SONG_NSEC; i++)
+        mm_sec_used[i] = 0;
     if (!mm_song_base)
         return;
-    while (off < MM_SONG_SIZE && (n = mm_chart_size(off)) != 0) {
+    while (off < MM_SONG_SIZE) {
         const chart_head_t *h = (const chart_head_t *)(mm_song_base + off);
-        const uint8_t *body = mm_song_base + off + h->head_size;
-        if (h->live == 0xFFu && mm_nstored < MM_SONG_MAX && mm_crc32(body, n - h->head_size) == h->crc32) {
+        const uint8_t *body;
+        n = mm_chart_size(off);
+        body = mm_song_base + off + (n ? h->head_size : 0u);
+        if (!n || h->live != 0xFFu || mm_crc32(body, n - h->head_size) != h->crc32) {
+            off += MM_SONG_SECTOR;                  /* free (erased, deleted, a broken upload's) */
+            continue;
+        }
+        for (i = off / MM_SONG_SECTOR; i < (off + n + MM_SONG_SECTOR - 1u) / MM_SONG_SECTOR; i++)
+            mm_sec_used[i] = 1;                     /* (in use even past MM_SONG_MAX: never written over) */
+        if (mm_nstored < MM_SONG_MAX) {
             mm_song_t *s = &mm_stored[mm_nstored];
             char *t = mm_stored_title[mm_nstored];
             uint32_t i, p;
@@ -96,11 +112,38 @@ static void mm_song_scan(void)
             for (p = 0; p < CHART_NPART; p++)
                 s->part[p] = h->part[p];
             s->parts = h->parts;
+            mm_stored_size[mm_nstored] = n;
             mm_stored_off[mm_nstored++] = off;
         }
         off = (off + n + MM_SONG_SECTOR - 1u) & ~(MM_SONG_SECTOR - 1u);
     }
-    mm_store_end = off;
+}
+/* where a chart of n bytes goes: the first run of free sectors it fits in (its offset in the region), or -1 */
+static int32_t mm_song_room(uint32_t n)
+{
+    uint32_t need = (n + MM_SONG_SECTOR - 1u) / MM_SONG_SECTOR, run = 0, i;
+    for (i = 0; n && i < MM_SONG_NSEC; i++) {
+        run = mm_sec_used[i] ? 0u : run + 1u;
+        if (run == need)
+            return (int32_t)((i + 1u - need) * MM_SONG_SECTOR);
+    }
+    return -1;
+}
+static uint32_t mm_song_free_sectors(void)
+{
+    uint32_t i, k = 0;
+    for (i = 0; i < MM_SONG_NSEC; i++)
+        k += !mm_sec_used[i];
+    return k;
+}
+static uint32_t mm_song_largest_gap(void)        /* sectors */
+{
+    uint32_t i, run = 0, best = 0;
+    for (i = 0; i < MM_SONG_NSEC; i++) {
+        run = mm_sec_used[i] ? 0u : run + 1u;
+        best = run > best ? run : best;
+    }
+    return best;
 }
 static uint32_t mm_nsongs(void) { return MM_NSONGS + mm_nstored; }   /* built in, then stored */
 static const mm_song_t *mm_song(uint32_t i)
@@ -133,7 +176,7 @@ static struct {
     uint8_t mode;                        /* main loop: the player's part, MM_* (SONGS; HOME shows it, its keys light) */
     uint8_t up;                          /* main loop: HOME's notes rise to a line at the top (GAME: SCROLL UP),
                                           * 0: they fall to one at the bottom (ui_graph.c graph_notes) */
-    uint8_t speed[4];                    /* main loop: GAME's NOTE SPEED 1..8 per part (PL_SPEED: your part's): song
+    uint8_t speed[4];                    /* main loop: GAME's NOTE SPEED 1..16 per part (PL_SPEED: your part's): song
                                           * time on HOME's panel (pl_ahead); DRUMS 8 at power-on, the others 4 */
     int8_t offset;                       /* main loop: GAME's OFFSET, ms / 2 (-100..+100 ms): the player's calibration,
                                           * for the judge (judge.c judge_t.offset) */
@@ -158,13 +201,14 @@ static struct {
 } pl = {.rate = PL_RATE_ONE, .speed = {4, 8, 4, 4}};   /* (speed: by part: KEYS 4, DRUMS 8) */
 #define PL_SPEED (pl.speed[pl.mode & 3u])          /* your part's NOTE SPEED */
 
-/* the song time from the top of HOME's panel to the line: NOTE SPEED 1 (slow: notes far apart, 4 s) .. 8 (fast, 1 s);
- * 4, the default, 2 s */
+/* the song time from the top of HOME's panel to the line: NOTE SPEED 1 (slow: notes far apart, 4 s) .. 8 (1 s) .. 16
+ * (fastest, 0.4 s); 4, the default, 2 s */
 #define PL_SPEED_MIN 1u
-#define PL_SPEED_MAX 8u
+#define PL_SPEED_MAX 16u
 static uint32_t pl_ahead(void)
 {
-    static const uint16_t MS[PL_SPEED_MAX] = {4000, 3000, 2500, 2000, 1700, 1400, 1200, 1000};
+    static const uint16_t MS[PL_SPEED_MAX] = {4000, 3000, 2500, 2000, 1700, 1400, 1200, 1000,
+                                              900, 800, 700, 600, 550, 500, 450, 400};
     uint32_t s = PL_SPEED < PL_SPEED_MIN ? PL_SPEED_MIN : PL_SPEED > PL_SPEED_MAX ? PL_SPEED_MAX : PL_SPEED;
     return MS[s - 1u] * (CHART_FS / 1000u) + MS[s - 1u] * (CHART_FS % 1000u) / 1000u;
 }

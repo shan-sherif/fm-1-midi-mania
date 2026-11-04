@@ -117,7 +117,9 @@ static int32_t menu_document(int32_t y, int draw)
 {
     uint32_t i;
     if (draw) {
-        cv_text(6, y + 2, &AF_L, "MIDI-MANIA", T_THEME);
+        /* FM-1 MIDI-MANIA: all in AF_L would reach the screen's edge (234 px): FM-1 in AF_M on the same baseline */
+        cv_text(6, y + 2 + AF_L.asc - AF_M.asc, &AF_M, "FM-1", T_THEME);
+        cv_text(6 + ink_w(&AF_M, "FM-1") + 7, y + 2, &AF_L, "MIDI-MANIA", T_THEME);
         cv_text(6, y + 38, &AF_S, "Rhythm game, based on Felucca", T_TEXT);
         cv_text(6, y + 58, &AF_M, MM_VERSION, T_THEME);
         cv_text_r(232, y + 61, &AF_S, __DATE__, T_MID, T_BG);

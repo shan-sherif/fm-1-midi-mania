@@ -462,15 +462,17 @@ static uint8_t usb_cdc_on = MM_CDC_DEFAULT != 0;      /* the console is presente
 #define UAC_AS_IF (AUD_IF + 2u)
 #define UAC_ASO_IF (AUD_IF + 3u)            /* the output stream (MM_UAC_OUT) */
 static const uint8_t STR0[4] = {4, 3, 0x09, 0x04};
-/* Midi-Mania: the manufacturer "Shan-Sherif", the product "Midi-Mania" (the update loader: "Midi-Mania Update"); the
- * tools and the web pages find the FM-1 by these names */
+/* Midi-Mania: the manufacturer "Shan-Sherif", the product "FM-1 Midi-Mania" (the update loader: "FM-1 Midi-Mania
+ * Update"; 0.1.0 and 0.2.0's first builds: "Midi-Mania", "Midi-Mania Update"); the tools and the web pages find the
+ * FM-1 by "midi-mania" in these names (tools/fm1_install.py PORT_RE, web/fm1ota.js), so old and new both */
 static const uint8_t STR1[] = {24, 3, 'S', 0, 'h', 0, 'a', 0, 'n', 0, '-', 0, 'S', 0, 'h', 0, 'e', 0, 'r', 0, 'i', 0,
                                'f', 0};
 #ifdef MM_LOADER
-static const uint8_t STR2[] = {36, 3, 'M', 0, 'i', 0, 'd', 0, 'i', 0, '-', 0, 'M', 0, 'a', 0, 'n', 0, 'i', 0, 'a', 0,
-                               ' ', 0, 'U', 0, 'p', 0, 'd', 0, 'a', 0, 't', 0, 'e', 0};
+static const uint8_t STR2[] = {46, 3, 'F', 0, 'M', 0, '-', 0, '1', 0, ' ', 0, 'M', 0, 'i', 0, 'd', 0, 'i', 0, '-', 0,
+                               'M', 0, 'a', 0, 'n', 0, 'i', 0, 'a', 0, ' ', 0, 'U', 0, 'p', 0, 'd', 0, 'a', 0, 't', 0, 'e', 0};
 #else
-static const uint8_t STR2[] = {22, 3, 'M', 0, 'i', 0, 'd', 0, 'i', 0, '-', 0, 'M', 0, 'a', 0, 'n', 0, 'i', 0, 'a', 0};
+static const uint8_t STR2[] = {32, 3, 'F', 0, 'M', 0, '-', 0, '1', 0, ' ', 0, 'M', 0, 'i', 0, 'd', 0, 'i', 0, '-', 0,
+                               'M', 0, 'a', 0, 'n', 0, 'i', 0, 'a', 0};
 #endif
 
 #if defined(MM_USB_MANUFACTURER) || defined(MM_USB_PRODUCT)

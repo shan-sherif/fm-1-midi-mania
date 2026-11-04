@@ -6,8 +6,10 @@
   index.html                  redirect to the installer (the old URL keeps working)
   firmware/midi-mania-VER.fwsc the package (+ LICENSE, LICENSING.md, LICENSES/: the package holds
                               JieLi SDK files under Apache-2.0, see LICENSING.md)
-  webapp/installer/index.html index_pkg.html, self-contained (fm1pkg.js, fm1ota.js, metadata inlined)
+  webapp/installer/index.html index_pkg.html, self-contained (fm1pkg.js, fm1ota.js, fm1backup.js, fm1songs.js,
+                              metadata inlined)
   src/                        not touched
+(Studio, webapp/studio/, is build/web: it also sends songs to a real FM-1.)
 
   web/make_site.py build/midi-mania-X.Y.fwsc X.Y OUT_DIR
 
@@ -47,7 +49,8 @@ def main(pkg, version, out):
     html = (HERE / "index_pkg.html").read_text(encoding="utf-8")
     lib = strip_module((HERE / "fm1pkg.js").read_text(encoding="utf-8")) + "\n" + \
         strip_module((HERE / "fm1ota.js").read_text(encoding="utf-8")) + "\n" + \
-        strip_module((HERE / "fm1backup.js").read_text(encoding="utf-8"))
+        strip_module((HERE / "fm1backup.js").read_text(encoding="utf-8")) + "\n" + \
+        strip_module((HERE / "fm1songs.js").read_text(encoding="utf-8"))   # (the backup's songs: captureSongs, restoreSongs)
     name = f"midi-mania-{re.sub(r'[^A-Za-z0-9.-]', '-', version)}.fwsc"
     meta = json.dumps({"version": version, "product": product, "pkg": "../../firmware/" + name})
     for mark in ("/*LIB*/", "/*META*/"):
@@ -74,13 +77,14 @@ def main(pkg, version, out):
     for doc in ("LICENSE", "LICENSING.md"):
         shutil.copy(HERE.parent / doc, fw / doc)
     (out / "index.html").write_text(
-        '<!doctype html><meta charset="utf-8"><title>Midi-Mania</title>'
+        '<!doctype html><meta charset="utf-8"><title>FM-1 Midi-Mania</title>'
         '<meta http-equiv="refresh" content="0; url=webapp/installer/">'
-        '<a href="webapp/installer/">Midi-Mania installer</a>\n', encoding="utf-8")
+        '<a href="webapp/installer/">FM-1 Midi-Mania installer</a>\n', encoding="utf-8")
     print(f"site: {out}: webapp/installer ({len(html)} B), firmware/{name} ({len(raw)} B, {product})")
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 4:
+    if len(sys.argv) == 4:
+        main(*sys.argv[1:4])
+    else:
         sys.exit(__doc__)
-    main(*sys.argv[1:4])

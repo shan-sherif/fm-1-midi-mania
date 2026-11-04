@@ -415,7 +415,7 @@ int main(int argc, char **argv)
     panel_layout(&pnl, layout);
     if (!w || !h)                                                 /* no size: the canvas, 2 x (3 x for NONE) */
         w = pnl.cw * (layout == PNL_NONE ? 3 : 2), h = pnl.ch * (layout == PNL_NONE ? 3 : 2);
-    win = SDL_CreateWindow("Midi-Mania", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, w, h,
+    win = SDL_CreateWindow("FM-1 Midi-Mania", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, w, h,
                            (full ? SDL_WINDOW_FULLSCREEN_DESKTOP : 0) | SDL_WINDOW_ALLOW_HIGHDPI);
     ren = win ? SDL_CreateRenderer(win, -1, SDL_RENDERER_PRESENTVSYNC) : 0;
     tex = 0;

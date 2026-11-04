@@ -30,47 +30,53 @@ export const HOLD_MS = 24;
 
 // The stored songs (Midi-Mania: charts, docs/CHART_FORMAT.md, in the song region; firmware/src/player.c lists them
 // after the built-in songs). The page's MIDI files, converted there (web/mm_songs.js), are written here as the FM-1
-// will write them: from the first free 4 KiB sector; a removed one is taken out and the rest packed again. The region
-// is in STORE_AREAS, so the page keeps them with the other saves.
-const SECTOR = 4096, MAGIC = 0x31434D4D;
+// writes those uploaded over USB (firmware/src/editor_songs.c): into the first gap of free 4 KiB sectors it fits; a
+// removed one has its sectors erased, the others stay where they are. A song playing stops first (the list's order
+// changes). The region is in STORE_AREAS, so the page keeps them with the other saves.
+const SECTOR = 4096, MAGIC = 0x31434D4D, MAX_SONGS = 16;
 function region(ex) {
   return new Uint8Array(ex.memory.buffer, ex.fh_nor() + ex.fh_song_base(), ex.fh_song_size());
 }
-// the charts there, in order: {off, size, title, live, length (s), bpm, parts}
+// the songs the firmware lists, in SONGS' order: {off, size, title, length (s), bpm, parts}
 export function songsList(ex) {
   const r = region(ex), dv = new DataView(r.buffer, r.byteOffset, r.byteLength), out = [];
-  for (let off = 0; off + 72 <= r.length; ) {
-    if (dv.getUint32(off, true) !== MAGIC) break;
-    const head = dv.getUint16(off + 6, true), size = head + dv.getUint32(off + 8, true) * 4 + dv.getUint32(off + 12, true) * 12;
-    if (head < 72 || off + size > r.length) break;
+  for (let i = 0; i < ex.fh_song_count(); i++) {
+    const off = ex.fh_song_off(i);
     let title = "";
-    for (let i = 0; i < 24 && r[off + 24 + i]; i++) title += String.fromCharCode(r[off + 24 + i]);
-    out.push({ off, size, title, live: r[off + 71] === 0xFF, length: dv.getUint32(off + 16, true) / 44100,
+    for (let k = 0; k < 24 && r[off + 24 + k]; k++) title += String.fromCharCode(r[off + 24 + k]);
+    out.push({ off, size: ex.fh_song_len(i), title, length: dv.getUint32(off + 16, true) / 44100,
                bpm: dv.getUint16(off + 20, true) / 10, parts: r[off + 70] });
-    off = Math.ceil((off + size) / SECTOR) * SECTOR;
   }
   return out;
 }
-export function songsUsed(ex) { return ex.fh_song_free(); }
-// a chart (Uint8Array) after the others: {ok, error}. The song playing keeps playing (the others do not move)
+export function songsUsed(ex) { return ex.fh_song_used(); }
+// a chart (Uint8Array) into the first gap it fits: {ok, error}
 export function songsAdd(ex, chart) {
-  const r = region(ex), at = ex.fh_song_free();
+  const r = region(ex);
   if (chart.length < 72 || new DataView(chart.buffer, chart.byteOffset, 4).getUint32(0, true) !== MAGIC)
     return { ok: false, error: "not a chart" };
-  if (at + chart.length > r.length)
-    return { ok: false, error: `no room: ${Math.ceil(chart.length / 1024)} KB needed, ${Math.floor((r.length - at) / 1024)} KB free` };
-  r.fill(0xFF, at, Math.min(r.length, Math.ceil((at + chart.length) / SECTOR) * SECTOR));   // (its sectors erased)
+  if (ex.fh_song_count() >= MAX_SONGS)
+    return { ok: false, error: `no room: ${MAX_SONGS} songs at most` };
+  const at = ex.fh_song_room(chart.length);
+  if (at < 0)
+    return { ok: false, error: `no room: ${Math.ceil(chart.length / 1024)} KB needed, ${Math.floor((r.length - ex.fh_song_used()) / 1024)} KB free` };
+  ex.fh_test_stop();
+  r.fill(0xFF, at, Math.ceil((at + chart.length) / SECTOR) * SECTOR);   // (its sectors erased)
   r.set(chart, at);
   ex.fh_songs_rescan();
   return { ok: true };
 }
-// the chart at off taken out, the rest packed from the region's start (a song playing stops: songs move)
+// a copy of the chart at off (the page sends it to a real FM-1 over USB), or null
+export function songsChart(ex, off) {
+  const s = songsList(ex).find((x) => x.off === off);
+  return s ? region(ex).slice(off, off + s.size) : null;
+}
+// the chart at off removed: its sectors erased
 export function songsRemove(ex, off) {
-  const keep = songsList(ex).filter((s) => s.live && s.off !== off).map((s) => region(ex).slice(s.off, s.off + s.size));
+  const s = songsList(ex).find((x) => x.off === off);
+  if (!s) return;
   ex.fh_test_stop();
-  region(ex).fill(0xFF);
-  ex.fh_songs_rescan();
-  for (const c of keep) songsAdd(ex, c);
+  region(ex).fill(0xFF, off, Math.ceil((off + s.size) / SECTOR) * SECTOR);
   ex.fh_songs_rescan();
 }
 
@@ -139,6 +145,10 @@ if (typeof registerProcessor === "function") {
       else if (m.type === "master") ex.fh_master(m.value | 0);
       else if (m.type === "midi") ex.fh_midi(m.data[0] | 0, m.data[1] | 0, m.data[2] | 0);
       else if (m.type === "visible") this.period = m.on ? 1 / 30 : 1 / 4;
+      else if (m.type === "song-get") {         // a stored chart's bytes, for the page to send to a real FM-1
+        const chart = songsChart(ex, m.off | 0);
+        this.port.postMessage({ type: "song-bytes", id: m.id, chart: chart && chart.buffer }, chart ? [chart.buffer] : []);
+      }
       else if (m.type === "song-add" || m.type === "song-remove" || m.type === "songs") {   // the page's song list
         let res = { ok: true };
         if (m.type === "song-add") res = songsAdd(ex, new Uint8Array(m.chart));

@@ -1,7 +1,7 @@
 # Felucca editor protocol (SysEx over USB-MIDI)
 
 > **Midi-Mania:** Felucca's sound editor page (`web/editor.html`) is removed; the firmware keeps this protocol for
-> the installer's backups, the update path and (to come) song uploads. Commands for what Midi-Mania leaves out (the
+> the installer's backups, the update path and song uploads ("Songs (88-93)" below). Commands for what Midi-Mania leaves out (the
 > sequencer, user samples, plugins, ...) are documented here as Felucca has them and may answer nothing.
 
 The firmware side is `firmware/src/editor.c`. Commands 1-15, track selection, dumps, step reads
@@ -1053,6 +1053,31 @@ given (a project's track of a plugin the device has never had plays as 95, NO PL
 The engines of plugins answer `DESC` and `NAMES` as Felucca's do (by their number). A project's track on a plugin of
 its own keeps the plugin's id (its FM6 patch's bytes: "PLG1" and the id's four characters), so a project moved to
 another FM-1 plays the plugin under that FM-1's number for it (`firmware/src/project.c` proj_plugin_*).
+
+## Songs (88-93; Midi-Mania 0.2.0)
+
+The songs stored on the FM-1: charts ([docs/CHART_FORMAT.md](../docs/CHART_FORMAT.md)) in the song region, 60
+sectors of 4 KiB, at most 16 songs. `INFO` ends with the tag `47 01 16` (the most songs) when the firmware has these
+commands; an older Midi-Mania replies to them with no bytes. The firmware side is `firmware/src/editor_songs.c`, the
+Studio's side `web/fm1songs.js` (Your songs, On your FM-1); `tests/editor_test.c` and `web/test_songs_usb.mjs` (the page's code
+against the C protocol, `tests/songs_bridge.c`) test them on simulated flash.
+
+A song playing stops before any write: the list's order changes, and an erase stalls the audio. FREE PLAY keeps going.
+A song is written into the first gap of free sectors it fits and deleted by erasing its sectors; songs never move.
+Numbers: `u21` is three 7-bit bytes, LSB first; `u14` two. `pack7` is the sample upload's: a byte of the top bits of
+up to 7 bytes, then their low 7 bits.
+
+| Cmd | Request | Reply |
+| --- | --- | --- |
+| 88 `SONG_LIST` | - | built in, stored, max (16), sectors (60), free sectors, largest gap (sectors); per stored song: sector, sectors, parts (bit p: part p), BPM × 10 (u14), seconds (u14), title (ASCII, 24 at most, 0-ended) |
+| 89 `SONG_BEGIN` | size (u21) | rc, sector. The chart's first sector is erased; it will go there. rc 0 ok, 1 not a chart's size, 2 no gap big enough, 3 16 songs stored, 4 flash, 5 busy (a song would not stop, or no flash) |
+| 90 `SONG_WRITE` | offset (u21), pack7 data | offset (u21), rc. The chart's bytes from offset 256 on, 256 a write, in order (only the last may be shorter); a sector is erased when the writes reach its start. rc 0 ok, 1 a bad offset or length, 2 erase, 3 write, 4 no `SONG_BEGIN` |
+| 91 `SONG_END` | pack7 of the chart's first 256 bytes (all of it if shorter) | rc, sector. The header is checked (its size must be `SONG_BEGIN`'s), the CRC over the whole chart, then the first 256 bytes are written and the songs listed again. rc 0 ok, 1 no `SONG_BEGIN` or a bad frame, 2 a bad header, 3 CRC, 4 flash, 5 busy. One `SONG_END` ends an upload, even a refused one |
+| 92 `SONG_DELETE` | sector | rc, sector. The song starting at that sector is erased, its header's sector first. rc 0 ok, 1 no song starts there, 4 flash, 5 busy |
+| 93 `SONG_READ` | sector, offset (u21) | sector, offset (u21), rc, pack7 data: up to 256 of the chart's bytes from offset (its size: from its header). Reads only, nothing stops. rc 0 ok, 1 no song starts there, 2 an offset not a multiple of 256 or past the end. The installer's backup reads the songs with it (`web/fm1songs.js` `captureSongs`) |
+
+A cable pulled or a power cut mid-upload leaves no header, so the song is not listed and its sectors stay free; the
+next `SONG_BEGIN` starts again. `SONG_DELETE` cancels an upload under way.
 
 ## Tagged device preferences v1
 
