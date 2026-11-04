@@ -47,9 +47,9 @@ jobs:
           mkdir -p site/webapp
           if [ -n "$VER" ]; then
             python3 web/make_site.py "build/midi-mania-$VER.fwsc" "$VER" site
-            cp web/site_index.html site/index.html
           else
             sed '/<!--INSTALLER-BEGIN-->/,/<!--INSTALLER-END-->/d' web/site_index.html > site/index.html
+            if [ -d web/site_media ]; then cp -r web/site_media site/media; fi
           fi
           cp -r build/web site/webapp/studio
           touch site/.nojekyll

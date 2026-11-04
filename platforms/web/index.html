@@ -19,6 +19,9 @@ html, body { background: var(--bg); }
 body { margin: 0; color: var(--fg); font: 13px/1.6 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; }
 main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 32px; }
 .title { margin: 0 0 12px; text-align: center; color: var(--fg); }
+.back { margin: 0 0 6px; font-size: 13px; }
+.back a { color: var(--dim); text-decoration: none; }
+.back a:hover, .back a:focus-visible { color: var(--fg); text-decoration: underline; }
 h1 .logo { vertical-align: middle; border-radius: 22%; margin: -4px 10px 0 0; }
 .title h1 { margin: 0; font-size: 22px; letter-spacing: .02em; }
 .title p { margin: 2px 0 0; color: var(--dim); }
@@ -95,6 +98,7 @@ footer small { font-size: 11px; opacity: .8; }
 </head>
 <body>
 <main>
+<nav class="back"><a href="../../">← FM-1 Midi-Mania</a></nav>
 <header class="title">
   <h1><img class="logo" src="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%201024%201024%22%3E%3Ctitle%3EFM-1%20Midi-Mania%3C/title%3E%3Crect%20width=%221024%22%20height=%221024%22%20fill=%22%23F4F1E8%22/%3E%3Cg%20fill=%22%2317151F%22%3E%3Crect%20x=%22160%22%20y=%22181%22%20width=%22136%22%20height=%22662%22%20rx=%2228%22/%3E%3Crect%20x=%22331%22%20y=%22307%22%20width=%22136%22%20height=%22320%22%20rx=%2228%22/%3E%3Crect%20x=%22557%22%20y=%22307%22%20width=%22136%22%20height=%22320%22%20rx=%2228%22/%3E%3Crect%20x=%22728%22%20y=%22181%22%20width=%22136%22%20height=%22662%22%20rx=%2228%22/%3E%3C/g%3E%3Crect%20x=%22444%22%20y=%22536%22%20width=%22136%22%20height=%22306%22%20rx=%2228%22%20fill=%22%23FF4F8B%22/%3E%3C/svg%3E" alt="" width="28" height="28">FM-1 Midi-Mania Studio</h1>
   <p>Play the FM-1 in your browser, and load your own MIDI files as songs.</p>

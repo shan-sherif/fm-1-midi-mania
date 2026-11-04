@@ -3,7 +3,7 @@
 # Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments
 """Make the site (GitHub Pages):
 
-  index.html                  redirect to the installer (the old URL keeps working)
+  index.html                  the start page (site_index.html), and media/ from site_media/ (its pictures)
   firmware/midi-mania-VER.fwsc the package (+ LICENSE, LICENSING.md, LICENSES/: the package holds
                               JieLi SDK files under Apache-2.0, see LICENSING.md)
   webapp/installer/index.html index_pkg.html, self-contained (fm1pkg.js, fm1ota.js, fm1backup.js, fm1songs.js,
@@ -76,10 +76,10 @@ def main(pkg, version, out):
         encoding="utf-8")
     for doc in ("LICENSE", "LICENSING.md"):
         shutil.copy(HERE.parent / doc, fw / doc)
-    (out / "index.html").write_text(
-        '<!doctype html><meta charset="utf-8"><title>FM-1 Midi-Mania</title>'
-        '<meta http-equiv="refresh" content="0; url=webapp/installer/">'
-        '<a href="webapp/installer/">FM-1 Midi-Mania installer</a>\n', encoding="utf-8")
+    shutil.copy(HERE / "site_index.html", out / "index.html")   # the start page (Studio and the installer link back)
+    media = HERE / "site_media"                                  # its pictures and videos, when there are any
+    if media.is_dir():
+        shutil.copytree(media, out / "media", dirs_exist_ok=True)
     print(f"site: {out}: webapp/installer ({len(html)} B), firmware/{name} ({len(raw)} B, {product})")
 
 

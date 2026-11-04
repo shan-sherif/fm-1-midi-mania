@@ -1,56 +1,125 @@
 <!doctype html>
 <!-- SPDX-License-Identifier: GPL-3.0-only
      Copyright (C) 2026 fm-1-midi-mania contributors
-     The site's start page (.github/workflows/pages.yml): Midi-Mania Studio, and the installer once a release has
-     one (the workflow takes the block between INSTALLER-BEGIN and INSTALLER-END out when it has none). -->
+     The site's start page (.github/workflows/pages.yml; web/make_site.py copies it too, for a local site): Studio, and
+     the installer once a release has one (the workflow takes every block between INSTALLER-BEGIN and INSTALLER-END out
+     when it has none). Pictures and videos for it go in web/site_media/ (published as media/): see SCREENSHOTS below.
+     The colours are the logo's (assets/logo.svg): cream, ink, pink. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FM-1 Midi-Mania</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%201024%201024%22%3E%3Ctitle%3EFM-1%20Midi-Mania%3C/title%3E%3Crect%20width=%221024%22%20height=%221024%22%20fill=%22%23F4F1E8%22/%3E%3Cg%20fill=%22%2317151F%22%3E%3Crect%20x=%22160%22%20y=%22181%22%20width=%22136%22%20height=%22662%22%20rx=%2228%22/%3E%3Crect%20x=%22331%22%20y=%22307%22%20width=%22136%22%20height=%22320%22%20rx=%2228%22/%3E%3Crect%20x=%22557%22%20y=%22307%22%20width=%22136%22%20height=%22320%22%20rx=%2228%22/%3E%3Crect%20x=%22728%22%20y=%22181%22%20width=%22136%22%20height=%22662%22%20rx=%2228%22/%3E%3C/g%3E%3Crect%20x=%22444%22%20y=%22536%22%20width=%22136%22%20height=%22306%22%20rx=%2228%22%20fill=%22%23FF4F8B%22/%3E%3C/svg%3E">
-<meta name="description" content="FM-1 Midi-Mania: a keyboard rhythm game firmware for the M-VAVE FM-1. Play it in your browser, load your own MIDI files, install it on your FM-1.">
+<meta name="description" content="FM-1 Midi-Mania: a keyboard rhythm game firmware for the M-VAVE FM-1. Turn your MIDI files into songs, watch the notes fall to the keys and play your part while the FM-1 plays the rest.">
 <style>
-  :root { --bg: #f4f4f5; --fg: #111; --dim: #555; --card: #fff; --rule: #d4d4d8; --accent: #1d4ed8; color-scheme: light; }
+  :root { --bg: #f4f1e8; --fg: #17151f; --dim: #5b5866; --card: #fffdf7; --rule: #dcd7c8; --pink: #ff4f8b;
+          --pink-ink: #c21d5a; --btn-fg: #f4f1e8; color-scheme: light; }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #111113; --fg: #f4f4f5; --dim: #a1a1aa; --card: #1c1c1f; --rule: #2e2e33; --accent: #93b4ff; color-scheme: dark; }
+    :root { --bg: #17151f; --fg: #f4f1e8; --dim: #aaa6b5; --card: #211f2b; --rule: #34313f; --pink-ink: #ff7aa8;
+            --btn-fg: #17151f; color-scheme: dark; }
   }
-  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
-  main { max-width: 720px; margin: 0 auto; padding: 40px 16px 48px; }
-  h1 .logo { vertical-align: middle; border-radius: 22%; margin: -4px 10px 0 0; }
-  h1 { margin: 0 0 4px; font-size: 28px; }
-  .lead { margin: 0 0 28px; color: var(--dim); }
-  .cards { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-  a.card { display: block; padding: 18px; background: var(--card); border: 1px solid var(--rule); border-radius: 12px;
-           color: inherit; text-decoration: none; }
-  a.card:hover, a.card:focus-visible { border-color: var(--accent); outline: none; }
-  a.card h2 { margin: 0 0 6px; font-size: 18px; color: var(--accent); }
-  a.card p { margin: 0; color: var(--dim); }
-  footer { margin-top: 36px; font-size: 13px; color: var(--dim); }
-  footer a { color: inherit; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 56px 20px 48px; }
+  a { color: inherit; }
+
+  .hero { text-align: center; padding-bottom: 40px; }
+  .hero svg { width: 132px; height: 132px; border-radius: 22%; box-shadow: 0 10px 30px rgba(23, 21, 31, .18); }
+  .hero h1 { margin: 24px 0 8px; font-size: clamp(30px, 6vw, 42px); line-height: 1.15; letter-spacing: -.01em; }
+  .hero .lead { margin: 0 auto 28px; max-width: 34em; color: var(--dim); font-size: 18px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+  .btn { display: inline-block; padding: 12px 22px; border-radius: 10px; font-weight: 600; text-decoration: none;
+         border: 2px solid var(--fg); }
+  .btn.main { background: var(--fg); color: var(--btn-fg); }
+  .btn:hover, .btn:focus-visible { border-color: var(--pink); outline: none; }
+  .note { margin: 14px 0 0; font-size: 13px; color: var(--dim); }
+
+  h2 { font-size: 22px; margin: 48px 0 16px; }
+  h2::before { content: ""; display: inline-block; width: 10px; height: 22px; margin-right: 10px; border-radius: 3px;
+               background: var(--pink); vertical-align: -3px; }
+  .features { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .features div { padding: 18px; background: var(--card); border: 1px solid var(--rule); border-radius: 12px; }
+  .features h3 { margin: 0 0 6px; font-size: 16px; }
+  .features p { margin: 0; color: var(--dim); font-size: 15px; }
+  ol.steps { margin: 0; padding: 0; list-style: none; counter-reset: step; }
+  ol.steps li { counter-increment: step; position: relative; padding: 0 0 18px 48px; }
+  ol.steps li::before { content: counter(step); position: absolute; left: 0; top: -2px; width: 32px; height: 32px;
+                        border-radius: 50%; background: var(--fg); color: var(--btn-fg); font-weight: 700;
+                        display: flex; align-items: center; justify-content: center; }
+  ol.steps b { display: block; }
+  ol.steps span { color: var(--dim); }
+
+  .shots { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .shots figure { margin: 0; }
+  .shots img, .shots video { display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--rule);
+                             background: var(--card); }
+  .shots figcaption { margin-top: 6px; font-size: 13px; color: var(--dim); }
+
+  footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--rule); font-size: 13px; color: var(--dim); }
+  footer nav { margin-bottom: 8px; }
+  footer nav a { margin-right: 14px; }
 </style>
 </head>
 <body>
 <main>
-  <h1><img class="logo" src="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%201024%201024%22%3E%3Ctitle%3EFM-1%20Midi-Mania%3C/title%3E%3Crect%20width=%221024%22%20height=%221024%22%20fill=%22%23F4F1E8%22/%3E%3Cg%20fill=%22%2317151F%22%3E%3Crect%20x=%22160%22%20y=%22181%22%20width=%22136%22%20height=%22662%22%20rx=%2228%22/%3E%3Crect%20x=%22331%22%20y=%22307%22%20width=%22136%22%20height=%22320%22%20rx=%2228%22/%3E%3Crect%20x=%22557%22%20y=%22307%22%20width=%22136%22%20height=%22320%22%20rx=%2228%22/%3E%3Crect%20x=%22728%22%20y=%22181%22%20width=%22136%22%20height=%22662%22%20rx=%2228%22/%3E%3C/g%3E%3Crect%20x=%22444%22%20y=%22536%22%20width=%22136%22%20height=%22306%22%20rx=%2228%22%20fill=%22%23FF4F8B%22/%3E%3C/svg%3E" alt="" width="34" height="34">FM-1 Midi-Mania</h1>
-  <p class="lead">A keyboard rhythm game firmware for the M-VAVE FM-1: songs from MIDI files, notes falling to the keys, the FM-1 playing the backing.</p>
-  <div class="cards">
-    <a class="card" href="webapp/studio/">
-      <h2>FM-1 Midi-Mania Studio</h2>
-      <p>Play the FM-1 in your browser and try your own MIDI files as songs, no FM-1 needed. Have one? Connect it by
-        USB and send your songs to it.</p>
-    </a>
+  <section class="hero">
+    <svg viewBox="0 0 1024 1024" role="img" aria-label="The FM-1 Midi-Mania logo: four keys, the middle one pink"><rect width="1024" height="1024" fill="#F4F1E8"/><g fill="#17151F"><rect x="160" y="181" width="136" height="662" rx="28"/><rect x="331" y="307" width="136" height="320" rx="28"/><rect x="557" y="307" width="136" height="320" rx="28"/><rect x="728" y="181" width="136" height="662" rx="28"/></g><rect x="444" y="536" width="136" height="306" rx="28" fill="#FF4F8B"/></svg>
+    <h1>FM&#8209;1 Midi-Mania</h1>
+    <p class="lead">A keyboard rhythm game for the M-VAVE FM&#8209;1. Turn your MIDI files into songs, watch the notes fall to
+      the keys, and play your part while the FM&#8209;1 plays the rest.</p>
+    <div class="actions">
+      <a class="btn main" href="webapp/studio/">Try it in your browser</a>
 <!--INSTALLER-BEGIN-->
-    <a class="card" href="webapp/installer/">
-      <h2>Install on your FM-1</h2>
-      <p>Put Midi-Mania on your FM-1 over USB, from Chrome or Edge. The official firmware can be put back the same way.</p>
-    </a>
+      <a class="btn" href="webapp/installer/">Install on your FM&#8209;1</a>
 <!--INSTALLER-END-->
+    </div>
+    <p class="note">Free and open source custom firmware. No FM&#8209;1 needed to try it.</p>
+  </section>
+
+  <h2>What it does</h2>
+  <div class="features">
+    <div><h3>Your songs, from MIDI</h3><p>Drop a MIDI file on the page. It is turned into a song in your browser:
+      drums, keys, bass and guitar fitted to the FM&#8209;1's sounds.</p></div>
+    <div><h3>Notes fall to the keys</h3><p>Your part's notes fall to a line on the FM&#8209;1's screen, laid out like its keys,
+      and the keys light as they sound. Play along, or switch your part off and play it yourself.</p></div>
+    <div><h3>The FM&#8209;1 plays the rest</h3><p>The backing plays on the FM&#8209;1's own synth engines, right in time.
+      Change the tempo, the note speed and the scroll direction as you go.</p></div>
+    <div><h3>Songs on your FM&#8209;1</h3><p>Send up to 16 songs to your FM&#8209;1 over USB, delete the ones you're done with, and
+      keep a backup of them on your computer.</p></div>
   </div>
+
+<!-- SCREENSHOTS: put pictures and videos in web/site_media/ (published as media/), then uncomment this section and
+     list them, for example:
+  <h2>See it</h2>
+  <div class="shots">
+    <figure><img src="media/play.jpg" alt="The FM-1 playing a song, notes falling to the keys" loading="lazy">
+      <figcaption>Playing a song</figcaption></figure>
+    <figure><video src="media/demo.mp4" controls muted playsinline preload="metadata"></video>
+      <figcaption>A song from start to finish</figcaption></figure>
+  </div>
+-->
+
+  <h2>Get started</h2>
+  <ol class="steps">
+    <li><b><a href="webapp/studio/">Try it in Studio</a></b>
+      <span>The FM&#8209;1 in your browser, running the same code as the instrument. Play the built-in songs or drop in your
+        own MIDI files.</span></li>
+<!--INSTALLER-BEGIN-->
+    <li><b><a href="webapp/installer/">Install it on your FM&#8209;1</a></b>
+      <span>From Chrome or Edge, over USB. The official firmware goes back on the same page, with a backup of your
+        songs and settings first.</span></li>
+<!--INSTALLER-END-->
+    <li><b>Send your songs</b>
+      <span>In Studio, connect your FM&#8209;1 and send the songs you tried. Find them in SONGS (the SEQ button).</span></li>
+  </ol>
+
   <footer>
-    Midi-Mania by Shan-Sherif · <a href="https://www.gnu.org/licenses/gpl-3.0.html">GPL-3.0</a> ·
-    <a href="https://github.com/shan-sherif/fm-1-midi-mania">Source</a><br>
-    Based on <a href="https://github.com/hugelton/Felucca">Felucca</a> by Leo Kuroshita, Hügelton Instruments.
+    <nav><a href="https://github.com/shan-sherif/fm-1-midi-mania">Source</a><a
+      href="https://github.com/shan-sherif/fm-1-midi-mania/releases">Releases</a><a
+      href="https://github.com/shan-sherif/fm-1-midi-mania/issues">Report a problem</a></nav>
+    FM-1 Midi-Mania by Shan-Sherif · <a href="https://www.gnu.org/licenses/gpl-3.0.html">GPL-3.0</a>, no warranty.
+    Based on <a href="https://github.com/hugelton/Felucca">Felucca</a> by Leo Kuroshita, Hügelton Instruments.<br>
     M-VAVE and FM-1 are trademarks of their respective owners; Midi-Mania is not affiliated with or endorsed by them.
   </footer>
 </main>
