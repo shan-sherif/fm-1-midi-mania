@@ -5,7 +5,7 @@
  * Opened by the SEQ button (Midi-Mania without the sequencer; Felucca's build: ARP), over the whole screen as MENU is:
  *   SELECT or PRESETS  the song;
  *   KNOB 1             your part (Midi-Mania: ALGORITHM, mm_part_turn): those the song has that you can play
- *                      (player.c MM_PLAYABLE: DRUMS KEYS; HOME shows its notes: the keyboard's lanes, or for DRUMS
+ *                      (player.c MM_PLAYABLE: KEYS DRUMS GUITAR BASS; HOME shows its notes: the keyboard's lanes, or for DRUMS
  *                      the drum grid's eight, ui_graph.c graph_notes);
  *   KNOB 2             the tempo, 1 BPM a detent, from half the song's to twice it (its own shown beside);
  *   OCT-               the tempo back to the song's;
@@ -38,6 +38,8 @@ static struct {
 static uint32_t sg_row(void) { return sg.free ? 0u : sg.sel + 1u; }
 /* FREE PLAY (player.c player_free): your part on its sound, no song; HOME draws the keys you press, scrolling away
  * from the hit line (ui_graph.c graph_free). Your parts: any you can play */
+#include "game_save.c"                          /* your settings and high scores, kept (settings_persist.c) */
+
 static int mm_free_now(void) { return player_busy() ? player_is_free() : sg.free; }
 
 static int songs_on(void) { return sg.on; }
@@ -368,7 +370,7 @@ static void sg_options(void)
     {   /* K4 RANGE: its name for your part (DRUMS: pads, the others: hands) */
         uint32_t y = SG_OPT_Y + 3 * SG_OPT_H;
         draw_text_line(8, y + 3u, 66, &AF_S, "K4 RANGE", T_MID, T_BG, 0);
-        draw_text_line(76, y + 1u, 156, &AF_M, MM_RANGE_NAME[pl.mode == MM_DRUMS][pl.range % MM_RANGES],
+        draw_text_line(76, y + 1u, 156, &AF_M, MM_RANGE_NAME[mm_range_names(pl.mode)][pl.range % MM_RANGES],
                        pl.range ? T_THEME : T_TEXT, T_BG, 0);
     }
 sound:
@@ -381,7 +383,7 @@ sound:
 
 static void sg_progress(void)
 {
-    char b[32], *e;
+    char b[40], *e;
     uint32_t playing = player_busy(), len = mm_nsongs() ? pl_song()->length : 0u, pos = pl.pos, w = 0;
     lcd_fill(0, SG_FOOT_Y, 240, 240 - SG_FOOT_Y, T_BG);
     lcd_fill(0, SG_FOOT_Y, 240, 1, T_LINE);
@@ -397,7 +399,15 @@ static void sg_progress(void)
         sg_time(e, len);
         w = len ? (uint32_t)((uint64_t)(pos < len ? pos : len) * 224u / len) : 0u;
     } else {
+        uint32_t best, acc, fl;
         str_cpy(b, sg.free ? "PLAY: START (THE KEYS: YOUR PART)" : "PLAY: START   OCT-: SONG TEMPO", sizeof b);
+        if (!sg.free && mm_nsongs() && hs_best(sg_song(), &best, &acc, &fl)) {   /* your best (game_save.c) */
+            str_cpy(b, "PLAY: START  BEST ", sizeof b);
+            e = sg_uint(b + str_len(b), best);
+            *e++ = ' ';
+            e = sg_uint(e, acc);
+            str_cpy(e, fl & HS_FULL_COMBO ? "% FC" : "%", 5);
+        }
     }
     draw_text_line(8, SG_FOOT_Y + 3, 224, &AF_S, b, playing ? T_TEXT : T_MID, T_BG, 0);
     lcd_fill(8, SG_FOOT_Y + 22, 224, 4, T_LINE);
@@ -412,7 +422,8 @@ static void songs_draw(void)
     uint32_t list = 1u + sg_row() * 131u + (playing ? 7u + pl.song * 977u + (uint32_t)player_is_free() * 31u : 0u) + pal;
     uint32_t opt = 1u + sg_row() * 31u + pl.mode * 7u + sg.bpm_x10 * 1009u + pl.you * 104729u + pl.range * 7907u + pal +
                    (trk[pl.mode % NPART].eng_req * 257u + trk[pl.mode % NPART].preset) * 6553u;   /* (SOUND) */
-    uint32_t prog = 1u + (playing ? 3u + pl.pos / (CHART_FS / 4u) * 17u + pl.song * 131u : 0u) + pal;
+    uint32_t prog = 1u + (playing ? 3u + pl.pos / (CHART_FS / 4u) * 17u + pl.song * 131u :   /* (stopped: the best */
+                          sg.sel * 7u + pl.mode * 113u + pl.range * 1031u + gs.gen * 65537u + sg.free * 3u) + pal;   /* shown) */
     if (ui.force || list != sg.list_sig) {
         sg.list_sig = list;
         sg_list();
@@ -434,8 +445,8 @@ static void songs_draw(void)
  *   KNOB 2  NOTE SPEED  1 (slow: 4 s from the top of the panel to the line) .. 8 (1 s) .. 16 (fastest: 0.4 s); 4: 2 s
  *                       (PL_SPEED)
  *   KNOB 3  OFFSET      -100 .. +100 ms, 2 ms a detent: the player's timing calibration, for the judge (pl.offset);
- *                       OCT- puts it back to 0
- *   HOME or FX: back. Not kept after power-off yet */
+ *                       OCT- puts it back to 0; OCT+ CALIBRATE sets it from your taps with a click (game_cal_poll)
+ *   HOME or FX: back. Kept after power-off, with your part, PLAY and RANGE (game_save.c) */
 #define GM_ROW_Y 40
 #define GM_ROW_H 34
 
@@ -517,8 +528,32 @@ static void game_cards_draw(void)                /* ui_draw.c draw_columns, HOME
     GC_CARD();
     draw_column(3, "SCROLL", pl.up ? "UP" : "DOWN", "", VAL(3u), -1, pl.up ? ICON_X_OCT_UP : ICON_X_OCT_DN);
 }
-static void game_open(void) { gm.on = 1; gm.sig = 0; ui.force = 1; }
-static void game_close(void) { gm.on = 0; ui.force = 1; }
+/* OCT+ CALIBRATE (player.c pl_cal): a click at 100 BPM, you tap any key with it; after 12 taps OFFSET is set to cancel
+ * your average lead or lag (judge.c adds it to every press). gm.cal: 0 nothing to show, 1 running, 2 done (gm.cal_ms
+ * your average, +: late), 3 too few taps. OCT+ again, HOME or FX: stopped */
+static struct { uint8_t cal; int16_t cal_ms; } gmc;
+static void game_cal_stop(void)
+{
+    if (pl_cal.on || gmc.cal == 1u) {
+        pl_cal.on = 0;
+        player_stop();
+    }
+}
+static void game_cal_poll(void)                  /* game_input, game_draw: the calibration ended */
+{
+    if (gmc.cal != 1u || pl_cal.on)
+        return;
+    player_stop();
+    if (pl_cal.done) {
+        int32_t ms = player_cal_ms(), o = -(ms >= 0 ? (ms + 1) / 2 : (ms - 1) / 2);   /* (2 ms a step, rounded) */
+        pl.offset = (int8_t)(o < -50 ? -50 : o > 50 ? 50 : o);
+        gmc.cal_ms = (int16_t)ms;
+        gmc.cal = 2;
+    } else
+        gmc.cal = 3;
+}
+static void game_open(void) { gm.on = 1; gm.sig = 0; gmc.cal = 0; ui.force = 1; }
+static void game_close(void) { game_cal_stop(); gmc.cal = 0; gm.on = 0; ui.force = 1; }
 
 static void game_input(uint32_t pressed, uint32_t home, uint32_t oct)
 {
@@ -551,6 +586,16 @@ static void game_input(uint32_t pressed, uint32_t home, uint32_t oct)
         int32_t s = (int32_t)PL_SPEED + b;
         PL_SPEED = (uint8_t)(s < (int32_t)PL_SPEED_MIN ? PL_SPEED_MIN : s > (int32_t)PL_SPEED_MAX ? PL_SPEED_MAX : s);
     }
+    if (oct & 2u) {                                  /* OCT+: CALIBRATE, or stop it (not while a song plays) */
+        if (gmc.cal == 1u) {
+            game_cal_stop();
+            gmc.cal = 0;
+        } else if (!player_busy() || player_is_free()) {
+            player_cal_start();
+            gmc.cal = 1;
+        }
+    }
+    game_cal_poll();
     if (c || (oct & 1u)) {
         int32_t o = (oct & 1u) ? 0 : (int32_t)pl.offset + c;
         pl.offset = (int8_t)(o < -50 ? -50 : o > 50 ? 50 : o);
@@ -573,7 +618,10 @@ static void gm_row(uint32_t r, const char *label, const char *value, const char 
 static void game_draw(void)
 {
     char v[16], n[16], *e;
-    uint32_t sig = 1u + pl.up * 3u + PL_SPEED * 31u + (uint32_t)(pl.offset + 64) * 1009u + palette_cur() * 7919u, m, x;
+    uint32_t sig, m, x;
+    game_cal_poll();
+    sig = 1u + pl.up * 3u + PL_SPEED * 31u + (uint32_t)(pl.offset + 64) * 1009u + palette_cur() * 7919u +
+          gmc.cal * 104729u + pl_cal.taps * 7u + (pl_cal.clicks & 1u) * 13u + (uint32_t)gmc.cal_ms * 31337u;
     if (!ui.force && sig == gm.sig)
         return;
     gm.sig = sig;
@@ -607,7 +655,27 @@ static void game_draw(void)
         str_cpy(e, " MS", sizeof v - (uint32_t)(e - v));
         gm_row(2, "K3 OFFSET", v, "FOR THE JUDGE");
     }
-    lcd_fill(0, GM_ROW_Y + 3 * GM_ROW_H, 240, 240 - (GM_ROW_Y + 3 * GM_ROW_H), T_BG);
+    {   /* OCT+ CALIBRATE: what it says, the taps while it runs (a light on each click), the result: one line */
+        uint32_t y = GM_ROW_Y + 3u * GM_ROW_H;
+        char t[40];
+        lcd_fill(0, y, 240, GM_ROW_H, T_BG);
+        if (gmc.cal == 1u) {
+            str_cpy(t, pl_cal.clicks <= CAL_SKIP ? "LISTEN..  TAPS " : "TAP WITH IT  TAPS ", sizeof t);
+            e = sg_uint(t + str_len(t), pl_cal.taps);
+            str_cpy(e, "/12  OCT+: STOP", sizeof t - (uint32_t)(e - t));
+            lcd_fill(226, y + 12u, 8, 8, pl_cal.clicks & 1u ? T_THEME : T_LINE);   /* (the beat) */
+        } else if (gmc.cal == 2u) {
+            str_cpy(t, "SET: YOU TAP ", sizeof t);
+            e = sg_uint(t + str_len(t), (uint32_t)(gmc.cal_ms < 0 ? -gmc.cal_ms : gmc.cal_ms));
+            str_cpy(e, gmc.cal_ms < 0 ? " MS EARLY" : " MS LATE", sizeof t - (uint32_t)(e - t));
+        } else if (gmc.cal == 3u)
+            str_cpy(t, "TOO FEW TAPS: OCT+ TO TRY AGAIN", sizeof t);
+        else
+            str_cpy(t, "OCT+: CALIBRATE (TAP WITH A CLICK)", sizeof t);
+        draw_text_line(8, y + 8u, 214, &AF_S, t, gmc.cal == 1u || gmc.cal == 2u ? T_TEXT : T_MID, T_BG, 0);
+        lcd_fill(8, y + GM_ROW_H - 1u, 224, 1, T_LINE);
+    }
+    lcd_fill(0, GM_ROW_Y + 4 * GM_ROW_H, 240, 240 - (GM_ROW_Y + 4 * GM_ROW_H), T_BG);
     draw_text_line(8, 212, 224, &AF_S, "OCT-: OFFSET 0   HOME OR FX: BACK", T_MID, T_BG, 0);
 }
 

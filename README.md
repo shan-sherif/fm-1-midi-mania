@@ -28,13 +28,15 @@ Hügelton Instruments. It keeps Felucca's sound engines, audio, display, storage
 >   MISS, the combo and the score on screen, the result when the song ends;
 > - the chart format (`firmware/src/chart.h`) and the timing judge (`firmware/src/judge.c`, with its test).
 >
-> Not yet: high scores kept, GUITAR and BASS as your part.
+> Not yet: notes outside the 27 keys kept where they sound (they are folded onto the keys by octaves).
 
 ## Playing a MIDI file
 
 1. The easy way: drop it on **[FM-1 Midi-Mania Studio](https://shan-sherif.github.io/fm-1-midi-mania/webapp/studio/)**
-   (Your songs) to try it in the browser, then connect your FM-1 there and send it on. It is converted in the
-   browser as below.
+   (Your songs) to try it in the browser, then connect your FM-1 there and send it on. Studio first lists the file's
+   instruments (each with its notes and range) and the part the converter gives it; change any of them (KEYS,
+   GUITAR, BASS, the drum kit DRUMS, or Leave out: say, the melody on a sax onto KEYS), see what the song will hold,
+   then **Load**. It is converted in the browser as below, your choices over the converter's.
    To build songs into the firmware instead, put `.mid` files in `midi/`. Files there are git-ignored: songs are
    usually copyrighted, so they stay on your computer. Two songs are always built in, to try straight
    away on the FM-1 and in the browser ([assets/songs/](assets/songs/README.md) records their sources):
@@ -56,13 +58,13 @@ Hügelton Instruments. It keeps Felucca's sound engines, audio, display, storage
 | **PLAY** | plays the selected song (and opens the game), or stops the one playing |
 | ENV, LFO, GLO, REC | nothing |
 
-   **ALGORITHM** picks your part from anywhere: **1 KEYS** (piano) or **2 DRUMS** (those the song has; GUITAR and BASS are
-   played by the FM-1 and become playable in a later release). The keys play it; the header shows it at the right
-   ("1 KEYS"). **PRESETS** picks its sound, shown at the bottom left.
+   **ALGORITHM** picks your part from anywhere: **1 KEYS** (piano), **2 DRUMS**, **3 GUITAR** or **4 BASS** (those the
+   song has). The keys play it; the header shows it at the right ("1 KEYS"). GUITAR and BASS fall on the keyboard's
+   lanes as KEYS does, each note on the key its pitch folds to (a bass line an octave or two up). **PRESETS** picks its sound, shown at the bottom left.
 
    In **SONGS**:
    - **SELECT** picks a song. The first row is **FREE PLAY** (selected at power-on): no song, your part on its sound;
-     on the play page every key you press (on the panel, or a MIDI note on your part's channel: 1 KEYS, 2 DRUMS)
+     on the play page every key you press (on the panel, or a MIDI note on your part's channel: 1 to 4)
      appears at the hit line and moves away from it (the opposite way to a
      song's notes), and the header says FREE PLAY. PLAY stops it;
    - **PRESETS** picks your part's **SOUND** (its list: The four parts, below);
@@ -76,8 +78,10 @@ Hügelton Instruments. It keeps Felucca's sound engines, audio, display, storage
      line (GREAT and GOOD say EARLY or LATE), the combo in the middle, the score at the left (300 a PERFECT, 200 a
      GREAT, 100 a GOOD). When the song plays to its end, HOME shows the result: the score, the accuracy, each grade's
      count and the longest combo, until the next song. A MIDI keyboard on your part is scored the same;
-   - **KNOB 4 RANGE:** which of your part's notes are yours (the FM-1 plays the rest): for KEYS, GUITAR and BASS,
-     **ALL**, **RIGHT HAND** (middle C and up), **LEFT HAND** (below it) or **NO LOW** (C3 and up); for DRUMS,
+   - **KNOB 4 RANGE:** which of your part's notes are yours (the FM-1 plays the rest): for KEYS, **ALL**, **RIGHT
+     HAND** (middle C and up), **LEFT HAND** (below it) or **NO LOW** (C3 and up); for GUITAR, **ALL**, **HIGH** (G3
+     and up), **LOW** (below it) or **NO LOW** (A2 and up); for BASS, **ALL**, **HIGH** (E2 and up), **LOW** or
+     **NO LOW** (A1 and up); for DRUMS,
      **ALL 8**, **5 PADS** (no TOM, BELL, CLAP), **4 PADS** (KICK, SNR, CH, OH) or **2 PADS** (KICK, SNR);
    - **PLAY** starts it and opens the game.
 
@@ -102,7 +106,14 @@ Hügelton Instruments. It keeps Felucca's sound engines, audio, display, storage
    - **KNOB 2 NOTE SPEED:** 1 (slow: 4 s from the top of the panel to the line) to 16 (fastest: 0.4 s); 4 is 2 s, 8 is 1 s. Kept for each part: DRUMS start at 8, the others at 4;
    - **KNOB 3 OFFSET:** −100 to +100 ms, your timing calibration for the score (moves every press by it: if you are
      judged LATE when on time, turn it down); **OCT-** sets it to 0;
+   - **OCT+ CALIBRATE:** a click at 100 BPM; tap any key with it. After 4 clicks to listen, 12 taps set OFFSET to
+     cancel your average lead or lag ("SET: YOU TAP 14 MS LATE"); **OCT+** again stops it;
    - **HOME** or **FX** goes back to the game.
+
+   Your part, PLAY, RANGE, NOTE SPEED (for each part), SCROLL and OFFSET are kept after power-off. So is your
+   **best score** for each song, part and RANGE (24 kept, the lowest giving way): the result says **NEW BEST**, or
+   your best, and SONGS shows it below the list (**FC**: every note hit). They are saved with the settings
+   (`firmware/src/game_save.c`), never while a song plays, and go in the installer's backup.
 5. **METRONOME** (SCL), the same settings as MENU's, kept after power-off:
    - **KNOB 1 CLICK:** OFF / ON: the playing song's beats click, the first of each bar higher (it follows TEMPO);
    - **KNOB 2 LEVEL:** LOW / MID / HIGH;
@@ -173,8 +184,8 @@ How a file is fitted to the FM-1 (`tools/gen_songs.py`): four modes, one per par
    (`firmware/src/editor_songs.c`, [docs/CHART_FORMAT.md](docs/CHART_FORMAT.md)), or built into the firmware
    (`assets/songs/`, `midi/`).
 3. **On the FM-1**, the audio interrupt plays the backing with sample-accurate timing. It sounds your keys and passes
-   each press to the judge (`firmware/src/judge.c`, through `player.c` `player_judge_key`), timed to the audio block
-   it arrives in (2.9 ms).
+   each press to the judge (`firmware/src/judge.c`, through `player.c` `player_judge_key`), timed by the key scan's
+   own tick of the key closing (about 0.1 ms; a MIDI keyboard's notes: the audio block they arrive in, 2.9 ms).
 
 More: [docs/GAME_ARCHITECTURE.md](docs/GAME_ARCHITECTURE.md) · [docs/GAME_DESIGN.md](docs/GAME_DESIGN.md) ·
 [docs/CHART_FORMAT.md](docs/CHART_FORMAT.md) · and from Felucca: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md),

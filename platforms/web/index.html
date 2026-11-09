@@ -88,6 +88,16 @@ footer { margin-top: 12px; font-size: 12px; }
 .songs .msg { white-space: pre-wrap; font-size: 12px; }
 .songs .msg.err { color: #7a0d0d; font-weight: 600; }
 .songs meter { width: 100%; height: 8px; }
+.songs .pick { margin: 10px 0; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 8px; }
+.songs .pick h3 { margin: 0 0 2px; font-size: 14px; overflow-wrap: anywhere; }
+.songs .pick .tbl { overflow-x: auto; }
+.songs .pick table { border-collapse: collapse; width: 100%; font-size: 12px; }
+.songs .pick td, .songs .pick th { padding: 3px 6px 3px 0; text-align: left; white-space: nowrap; }
+.songs .pick th { color: var(--dim); font-weight: normal; }
+.songs .pick td.n { text-align: right; }
+.songs .pick tr.out td:not(:last-child) { color: var(--dim); }
+.songs .pick select { font: inherit; font-size: 12px; }
+.songs .pick .sum { margin: 6px 0; font-size: 12px; }
 .songs .fm1 { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--rule); }
 .songs .fm1 progress { width: 100%; height: 6px; }
 .songs li .on { color: var(--dim); font-size: 12px; }
@@ -129,9 +139,11 @@ footer small { font-size: 11px; opacity: .8; }
   <h2 id="songs-h">Your songs</h2>
   <p>Drop MIDI files anywhere on this page, or <button type="button" id="songpick">choose files…</button>
     <input type="file" id="songfile" accept=".mid,.midi,audio/midi" multiple hidden>.
-    Each is converted here, in your browser, and loaded into the FM-1's song memory: find it in SONGS (the SEQ
+    For each, choose which of its instruments play KEYS, DRUMS, GUITAR and BASS, then <b>Load</b>: it is converted here,
+    in your browser, and loaded into the FM-1's song memory: find it in SONGS (the SEQ
     button), after the built-in songs. They stay in this browser. Have an FM-1? Send them to it below.</p>
   <p class="msg" id="songmsg" role="status" aria-live="polite"></p>
+  <div id="songcards"></div>
   <ul id="songlist"></ul>
   <p class="m" id="songused"></p>
   <div class="fm1" id="fm1" hidden>
@@ -160,7 +172,7 @@ footer small { font-size: 11px; opacity: .8; }
 
 <script type="module">
 import { midiKnob, KNOB_MODES } from "./worklet.js";
-import { convertMidi, chartBytes, summary, ROLE_NAME } from "./mm_songs.js";
+import { convertMidi, chartBytes, summary, ROLE_NAME, midiInstruments, noteName } from "./mm_songs.js";
 import { Updater } from "./fm1ota.js";
 import { BackupConnection } from "./fm1backup.js";
 import { listSongs, uploadChart, deleteSong, roomText } from "./fm1songs.js";
@@ -733,6 +745,89 @@ async function sendToFm1(songs) {
   fm1Lock(false);
 }
 fm1All.addEventListener("click", () => sendToFm1(browserSongs.filter((s) => !onFm1(s))));
+// A file dropped: its instruments listed (mm_songs.js midiInstruments), each with the part the converter gives it,
+// to change before it is loaded: KEYS GUITAR BASS (the drum channel: DRUMS) or left out. What the song will hold is
+// shown as you choose (convertMidi with your choices); Load converts it so and loads it into the FM-1 here
+const songCards = document.getElementById("songcards");
+const PART_CHOICES = [[0, "KEYS"], [2, "GUITAR"], [3, "BASS"], [null, "Leave out"]];
+function loadSong(song) {                                         // a converted song into the FM-1's song memory
+  const extra = [song.keys_from !== "piano" ? `KEYS from the ${song.keys_from}` : "",
+                 song.dropped.length ? `instruments left out: GM programs ${song.dropped.map((p) => p == null ? "none" : p).join(", ")}` : "",
+                 song.lead > 0 ? `${(song.lead / 44100).toFixed(1)} s of silence cut` : song.lead < 0 ? `${(-song.lead / 44100).toFixed(1)} s of lead-in added` : ""];
+  songNotes.push(`${song.title}: ${summary(song)}${extra.filter(Boolean).map((e) => "; " + e).join("")}`);
+  send({ type: "song-add", chart: chartBytes(song).buffer, name: song.title });
+}
+function partsLine(song) {                                        // what the song will hold
+  if (!song.notes.length) return "No notes to play: give an instrument a part.";
+  const parts = [0, 1, 2, 3].filter((r) => song.per[r]).map((r) => `${ROLE_NAME[r]} ${song.per[r]}`).join(", ");
+  const cut = song.cut ? ` · ${song.cut} cut where more than 8 would sound at once` +
+    ` (${[0, 1, 2, 3].filter((r) => song.cut_by[r]).map((r) => `${ROLE_NAME[r]} ${song.cut_by[r]}`).join(", ")})` : "";
+  return `The song: ${song.notes.length} notes (${parts}), ${Math.round(song.length / 44100)} s${cut}`;
+}
+function pickCard(name, bytes, inst) {
+  const card = document.createElement("div"), roles = {};
+  card.className = "pick";
+  const h = document.createElement("h3");
+  h.textContent = name.replace(/\.midi?$/i, "");
+  const hint = document.createElement("p");
+  hint.className = "m";
+  hint.textContent = "Choose a part for each instrument. The FM-1 has four: KEYS, DRUMS, GUITAR and BASS; the rest are left out.";
+  const tbl = document.createElement("div"), table = document.createElement("table");
+  tbl.className = "tbl";
+  table.innerHTML = "<thead><tr><th>Instrument</th><th>Ch</th><th class=n>Notes</th><th>Range</th><th>Part</th></tr></thead>";
+  const body = document.createElement("tbody"), sum = document.createElement("p");
+  sum.className = "sum";
+  const update = () => {
+    try { sum.textContent = partsLine(convertMidi(bytes, name, { roles })); }
+    catch (e) { sum.textContent = `Could not convert it (${e.message})`; }
+  };
+  for (const i of inst) {
+    const tr = document.createElement("tr"), sel = document.createElement("select");
+    sel.setAttribute("aria-label", `Part for ${i.name}, channel ${i.channel + 1}`);
+    for (const [v, label] of i.channel === 9 ? [[1, "DRUMS"], [null, "Leave out"]] : PART_CHOICES) {
+      const o = document.createElement("option");
+      o.value = v === null ? "" : String(v);
+      o.textContent = label;
+      o.selected = v === i.role;
+      sel.append(o);
+    }
+    roles[i.key] = i.role;
+    sel.addEventListener("change", () => {
+      roles[i.key] = sel.value === "" ? null : Number(sel.value);
+      tr.classList.toggle("out", roles[i.key] === null);
+      update();
+    });
+    tr.classList.toggle("out", i.role === null);
+    for (const [text, cls] of [[i.name], [String(i.channel + 1)], [String(i.notes), "n"],
+                               [i.lo === i.hi ? noteName(i.lo) : `${noteName(i.lo)}–${noteName(i.hi)}`]]) {
+      const td = document.createElement("td");
+      td.textContent = text;
+      if (cls) td.className = cls;
+      tr.append(td);
+    }
+    const td = document.createElement("td");
+    td.append(sel);
+    tr.append(td);
+    body.append(tr);
+  }
+  table.append(body);
+  tbl.append(table);
+  const load = songButton("Load", () => {
+    songNotes = [];
+    try {
+      const song = convertMidi(bytes, name, { roles });
+      if (!song.notes.length) { tell([`${name}: no notes to play: give an instrument a part`], true); return; }
+      loadSong(song);
+      card.remove();
+    } catch (e) { tell([`${name}: could not convert it (${e.message})`], true); }
+  });
+  const skip = songButton("Skip", () => card.remove());
+  const btns = document.createElement("p");
+  btns.append(load, " ", skip);
+  card.append(h, hint, tbl, sum, btns);
+  songCards.append(card);
+  update();
+}
 async function loadSongFiles(files) {
   songNotes = [];
   if (!node) {
@@ -742,19 +837,14 @@ async function loadSongFiles(files) {
   for (const f of files) {
     if (!/\.midi?$/i.test(f.name)) { songNotes.push(`${f.name}: not a MIDI file (.mid)`); continue; }
     try {
-      const song = convertMidi(new Uint8Array(await f.arrayBuffer()), f.name);
-      if (!song.notes.length) { songNotes.push(`${f.name}: no notes it can play`); continue; }
-      const extra = [song.keys_from !== "piano" ? `KEYS from the ${song.keys_from}` : "",
-                     song.dropped.length ? `instruments left out: GM programs ${song.dropped.map((p) => p == null ? "none" : p).join(", ")}` : "",
-                     song.lead > 0 ? `${(song.lead / 44100).toFixed(1)} s of silence cut` : song.lead < 0 ? `${(-song.lead / 44100).toFixed(1)} s of lead-in added` : ""];
-      songNotes.push(`${song.title}: ${summary(song)}${extra.filter(Boolean).map((e) => "; " + e).join("")}`);
-      const chart = chartBytes(song);
-      send({ type: "song-add", chart: chart.buffer, name: song.title });
+      const bytes = new Uint8Array(await f.arrayBuffer()), inst = midiInstruments(bytes);
+      if (!inst.length) { songNotes.push(`${f.name}: no notes in it`); continue; }
+      pickCard(f.name, bytes, inst);
     } catch (e) {
       songNotes.push(`${f.name}: could not read it (${e.message})`);
     }
   }
-  tell(songNotes, songNotes.some((l) => /not |could not|no notes/.test(l)));
+  tell(songNotes, songNotes.length > 0);
 }
 document.getElementById("songpick").addEventListener("click", () => songFile.click());
 songFile.addEventListener("change", () => { loadSongFiles([...songFile.files]); songFile.value = ""; });

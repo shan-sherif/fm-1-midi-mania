@@ -166,7 +166,15 @@ static uint32_t kb_pitch(const track_t *t, uint32_t k, int32_t oct)
 
 static int32_t mm_drum_key_note(uint32_t k);   /* player.c (Midi-Mania: the drum lanes' keys) */
 static int32_t player_key_note(uint32_t part, uint32_t k);   /* .. PLAY YOU: the song's note a key meets */
-static void player_judge_key(uint32_t part, uint32_t k);     /* .. PLAY YOU: the press judged (the score) */
+static void player_judge_key(uint32_t part, uint32_t k, uint32_t t0);   /* .. PLAY YOU: the press judged (the score) */
+#ifndef MM_KEY_TICKS
+#define MM_KEY_TICKS 0                         /* (midimania.c: 1 on the FM-1, the key scan's ticks) */
+#endif
+#if MM_KEY_TICKS
+#define MM_KEY_T0(k) (fm1_in.note_t0[k])      /* the TIMER4 tick the key scan saw key k close (fm1_input.h) */
+#else
+#define MM_KEY_T0(k) 0u                        /* (the host builds: none, the audio block's time) */
+#endif
 static uint32_t kb_map(const track_t *t, uint32_t k)
 {
     int32_t n;
@@ -853,7 +861,7 @@ static void keyboard_block(void)
             else if (song.grid == 1u)             /* the DRUM grid: a lane key plays its lane, the rest are the UI's */
                 kb_note[k] = grid_key_note(k);
             else {
-                player_judge_key(trk_index(&trk[kb_trk[k]]), k);   /* (Midi-Mania: PLAY YOU's score; the press alone) */
+                player_judge_key(trk_index(&trk[kb_trk[k]]), k, MM_KEY_T0(k));   /* (Midi-Mania: PLAY YOU's score) */
                 kb_note[k] = (uint8_t)kb_map(&trk[kb_trk[k]], k);
             }
             if (kb_note[k] == KB_SILENT)

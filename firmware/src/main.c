@@ -79,6 +79,7 @@ static void mm_init(void)
     mm_song_base = fm1_xip_ptr(MM_SONG_BASE);   /* Midi-Mania: the stored songs (player.c), read in place */
 #endif
     mm_song_scan();
+    game_load();                              /* Midi-Mania: your part, PLAY, RANGE, SCROLL, NOTE SPEED, OFFSET as saved */
     songs_open();                             /* Midi-Mania: HOME is the songs (ui_songs.c) */
 }
 

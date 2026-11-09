@@ -617,6 +617,79 @@ static int test_songs(void)
         ok_at(!game_on());
         PL_SPEED = 4u;
     }
+    {   /* kept after power-off (game_save.c): your settings in the settings record's row 11, the high scores in rows
+         * 2 3 5 6 7 8; a row that is not ours (a Felucca's favourites) gives the defaults and is cleared */
+        uint8_t mode = pl.mode, up = pl.up, you = pl.you, range = pl.range, sp[4];
+        int8_t off = pl.offset;
+        uint32_t best, acc, fl, prev, i;
+        memcpy(sp, pl.speed, sizeof sp);
+        memset(favorites.factory[11], 0x5A, 32);
+        memset(favorites.factory[2], 0xA5, 32);
+        game_load();
+        ok_at(favorites.factory[11][0] == GS_MARK && favorites.factory[11][1] == GS_VER && !favorites.factory[2][0] &&
+              pl.mode == mode && pl.offset == off);   /* (not ours: the defaults kept, the rows ours now) */
+        pl.up = 1; pl.offset = -7; pl.speed[MM_KEYS] = 11; pl.you = 1;
+        frame();                                      /* (game_save_poll: into the row, saved later) */
+        ok_at(favorites.factory[11][3] == 1u && (int8_t)favorites.factory[11][4] == -7 && favorites.factory[11][7] == 11u &&
+              favorites.factory[11][5] == 1u && set_later.on);
+        pl.up = 0; pl.offset = 0; pl.speed[MM_KEYS] = 4; pl.you = 0;   /* (a power-off: the defaults) */
+        game_load();
+        ok_at(pl.up == 1u && pl.offset == -7 && pl.speed[MM_KEYS] == 11u && pl.you == 1u);
+        favorites.factory[11][7] = 99;                /* (a NOTE SPEED out of range: the default kept) */
+        pl.speed[MM_KEYS] = 4;
+        game_load();
+        ok_at(pl.speed[MM_KEYS] == 4u);
+        /* the high scores: a song's result kept, a lower one not, a higher one over it */
+        ok_at(!hs_best(pl_song(), &best, &acc, &fl));
+        pl_judge.score = 300; pl_judge.count[J_PERFECT] = 100; pl_judge.count[J_MISS] = 0;
+        pl_sc.done = 1;
+        frame();
+        ok_at(hs_best(pl_song(), &best, &acc, &fl) && best == 30000u && acc == 100u && (fl & HS_FULL_COMBO) &&
+              game_new_best(&prev) && !prev);
+        pl_sc.done = 0; frame();
+        pl_judge.score = 200; pl_sc.done = 1; frame();
+        ok_at(hs_best(pl_song(), &best, &acc, &fl) && best == 30000u && !game_new_best(&prev) && prev == 30000u);
+        pl_sc.done = 0; frame();
+        pl_judge.score = 400; pl_judge.count[J_MISS] = 2; pl_sc.done = 1; frame();
+        ok_at(hs_best(pl_song(), &best, &acc, &fl) && best == 40000u && !(fl & HS_FULL_COMBO) && game_new_best(&prev) &&
+              prev == 30000u);
+        pl.range = (uint8_t)((range + 1u) % MM_RANGES);   /* another RANGE: another best (none yet) */
+        ok_at(!hs_best(pl_song(), &best, &acc, &fl));
+        for (i = 0; i < HS_ENTRIES; i++) {                  /* every entry taken (scores 10 .. 33, the lowest first) */
+            uint8_t *e = hs_at(i);
+            uint32_t id = 100u + i, sc = 10u + i;
+            e[0] = (uint8_t)id; e[1] = e[2] = e[3] = 0; e[4] = (uint8_t)sc; e[5] = 0; e[6] = 50; e[7] = 0;
+        }
+        pl_sc.done = 0; frame();
+        pl_judge.score = 1000; pl_sc.done = 1; frame();   /* (a new song's best, the entries full) */
+        ok_at(hs_best(pl_song(), &best, &acc, &fl) && best == 100000u && hs_find(100u) < 0 && hs_find(101u) >= 0);
+        pl_sc.done = 0; frame();
+        memset(&pl_judge, 0, sizeof pl_judge);
+        pl.mode = mode; pl.up = up; pl.you = you; pl.range = range; pl.offset = off;
+        memcpy(pl.speed, sp, sizeof sp);
+        track_select(pl.mode % NTRK);
+    }
+    {   /* GAME's OCT+ CALIBRATE: FREE PLAY's clicks; when done, OFFSET is the taps' average turned round (2 ms steps) */
+        press(B_FX);
+        ok_at(game_on() && gmc.cal == 0u);
+        press(B_OCTUP);
+        ok_at(gmc.cal == 1u && pl_cal.on && player_is_free());
+        pl_cal.on = 0; pl_cal.done = 1; pl_cal.taps = CAL_TAPS;   /* (12 taps, 20 ms late each) */
+        pl_cal.sum = (int32_t)(CAL_TAPS * CHART_FS / 50u);
+        frame();
+        ok_at(gmc.cal == 2u && gmc.cal_ms == 20 && pl.offset == -10);
+        press(B_OCTUP);                               /* again: running; OCT+ once more: stopped */
+        press(B_OCTUP);
+        ok_at(gmc.cal == 0u && !pl_cal.on);
+        press(B_OCTUP);
+        pl_cal.on = 0; pl_cal.done = 0;               /* (the clicks ran out: too few taps) */
+        frame();
+        ok_at(gmc.cal == 3u && pl.offset == -10);
+        press(B_FX);
+        ok_at(!game_on());
+        mix_block(o, CTL);
+        pl.offset = 0;
+    }
     {   /* a song with drums: KNOB 1 to DRUMS, PLAY: HOME's drum lanes, a hit lights its lane's key */
         uint32_t i, d = MM_NSONGS;
         for (i = 0; i < MM_NSONGS && d == MM_NSONGS; i++)
@@ -768,14 +841,16 @@ static int test_mm_panel(void)
         ok &= (pl.req == PL_REQ_STOP || !pl.playing) && !song.playing && transport_req == 0u;
         player_stop();
     }
-    if (MM_NSONGS) {                                  /* ALGORITHM: your part, DRUMS and KEYS only (GUITAR BASS later) */
-        uint32_t t, ok2 = 1;
+    if (MM_NSONGS) {                                  /* ALGORITHM: your part, any of the four the song has (FREE PLAY: */
+        uint32_t t, ok2 = 1, seen = 0;                /* all four, KEYS DRUMS GUITAR BASS), the keys on it */
         press(B_HOME);
-        for (t = 0; t < 6u; t++) {
+        for (t = 0; t < 8u; t++) {
+            uint32_t parts = mm_free_now() ? MM_PLAYABLE : (player_busy() ? pl_song() : sg_song())->parts & MM_PLAYABLE;
             turn(EN_ALGO, 1);
-            ok2 &= (pl.mode == MM_DRUMS || pl.mode == MM_KEYS) && song.sel == pl.mode;
+            ok2 &= ((MM_PLAYABLE >> pl.mode) & 1u) && (!parts || ((parts >> pl.mode) & 1u)) && song.sel == pl.mode;
+            seen |= 1u << pl.mode;
         }
-        ok &= ok2;
+        ok &= ok2 && (!mm_free_now() || seen == MM_PLAYABLE) && MM_PLAYABLE == 0xFu;
     }
     return check("Midi-Mania panel: HOME game, SEQ songs, FX GAME, EDIT MIXER, SCL METRONOME, SAVE PRESETS, ALGORITHM part, "
                  "PLAY the song",

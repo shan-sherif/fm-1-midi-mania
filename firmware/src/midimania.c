@@ -100,6 +100,7 @@ static __attribute__((noinline)) int c1_wait(void) { return fm1_cpu1_wait(); }  
 #include "midi_uart.c"
 #endif
 #include "song_chain.c"
+#define MM_KEY_TICKS 1                 /* Midi-Mania: a press scored at the key scan's tick (seq.c, player.c pl_press_pos) */
 #include "seq.c"
 #include "audio.c"
 

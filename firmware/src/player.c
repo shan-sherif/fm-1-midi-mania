@@ -162,8 +162,9 @@ enum { PL_REQ_NONE, PL_REQ_START, PL_REQ_STOP };
  * (SONGS, ui_songs.c), whose notes HOME shows (ui_graph.c graph_notes) */
 enum { MM_KEYS, MM_DRUMS, MM_GUITAR, MM_BASS, MM_NMODES };   /* parts 1..4: 1 KEYS (piano), 2 DRUMS (engines.c MM_PART_ENGINE) */
 static const char *const MM_MODE_NAME[MM_NMODES] = {"KEYS", "DRUMS", "GUITAR", "BASS"};
-/* the parts you can play (Midi-Mania: DRUMS and KEYS; GUITAR and BASS for a later release, the device plays them) */
-#define MM_PLAYABLE ((1u << MM_DRUMS) | (1u << MM_KEYS))
+/* the parts you can play: all four (Midi-Mania 0.4.0; before it DRUMS and KEYS). GUITAR and BASS are melodic parts as KEYS
+ * is: their notes on the 27 keys (the converter folds them there by octaves), HOME the keyboard's lanes */
+#define MM_PLAYABLE ((1u << MM_KEYS) | (1u << MM_DRUMS) | (1u << MM_GUITAR) | (1u << MM_BASS))
 #define PL_RATE_ONE 65536u               /* pl.rate: the song's own tempo (Q16) */
 
 static struct {
@@ -243,21 +244,26 @@ static int32_t mm_drum_key_note(uint32_t k)
     return -1;
 }
 
-/* SONGS' RANGE: which notes of your part are yours (the others the device plays, unseen). KEYS GUITAR BASS: ALL; RIGHT
- * HAND, middle C (60) and up; LEFT HAND, below it; NO LOW, C3 (48) and up. DRUMS: the lanes of MM_DRUM_SETS */
+/* SONGS' RANGE: which notes of your part are yours (the others the device plays, unseen). The melodic parts: ALL; the
+ * upper notes, from the part's split up; the lower, below it; NO LOW, from its low mark up. KEYS: RIGHT HAND (middle
+ * C, 60, up), LEFT HAND, NO LOW (C3, 48, up). GUITAR (its range E2..E6): HIGH from G3 (55), LOW, NO LOW from A2 (45).
+ * BASS (E1..G3): HIGH from E2 (40), LOW, NO LOW from A1 (33). DRUMS: the lanes of MM_DRUM_SETS */
 #define MM_RANGES 4u
-#define MM_SPLIT 60u
-#define MM_LOW 48u
+static const uint8_t MM_RANGE_SPLIT[MM_NMODES] = {60, 0, 55, 40};   /* by part: KEYS DRUMS GUITAR BASS */
+static const uint8_t MM_RANGE_LOW[MM_NMODES] = {48, 0, 45, 33};
 static const uint8_t MM_DRUM_SETS[MM_RANGES] = {0xFFu, 0x5Bu, 0x1Bu, 0x03u};   /* ALL; KICK SNR CH OH RIM; KICK SNR CH OH;
                                                   * KICK SNR (bit l: the DRUM engine's lane l, eng_drum.c) */
-static const char *const MM_RANGE_NAME[2][MM_RANGES] = {{"ALL", "RIGHT HAND", "LEFT HAND", "NO LOW"},
-                                                         {"ALL 8", "5 PADS", "4 PADS", "2 PADS"}};
+static const char *const MM_RANGE_NAME[3][MM_RANGES] = {{"ALL", "RIGHT HAND", "LEFT HAND", "NO LOW"},
+                                                         {"ALL 8", "5 PADS", "4 PADS", "2 PADS"},
+                                                         {"ALL", "HIGH", "LOW", "NO LOW"}};
+static uint32_t mm_range_names(uint32_t mode) { return mode == MM_KEYS ? 0u : mode == MM_DRUMS ? 1u : 2u; }
 static int mm_in_range(const chart_note_t *c)
 {
-    uint32_t r = pl.range % MM_RANGES;
+    uint32_t r = pl.range % MM_RANGES, part = c->flags & CN_PART_MASK;
     if (c->flags & CN_DRUM)
         return (MM_DRUM_SETS[r] >> (drum_lane(c->pitch) % NLANE)) & 1u;
-    return r == 0u || (r == 1u && c->pitch >= MM_SPLIT) || (r == 2u && c->pitch < MM_SPLIT) || (r == 3u && c->pitch >= MM_LOW);
+    return r == 0u || (r == 1u && c->pitch >= MM_RANGE_SPLIT[part]) || (r == 2u && c->pitch < MM_RANGE_SPLIT[part]) ||
+           (r == 3u && c->pitch >= MM_RANGE_LOW[part]);
 }
 static int mm_mine(const chart_note_t *c)       /* a note of your part, in your RANGE */
 {
@@ -282,6 +288,32 @@ static struct {
     volatile int16_t dt_ms;              /* ISR: its press minus its note, ms (negative: early; a MISS: 0) */
     volatile uint32_t seq;               /* ISR: +1 a grade (the UI shows each new one) */
 } pl_sc;
+/* The press's time on the song clock. On the FM-1 (midimania.c MM_KEY_TICKS: seq.c passes the key scan's TIMER4 tick
+ * of the key closing, fm1_in.note_t0, ~0.1 ms) it is placed between the clock's steps: pl.pos was set at TIMER4 tick pl_tick (player_block), and
+ * the song runs at pl.rate, so the press at tick t0 is pl.pos + (t0 - pl_tick) of song time (t0 a moment before
+ * pl_tick, or after it). Without a tick (MIDI IN, the host builds), or a tick out of reach (more than PL_T0_MAX from
+ * pl_tick: a stale one), pl.pos: the audio block the press arrived in (2.9 ms) */
+#ifndef FM1_TICKS_PER_US
+#define FM1_TICKS_PER_US 24u
+#endif
+#if MM_KEY_TICKS
+#define PL_NOW_TICK() fm1_ticks()
+#else
+#define PL_NOW_TICK() 0u
+#endif
+#define PL_T0_MAX (FM1_TICKS_PER_US * 8000u)     /* 8 ms of ticks */
+static uint32_t pl_tick;                         /* ISR: the tick pl.pos was set at (0: none) */
+static uint32_t pl_press_pos(uint32_t t0)
+{
+    int32_t d = (int32_t)(t0 - pl_tick);
+    int64_t s;
+    if (!t0 || !pl_tick || d > (int32_t)PL_T0_MAX || d < -(int32_t)PL_T0_MAX)
+        return pl.pos;
+    s = (int64_t)d * (int64_t)CHART_FS / (int64_t)(FM1_TICKS_PER_US * 1000000u);   /* real samples */
+    if (!pl.free)                                                                  /* (FREE PLAY: real time) */
+        s = s * (int64_t)pl.rate / (int64_t)PL_RATE_ONE;                           /* song samples (TEMPO) */
+    return s < 0 && (uint32_t)-s > pl.pos ? 0u : (uint32_t)((int64_t)pl.pos + s);
+}
 static int pl_judge_mine(const chart_note_t *c)
 {
     return mm_mine(c) && ((c->flags & CN_DRUM) || c->key < CHART_NKEYS);
@@ -309,14 +341,79 @@ static void pl_judge_tick(uint32_t now)          /* ISR: the notes whose window 
         pl_sc.seq++;
     }
 }
-/* ISR (seq.c keyboard_block; MIDI IN, mm_midi_note): key k pressed on part */
-static void player_judge_key(uint32_t part, uint32_t k)
+/* GAME's CALIBRATE (ui_songs.c, OCT+): a click every CAL_PERIOD (100 BPM) on FREE PLAY's clock, and your taps (any
+ * key) against them. After CAL_SKIP clicks (to find the beat), each tap within a third of a beat of a click counts:
+ * its time minus the click's. CAL_TAPS of them, or CAL_CLICKS clicks, and it ends (done); the main loop sets OFFSET
+ * from their average (player_cal_result). The click sounds at the start of its block (click.c), so its time is that */
+#define CAL_PERIOD (CHART_FS * 6u / 10u)
+#define CAL_SKIP 4u
+#define CAL_TAPS 12u
+#define CAL_CLICKS 40u
+static struct {
+    volatile uint8_t on;                 /* main loop: start (player_cal_start); ISR: off when done */
+    volatile uint8_t done;               /* ISR: finished with CAL_TAPS taps (the main loop takes the result) */
+    volatile uint8_t taps, clicks;       /* ISR: taps counted, clicks sounded */
+    volatile int32_t sum;                /* ISR: the taps' time minus their click's, samples */
+    uint32_t next, last;                 /* ISR: the next click's time, the last one's (FREE PLAY's pl.pos) */
+} pl_cal;
+static void pl_cal_block(uint32_t from, uint32_t to)   /* ISR, FREE PLAY: song samples [from, to) */
+{
+    if (pl_cal.next >= to)
+        return;
+    click_req = (uint8_t)(pl_cal.clicks % 4u ? 1u : 2u);
+    pl_cal.last = from;
+    pl_cal.next += CAL_PERIOD;
+    if (++pl_cal.clicks >= CAL_CLICKS)
+        pl_cal.on = 0;                           /* (too few taps: not done, OFFSET left as it was) */
+}
+static void pl_cal_press(uint32_t t0)            /* ISR: a key down */
+{
+    uint32_t t, c;
+    int32_t d;
+    if (!pl_cal.on || !pl.free || pl_cal.clicks <= CAL_SKIP)
+        return;
+    t = pl_press_pos(t0);
+    c = t >= pl_cal.last + CAL_PERIOD / 2u ? pl_cal.last + CAL_PERIOD : pl_cal.last;   /* the click it is nearest */
+    d = (int32_t)(t - c);
+    if (d > (int32_t)(CAL_PERIOD / 3u) || d < -(int32_t)(CAL_PERIOD / 3u))
+        return;
+    pl_cal.sum += d;
+    if (++pl_cal.taps >= CAL_TAPS) {
+        pl_cal.on = 0;
+        pl_cal.done = 1;
+    }
+}
+/* main loop */
+static void player_free(void);
+static void player_stop(void);
+static void player_cal_start(void)
+{
+    pl_cal.on = 0;
+    pl_cal.done = 0;
+    pl_cal.taps = 0;
+    pl_cal.clicks = 0;
+    pl_cal.sum = 0;
+    pl_cal.next = CHART_FS / 2u;                 /* (the first click half a second in) */
+    pl_cal.last = 0;
+    player_free();
+    pl_cal.on = 1;
+}
+/* the taps' average, ms (+: late): OFFSET is its opposite (judge.c adds OFFSET to every press) */
+static int32_t player_cal_ms(void)
+{
+    int32_t a = pl_cal.taps ? pl_cal.sum / (int32_t)pl_cal.taps : 0;
+    return (int32_t)((int64_t)a * 1000 / (int32_t)CHART_FS);
+}
+
+/* ISR (seq.c keyboard_block; MIDI IN, mm_midi_note): key k pressed on part, at TIMER4 tick t0 (0: unknown) */
+static void player_judge_key(uint32_t part, uint32_t k, uint32_t t0)
 {
     int32_t dt = 0;
     uint32_t g;
+    pl_cal_press(t0);
     if (!pl_sc.on || !pl.playing || pl.free || pl.pre || part != pl.mode % NPART)
         return;
-    g = judge_press(&pl_judge, k, pl.pos, &dt);
+    g = judge_press(&pl_judge, k, pl_press_pos(t0), &dt);
     if (g == J_NONE)
         return;                                  /* (no note of yours near: not counted) */
     pl_sc.last = (uint8_t)g;
@@ -403,6 +500,9 @@ static void player_block(uint32_t n)
         pl.free = 0;
         pl_sc.on = 0;                              /* (a stop, a new song: the score's over; the result gone) */
         pl_sc.done = 0;
+        if (r != PL_REQ_START || pl.req_song != PL_FREE)
+            pl_cal.on = 0;                         /* (the calibration runs on FREE PLAY's clock: stopped with it) */
+        pl_tick = 0;
         if (r == PL_REQ_START && pl.req_song == PL_FREE) {   /* FREE PLAY: the clock alone (HOME draws your presses) */
             pl.free = 1;
             pl.pos = 0;
@@ -434,7 +534,11 @@ static void player_block(uint32_t n)
     if (!pl.playing)
         return;
     if (pl.free) {                                 /* FREE PLAY: real time, whatever TEMPO says */
+        uint32_t from = pl.pos;
         pl.pos += n;
+        pl_tick = PL_NOW_TICK();
+        if (pl_cal.on)
+            pl_cal_block(from, pl.pos);            /* (GAME's CALIBRATE: its clicks) */
         return;
     }
     s = pl_song();
@@ -462,6 +566,7 @@ static void player_block(uint32_t n)
         pl.nb++;
     }
     pl.pos = end;
+    pl_tick = PL_NOW_TICK();                       /* (a press between two blocks: player_judge_key, pl_press_pos) */
     pl_keys();
     if (pl_sc.on)
         pl_judge_tick(end);
@@ -509,7 +614,7 @@ static void mm_midi_note(uint32_t part, uint32_t note, int on)
     mm_midi_k[note] = (uint8_t)(k + 1u);
     mm_midi_n[k]++;
     mm_midi_keys |= 1u << k;
-    player_judge_key(part, k);                    /* (PLAY YOU: a MIDI keyboard's notes are judged as the keys') */
+    player_judge_key(part, k, 0u);                /* (PLAY YOU: a MIDI keyboard's notes are judged as the keys') */
 }
 
 /* main loop */

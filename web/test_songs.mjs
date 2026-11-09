@@ -9,7 +9,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { convertMidi, chartBytes, crc32, summary } from "./mm_songs.js";
+import { convertMidi, chartBytes, crc32, summary, midiInstruments, noteName, GM_NAMES, DRUMS, KEYS, GUITAR, BASS } from "./mm_songs.js";
 import { testMidi } from "./test_midi.mjs";
 
 let bad = 0;
@@ -65,4 +65,27 @@ for (const dir of midiDirs) {
 }
 check(`${files} MIDI files compared`, files > 0);
 console.log(bad ? `songs.js: ${bad} FAILED` : "songs.js: all ok");
+// choosing the parts (Studio: Your songs): the file's instruments listed with the converter's own choice; your choice
+// over it, a part an instrument cannot take ignored; the same choice as the converter's: the same chart
+{
+  const u8 = testMidi(), inst = midiInstruments(u8), by = (n) => inst.find((i) => i.name === n);
+  const piano = by("Grand Piano"), bass = by("Finger Bass"), drums = by("Drum kit");
+  check(`midiInstruments: ${inst.map((i) => `${i.name} ch${i.channel + 1} ${i.notes} ${noteName(i.lo)}..${noteName(i.hi)}`).join(", ")}`,
+        inst.length === 3 && GM_NAMES.length === 128 && noteName(60) === "C4" &&
+        piano && piano.role === KEYS && piano.notes === 13 && piano.lo === 48 && piano.hi === 84 && piano.channel === 0 &&
+        bass && bass.role === BASS && bass.notes === 8 && bass.program === 33 &&
+        drums && drums.role === DRUMS && drums.channel === 9);
+  const same = Object.fromEntries(inst.map((i) => [i.key, i.role]));
+  const a = chartBytes(convertMidi(u8, "Test Song.mid")), b = chartBytes(convertMidi(u8, "Test Song.mid", { roles: same }));
+  check("your choice the same as the converter's: the same chart, byte for byte",
+        a.length === b.length && a.every((v, i) => v === b[i]));
+  const g = convertMidi(u8, "Test Song.mid", { roles: { [bass.key]: GUITAR } });
+  check("the bass put on GUITAR: its 8 notes on part 3, none on BASS", g.per[GUITAR] === 8 && g.per[BASS] === 0);
+  const o = convertMidi(u8, "Test Song.mid", { roles: { [piano.key]: null } });
+  check("the piano left out: no KEYS, the drums and bass kept", o.per[KEYS] === 0 && o.per[DRUMS] > 0 && o.per[BASS] === 8);
+  const x = convertMidi(u8, "Test Song.mid", { roles: { [drums.key]: KEYS, [piano.key]: DRUMS } });
+  check("a part an instrument cannot take (the drum kit on KEYS, the piano on DRUMS): ignored",
+        x.per[DRUMS] === convertMidi(u8, "Test Song.mid").per[DRUMS] && x.per[KEYS] === convertMidi(u8, "Test Song.mid").per[KEYS]);
+}
+
 process.exit(bad ? 1 : 0);

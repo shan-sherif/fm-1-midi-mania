@@ -16,6 +16,24 @@ const KEY_LO = 53, KEY_HI = 79;              // F3 .. G5
 const CN_DRUM = 8;
 export const KEYS = 0, DRUMS = 1, GUITAR = 2, BASS = 3;
 export const ROLE_NAME = ["KEYS", "DRUMS", "GUITAR", "BASS"];
+// General MIDI's instruments, by program (the names Studio shows for a file's instruments)
+export const GM_NAMES = ("Grand Piano|Bright Piano|Electric Grand|Honky-tonk Piano|Electric Piano 1|Electric Piano 2|" +
+  "Harpsichord|Clavinet|Celesta|Glockenspiel|Music Box|Vibraphone|Marimba|Xylophone|Tubular Bells|Dulcimer|" +
+  "Drawbar Organ|Percussive Organ|Rock Organ|Church Organ|Reed Organ|Accordion|Harmonica|Tango Accordion|" +
+  "Nylon Guitar|Steel Guitar|Jazz Guitar|Clean Guitar|Muted Guitar|Overdriven Guitar|Distortion Guitar|" +
+  "Guitar Harmonics|Acoustic Bass|Finger Bass|Pick Bass|Fretless Bass|Slap Bass 1|Slap Bass 2|Synth Bass 1|" +
+  "Synth Bass 2|Violin|Viola|Cello|Contrabass|Tremolo Strings|Pizzicato Strings|Harp|Timpani|Strings 1|" +
+  "Strings 2|Synth Strings 1|Synth Strings 2|Choir Aahs|Voice Oohs|Synth Choir|Orchestra Hit|Trumpet|Trombone|" +
+  "Tuba|Muted Trumpet|French Horn|Brass Section|Synth Brass 1|Synth Brass 2|Soprano Sax|Alto Sax|Tenor Sax|" +
+  "Baritone Sax|Oboe|English Horn|Bassoon|Clarinet|Piccolo|Flute|Recorder|Pan Flute|Blown Bottle|Shakuhachi|" +
+  "Whistle|Ocarina|Square Lead|Saw Lead|Calliope Lead|Chiff Lead|Charang Lead|Voice Lead|Fifths Lead|" +
+  "Bass + Lead|New Age Pad|Warm Pad|Polysynth Pad|Choir Pad|Bowed Pad|Metallic Pad|Halo Pad|Sweep Pad|" +
+  "Rain FX|Soundtrack FX|Crystal FX|Atmosphere FX|Brightness FX|Goblins FX|Echoes FX|Sci-fi FX|Sitar|Banjo|" +
+  "Shamisen|Koto|Kalimba|Bagpipe|Fiddle|Shanai|Tinkle Bell|Agogo|Steel Drums|Woodblock|Taiko Drum|Melodic Tom|" +
+  "Synth Drum|Reverse Cymbal|Guitar Fret Noise|Breath Noise|Seashore|Bird Tweet|Telephone|Helicopter|Applause|" +
+  "Gunshot").split("|");
+const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+export const noteName = (n) => `${NOTE_NAMES[n % 12]}${Math.floor(n / 12) - 1}`;   // (60: C4, middle C)
 const ROLE_SOUND = [[4, 0], [10, 0], [9, 2], [12, 2]];
 const PRIORITY = { [DRUMS]: 0, [KEYS]: 1, [GUITAR]: 2, [BASS]: 3 };
 const MIN_LEN = Math.floor(FS / 50);
@@ -170,16 +188,20 @@ function programOf(progs, track, ch) {
   return null;
 }
 
-export function convertMidi(u8, name) {
-  const { div, tempos, notes: raw, progs, bpb } = parse(u8);
-  const toS = tickToSample(div, tempos);
-  const units = new Map();                      // "track,channel" -> its notes
+// a file's notes by instrument: "track,channel" -> its notes
+function unitsOf(raw) {
+  const units = new Map();
   for (const n of raw) {
     const k = key2(n[2], n[3]);
     if (!units.has(k)) units.set(k, []);
     units.get(k).push(n);
   }
-  const uk = (k) => k.split(",").map(Number);
+  return units;
+}
+const uk = (k) => k.split(",").map(Number);
+// each instrument's part, as tools/gen_songs.py chooses it (its program's family; a busier flute over the pianos;
+// no KEYS: the busiest one left out plays KEYS): {role: Map "track,channel" -> part or null, keysFrom}
+function defaultRoles(units, progs) {
   const role = new Map();
   for (const k of units.keys()) { const [t, c] = uk(k); role.set(k, roleOf(c, programOf(progs, t, c))); }
   const flutes = [...units.keys()].filter((k) => { const [t, c] = uk(k); const p = programOf(progs, t, c) || 0; return c !== 9 && p >= 72 && p < 80; });
@@ -197,6 +219,40 @@ export function convertMidi(u8, name) {
   if (![...role.values()].some((r) => r === KEYS)) {   // no KEYS: the busiest dropped melodic channel plays it
     const spare = [...units.keys()].filter((k) => role.get(k) === null).sort((a, b) => units.get(b).length - units.get(a).length);
     if (spare.length) role.set(spare[0], KEYS);
+  }
+  return { role, keysFrom };
+}
+
+// The parts an instrument can be given: the drum channel (10) DRUMS or none; any other KEYS, GUITAR, BASS or none
+const roleOk = (channel, r) => r === null || (channel === 9 ? r === DRUMS : r === KEYS || r === GUITAR || r === BASS);
+
+// a MIDI file's instruments, for choosing their parts before converting (Studio, Your songs): [{key "track,channel",
+// track, channel (0..15), program (null: none), name, notes, lo, hi (MIDI notes), role (the part convertMidi gives
+// it by itself: KEYS DRUMS GUITAR BASS, null left out)}], by their first note
+export function midiInstruments(u8) {
+  const { notes: raw, progs } = parse(u8);
+  const units = unitsOf(raw), { role } = defaultRoles(units, progs);
+  return [...units].map(([key, ns]) => {
+    const [track, channel] = uk(key), program = programOf(progs, track, channel);
+    let lo = 127, hi = 0;
+    for (const n of ns) { lo = Math.min(lo, n[4]); hi = Math.max(hi, n[4]); }
+    return { key, track, channel, program, name: channel === 9 ? "Drum kit" : GM_NAMES[program == null ? 0 : program],
+             notes: ns.length, lo, hi, role: role.get(key), first: ns.reduce((m, n) => Math.min(m, n[0]), Infinity) };
+  }).sort((a, b) => a.first - b.first || a.channel - b.channel).map(({ first, ...i }) => i);
+}
+
+// opt.roles: {"track,channel": part or null} (midiInstruments' keys): your choice for those instruments, over the
+// converter's own (a part an instrument cannot take is ignored). Without it, the chart is tools/gen_songs.py's, byte
+// for byte (web/test_songs.mjs)
+export function convertMidi(u8, name, opt = {}) {
+  const { div, tempos, notes: raw, progs, bpb } = parse(u8);
+  const toS = tickToSample(div, tempos);
+  const units = unitsOf(raw);
+  let { role, keysFrom } = defaultRoles(units, progs);
+  if (opt.roles) {
+    for (const [k, r] of Object.entries(opt.roles))
+      if (units.has(k) && roleOk(uk(k)[1], r)) role.set(k, r);
+    keysFrom = "piano";                         // (the parts are yours: no note about where KEYS came from)
   }
   const droppedSet = new Set();
   for (const k of units.keys()) if (role.get(k) === null) { const [t, c] = uk(k); droppedSet.add(programOf(progs, t, c)); }

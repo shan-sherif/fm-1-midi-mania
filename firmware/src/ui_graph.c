@@ -2200,6 +2200,7 @@ static void free_draw(int32_t hit, int32_t top, int drums);
 #define SC_POP_MS 450u
 #define SC_PERFECT 0xFE60u                           /* #F8CC00: gold */
 static char *sg_uint(char *b, uint32_t v);           /* ui_songs.c */
+static int game_new_best(uint32_t *prev);            /* game_save.c (ui_songs.c) */
 static const char *const SC_NAME[J_N] = {"", "PERFECT", "GREAT", "GOOD", "MISS"};
 static const uint16_t SC_COLOUR[J_N] = {0, SC_PERFECT, DR_GREEN, DR_BLUE, DR_RED};
 static void nt_text_f(int32_t x, int32_t y, const aafont_t *f, const char *s, uint16_t c)   /* (nt_text, any font) */
@@ -2484,6 +2485,16 @@ static void graph_result(void)
     cv_text(14, y, &AF_S, "MAX COMBO", T_MID);
     sg_uint(b, pl_judge.max_combo);
     cv_text(110 - ink_w(&AF_S, b), y, &AF_S, b, T_TEXT);
+    {   /* the best: this one (game_save.c), or the one it did not beat */
+        uint32_t prev;
+        if (game_new_best(&prev))
+            cv_text(226 - ink_w(&AF_S, "NEW BEST"), y, &AF_S, "NEW BEST", SC_PERFECT);
+        else if (prev) {
+            str_cpy(b, "BEST ", sizeof b);
+            sg_uint(b + 5, prev);
+            cv_text(226 - ink_w(&AF_S, b), y, &AF_S, b, T_MID);
+        }
+    }
     cv_rgb = 0;
 }
 

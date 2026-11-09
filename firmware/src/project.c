@@ -1267,7 +1267,7 @@ static void settings_poll(void)
 {
 #if MM_FLASH
     persist_t p;
-    if (!persist_pending || !flash_ok || transport_busy() ||
+    if (!persist_pending || !flash_ok || transport_busy() || player_busy() ||   /* (Midi-Mania: never mid-song: an erase stalls it) */
         (persist_pending == 2u && (uint32_t)(fm1_ms - persist_retry_ms) < 1000u))
         return;
     p = persist_saved;

@@ -125,7 +125,7 @@ int main(int argc, char **argv)
         check("PLAY YOU: the song is judged from its start, nothing graded yet",
               pl_sc.on && !pl_sc.done && judge_total(&pl_judge) == n && n > 0u && !pl_judge.score);
         seq0 = pl_sc.seq;
-        player_judge_key(pl.mode, 0);                  /* (before any note of key 0 is near) */
+        player_judge_key(pl.mode, 0, 0u);                  /* (before any note of key 0 is near) */
         extra = pl_sc.seq != seq0 || pl_judge.count[J_PERFECT] + pl_judge.count[J_GREAT] + pl_judge.count[J_GOOD];
         for (b = 0, k = 0; b < blocks + 400u && (pl.playing || pl.req); b++) {
             mix_block(out, CTL);
@@ -138,7 +138,7 @@ int main(int argc, char **argv)
                     run = 0;
                     continue;
                 }
-                player_judge_key(pl.mode, pl_judge_key(c));
+                player_judge_key(pl.mode, pl_judge_key(c), 0u);
                 pressed++;
                 if (++run > best)
                     best = run;
@@ -171,6 +171,56 @@ int main(int argc, char **argv)
         player_stop();
         mix_block(out, CTL);
         pl.mode = (uint8_t)mode;
+    }
+
+    /* a press at the key scan's tick (player.c pl_press_pos; the FM-1 build's MM_KEY_TICKS): placed on the song clock
+     * between its steps, 24 ticks a microsecond; without a tick, or a stale one, the block's time */
+    {
+        uint32_t pos0 = pl.pos, tick0 = pl_tick, rate0 = pl.rate, free0 = pl.free;
+        int ok;
+        pl.pos = 100000u; pl_tick = 5000000u; pl.rate = PL_RATE_ONE; pl.free = 0;
+        ok = pl_press_pos(pl_tick + 24000u) == 100044u &&          /* 1 ms after: 44.1 samples later */
+             pl_press_pos(pl_tick - 48000u) == 99912u &&           /* 2 ms before: 88.2 samples earlier */
+             pl_press_pos(pl_tick + 24u * 9000u) == 100000u &&     /* 9 ms away: stale, the block's time */
+             pl_press_pos(0u) == 100000u;                          /* no tick (MIDI IN, host builds) */
+        pl.rate = PL_RATE_ONE * 2u;
+        ok = ok && pl_press_pos(pl_tick + 24000u) == 100088u;      /* TEMPO x2: twice the song time */
+        pl.free = 1;
+        ok = ok && pl_press_pos(pl_tick + 24000u) == 100044u;      /* FREE PLAY: real time, whatever TEMPO says */
+        check("a press at its key's tick: between the clock's steps (1 ms = 44 samples), TEMPO counted, a stale tick not", ok);
+        pl.pos = pos0; pl_tick = tick0; pl.rate = rate0; pl.free = (uint8_t)free0;
+    }
+
+    /* GAME's CALIBRATE (player.c pl_cal): clicks at 100 BPM on FREE PLAY's clock; taps 20 ms after each click (in
+     * the first block at or past it) give an average near 20 ms, done after 12; a stop ends it */
+    {
+        uint32_t clicks = 0, want = 0, presses = 0;
+        int32_t ms;
+        player_cal_start();
+        for (b = 0; b < (CHART_FS * 20u) / CTL && !pl_cal.done; b++) {
+            mix_block(out, CTL);
+            if (pl_cal.clicks != clicks) {             /* a click sounded at pl_cal.last: tap 20 ms after it */
+                clicks = pl_cal.clicks;
+                want = pl_cal.last + CHART_FS / 50u;
+            }
+            if (want && pl.pos >= want) {
+                player_judge_key(pl.mode, 0, 0u);
+                presses++;
+                want = 0;
+            }
+        }
+        ms = player_cal_ms();
+        printf("player: CALIBRATE: %u clicks, %u taps of %u, average %d ms\n", (unsigned)pl_cal.clicks,
+               (unsigned)pl_cal.taps, (unsigned)presses, (int)ms);
+        check("CALIBRATE: the first 4 clicks to listen, then 12 taps counted: done, off",
+              pl_cal.done && !pl_cal.on && pl_cal.taps == CAL_TAPS && pl_cal.clicks == CAL_SKIP + CAL_TAPS);
+        check("CALIBRATE: taps 20 ms after the clicks average 20 ms (within a block)", ms >= 20 && ms <= 22);
+        player_cal_start();
+        for (b = 0; b < 10u; b++)
+            mix_block(out, CTL);
+        player_stop();
+        mix_block(out, CTL);
+        check("CALIBRATE stopped (a stop): off, not done, FREE PLAY's clock stopped", !pl_cal.on && !pl_cal.done && !pl.playing);
     }
 
     /* the tempo: song time runs at bpm / the song's own */
@@ -253,7 +303,7 @@ int main(int argc, char **argv)
             lit |= player_keys(mode);
             for (i2 = 0; i2 < pl.on_n; i2++)
                 low += pl.on[i2].part == mode && pl.on[i2].key < CHART_NKEYS && mode != MM_DRUMS &&
-                       pl.on[i2].pitch < MM_SPLIT;
+                       pl.on[i2].pitch < MM_RANGE_SPLIT[MM_KEYS];
         }
         check("PLAY YOU: your part's notes silent (the keys play them), their keys still lit", !played && lit);
         check("RANGE RIGHT HAND: no key lit for your part's notes below middle C", !low);
