@@ -143,6 +143,12 @@ footer { margin-top: 12px; font-size: 12px; }
 .songs .note.warn { border: 1px solid #ffb84f; background: rgba(255, 184, 79, .14); color: #ffe3b8; }
 .songs .note.tip { border: 1px solid #4fd1c5; background: rgba(79, 209, 197, .12); color: #c8f5ef; }
 .songs .note b { color: var(--cream); }
+.songs .songsoff { display: flex; gap: 10px 14px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+                   font-size: 13px; }
+.songs .songsoff[hidden] { display: none; }
+.songs .songsoff.nudge { animation: nudge .5s ease; }
+@keyframes nudge { 0%, 100% { transform: none; } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+@media (prefers-reduced-motion: reduce) { .songs .songsoff.nudge { animation: none; } }
 .songs .pick .trim { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 10px; align-items: center;
                      margin: 8px 0 0; font-size: 12px; }
 .songs .pick .trim label { color: var(--mute); }
@@ -337,8 +343,13 @@ footer small { font-size: 11px; opacity: .8; }
   <div class="sh">
     <h2 id="songs-h">Your songs</h2>
     <span class="count" id="songcount"></span>
-    <button type="button" class="add" id="songpick">+ Add MIDI files</button>
+    <button type="button" class="add" id="songpick" disabled title="Switch the FM-1 on first">+ Add MIDI files</button>
     <input type="file" id="songfile" accept=".mid,.midi,audio/midi" multiple hidden>
+  </div>
+  <div class="note warn songsoff" id="songsoff" role="status">
+    <span><b>Switch on the FM-1 first.</b> Your songs load into the FM-1 on this page, so it needs to be on to add
+      MIDI files.</span>
+    <button type="button" class="primary" id="songson">Switch on</button>
   </div>
   <p class="intro">Drop MIDI files anywhere on this page. Each is set up for you (its piano, drums, guitar and bass go
     to the FM-1's four parts); press <b>Load</b> and it's in SONGS (the SEQ button), after the built-in songs.
@@ -1477,8 +1488,8 @@ function pickCard(name, bytes, inst) {
 }
 async function loadSongFiles(files) {
   songNotes = [];
-  if (!node) {
-    tell(["Switch the FM-1 on first (the button on its screen), then drop the files again."], true);
+  if (!fmReady) {
+    songsOffNudge();                                             // (the note at the top says so: Switch on)
     return;
   }
   for (const f of files) {
@@ -1494,6 +1505,31 @@ async function loadSongFiles(files) {
   tell(songNotes, songNotes.length > 0);
 }
 document.getElementById("songpick").addEventListener("click", () => songFile.click());
+// Your songs works once the FM-1 here is on (they load into it): until then, the note above with its own Switch on,
+// Add MIDI files off, and a file dropped only shakes the note
+const songsOff = document.getElementById("songsoff"), songPick = document.getElementById("songpick");
+const songsOn = document.getElementById("songson");
+let fmReady = false;                                             // (on, and its songs listed: songsReady)
+songsOn.addEventListener("click", () => {
+  const go = document.getElementById("go");
+  if (go.disabled) return;
+  songsOn.disabled = true;
+  songsOn.textContent = "Starting…";
+  go.click();
+});
+function songsOffNudge() {
+  songsOff.hidden = false;
+  songsOff.classList.remove("nudge");
+  void songsOff.offsetWidth;                                     // (restart the animation)
+  songsOff.classList.add("nudge");
+  songsOff.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+function songsReady() {
+  fmReady = true;
+  songsOff.hidden = true;
+  songPick.disabled = false;
+  songPick.title = "";
+}
 songFile.addEventListener("change", () => { loadSongFiles([...songFile.files]); songFile.value = ""; });
 let dragDepth = 0;
 document.addEventListener("dragenter", (e) => { if (e.dataTransfer && [...e.dataTransfer.types].includes("Files")) { dragDepth++; songBox.classList.add("over"); } });
@@ -1548,6 +1584,7 @@ async function switchOn() {
     await ac.resume();
     document.getElementById("start").hidden = true;
     go.textContent = "On";
+    songsReady();
     if (ac.sampleRate !== 44100) console.warn(`Midi-Mania: the browser plays at ${ac.sampleRate} Hz, the pitch is off by ${(1200 * Math.log2(ac.sampleRate / 44100)).toFixed(0)} cents.`);
     syncButtons();
     syncKeys();
@@ -1558,6 +1595,8 @@ async function switchOn() {
     node = null;
     go.disabled = false;
     go.textContent = "Switch on";
+    songsOn.disabled = false;
+    songsOn.textContent = "Switch on";
     say("Could not start: " + (err && err.message || err) + ". A current Chrome, Edge, Firefox or Safari should work.");
   }
 }
