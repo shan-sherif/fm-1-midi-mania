@@ -1,6 +1,10 @@
 <!doctype html>
 <!-- SPDX-License-Identifier: GPL-3.0-only
-     Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments -->
+     Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments
+     Copyright (C) 2026 fm-1-midi-mania contributors (the page's layout: numbered steps, the checks before, the
+     progress card, the folded extras)
+     The layout follows Melodee's installer (https://github.com/keremimo/melodee, Kerem Kilic, Ellic Studio); no code
+     or artwork copied (CREDITS.md) -->
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -8,72 +12,247 @@
 <title>FM-1 Midi-Mania installer</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%201024%201024%22%3E%3Ctitle%3EFM-1%20Midi-Mania%3C/title%3E%3Crect%20width=%221024%22%20height=%221024%22%20fill=%22%23F4F1E8%22/%3E%3Cg%20fill=%22%2317151F%22%3E%3Crect%20x=%22160%22%20y=%22181%22%20width=%22136%22%20height=%22662%22%20rx=%2228%22/%3E%3Crect%20x=%22331%22%20y=%22307%22%20width=%22136%22%20height=%22320%22%20rx=%2228%22/%3E%3Crect%20x=%22557%22%20y=%22307%22%20width=%22136%22%20height=%22320%22%20rx=%2228%22/%3E%3Crect%20x=%22728%22%20y=%22181%22%20width=%22136%22%20height=%22662%22%20rx=%2228%22/%3E%3C/g%3E%3Crect%20x=%22444%22%20y=%22536%22%20width=%22136%22%20height=%22306%22%20rx=%2228%22%20fill=%22%23FF4F8B%22/%3E%3C/svg%3E">
 <style>
-  :root { --bg: #fff; --fg: #000; --dim: #777; }
+  /* Midi-Mania's colours: the logo's cream (paper), ink and pink */
+  :root { --paper: #f4f1e8; --card: #fffdf8; --ink: #17151f; --dim: #5d5a66; --faint: #8e8a96; --line: #e2ddcf;
+          --chip: #ebe6d8; --pink: #ff4f8b; --pink-bg: #ffe3ec; --warn: #8a5300; --warn-bg: #fff1d4; --warn-line: #f0d9a6;
+          --ok: #17733a; --ok-bg: #e2f3e8; --bad: #b42318; --focus: #ff4f8b;
+          --shadow: 0 1px 2px rgba(23, 21, 31, .05), 0 8px 26px rgba(23, 21, 31, .07); color-scheme: light; }
   @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) { --bg: #000; --fg: #fff; --dim: #888; }
+    :root:not([data-theme="light"]) { --paper: #100f15; --card: #1a1822; --ink: #f4f1e8; --dim: #b0abba; --faint: #7d7888;
+      --line: #2e2b38; --chip: #24212e; --pink-bg: #3a1726; --warn: #f4b54a; --warn-bg: #2a2111; --warn-line: #4a3a17;
+      --ok: #55c785; --ok-bg: #12261a; --bad: #ff8577; --shadow: 0 1px 2px rgba(0, 0, 0, .5); color-scheme: dark; }
   }
-  :root[data-theme="dark"] { --bg: #000; --fg: #fff; --dim: #888; }
-  body { margin: 0; background: var(--bg); color: var(--fg);
-         font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; }
-  main { max-width: 520px; margin: 0 auto; padding: 48px 16px; }
-  h1 .logo { vertical-align: middle; border-radius: 22%; margin: -4px 10px 0 0; }
-  h1 { font-size: 24px; font-weight: 600; margin: 0 0 24px; }
-  .back { margin: 0 0 16px; font-size: 13px; }
-  .back a { color: var(--dim); text-decoration: none; }
-  .back a:hover, .back a:focus-visible { color: var(--fg); text-decoration: underline; }
-  .lang { float: right; font-size: 13px; color: var(--dim); cursor: pointer; text-decoration: underline; background: none; padding: 0; color: var(--dim); }
-  p { margin: 0 0 16px; }
-  button { font: inherit; background: var(--fg); color: var(--bg); border: 0; padding: 8px 20px; cursor: pointer; }
-  button:disabled { opacity: .3; cursor: default; }
-  #status { margin-top: 16px; min-height: 1.6em; }
-  .small { color: var(--dim); font-size: 13px; }
-  progress { width: 100%; height: 4px; margin-top: 16px; }
-  pre { color: var(--dim); font-size: 12px; white-space: pre-wrap; margin-top: 16px; }
+  :root[data-theme="dark"] { --paper: #100f15; --card: #1a1822; --ink: #f4f1e8; --dim: #b0abba; --faint: #7d7888;
+      --line: #2e2b38; --chip: #24212e; --pink-bg: #3a1726; --warn: #f4b54a; --warn-bg: #2a2111; --warn-line: #4a3a17;
+      --ok: #55c785; --ok-bg: #12261a; --bad: #ff8577; --shadow: 0 1px 2px rgba(0, 0, 0, .5); color-scheme: dark; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { background: var(--paper); }
+  body { margin: 0; color: var(--ink); font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans", Arial, sans-serif;
+         font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+  a { color: inherit; text-underline-offset: 2px; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
+  .wrap { max-width: 660px; margin: 0 auto; padding: 0 16px; }
+
+  /* the site's bar */
+  .site { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 18px 0; }
+  .site .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; font-size: 16px; text-decoration: none; }
+  .site .brand img { border-radius: 22%; }
+  .site nav { display: flex; gap: 18px; font-size: 14px; align-items: center; }
+  .site nav a, .site .lang { color: var(--dim); text-decoration: none; background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
+  .site nav a:hover, .site .lang:hover { color: var(--ink); }
+  .site nav a[aria-current="page"] { color: var(--ink); font-weight: 600; }
+
+  .hero { padding: 44px 0 24px; }
+  .kicker { margin: 0 0 10px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--pink); }
+  h1 { margin: 0; font-size: clamp(32px, 8vw, 44px); line-height: 1.05; font-weight: 700; letter-spacing: -.025em; }
+  h1 .v { color: var(--faint); font-weight: 500; font-size: .55em; letter-spacing: 0; margin-left: 6px; }
+  .lede { margin: 14px 0 0; font-size: 18px; color: var(--dim); max-width: 34em; }
+  .facts { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; padding: 0; list-style: none; }
+  .facts li { font-size: 13px; padding: 4px 12px; border-radius: 999px; background: var(--chip); color: var(--dim); }
+  .banner { margin: 0 0 16px; padding: 12px 16px; border-radius: 12px; background: var(--warn-bg); border: 1px solid var(--warn-line);
+            font-size: 14px; color: var(--ink); }
+  .banner b { color: var(--warn); }
+
+  /* the steps: numbered, the one in hand dark, the ones done ticked */
+  .steps { list-style: none; margin: 0; padding: 0; counter-reset: step; }
+  .step { counter-increment: step; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 0 16px; margin: 0 0 12px;
+          padding: 22px 22px 22px 18px; border-radius: 16px; background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow); }
+  .step::before { content: counter(step); display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%;
+                  border: 1.5px solid var(--line); color: var(--dim); font-size: 14px; font-weight: 700; }
+  .step[data-state="active"]::before { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+  .step[data-state="done"]::before { content: "✓"; background: var(--ok-bg); border-color: transparent; color: var(--ok); }
+  .step h2 { margin: 4px 0 6px; font-size: 18px; font-weight: 650; letter-spacing: -.01em; }
+  .step p { margin: 0 0 12px; color: var(--dim); }
+  .step p:last-child { margin-bottom: 0; }
+  .btn { font: inherit; font-weight: 650; font-size: 15px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+         min-height: 44px; padding: 0 20px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+  a.btn { text-decoration: none; }
+  .btn:hover:not(:disabled) { border-color: var(--faint); }
+  .btn.primary { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+  .btn.primary:hover:not(:disabled) { opacity: .9; }
+  .btn.pink { background: var(--pink); border-color: var(--pink); color: #1a0b12; }
+  .btn.big { width: 100%; min-height: 52px; font-size: 16px; }
+  .btn:disabled { opacity: .38; cursor: default; }
+  .caution { display: flex; gap: 10px; align-items: flex-start; color: var(--ink) !important; background: var(--warn-bg);
+             border-radius: 10px; padding: 10px 12px; font-size: 14px; }
+  .small { font-size: 13px !important; color: var(--faint) !important; }
+
+  /* the progress card: the stages, the bar, what is happening */
+  .progress { margin: 4px 0 12px; padding: 18px 20px; border-radius: 16px; background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow); }
+  .stages { display: flex; gap: 6px; margin: 0 0 14px; padding: 0; list-style: none; flex-wrap: wrap; }
+  .stages li { flex: 1 1 0; min-width: 76px; font-size: 12px; font-weight: 600; color: var(--faint); padding-top: 8px;
+               border-top: 3px solid var(--line); }
+  .stages li.done { color: var(--ok); border-top-color: var(--ok); }
+  .stages li.now { color: var(--ink); border-top-color: var(--pink); }
+  .meter { display: flex; align-items: center; gap: 12px; }
+  .meter progress { flex: 1; height: 8px; appearance: none; -webkit-appearance: none; border: 0; border-radius: 4px; background: var(--chip); overflow: hidden; }
+  .meter progress::-webkit-progress-bar { background: var(--chip); border-radius: 4px; }
+  .meter progress::-webkit-progress-value { background: var(--pink); border-radius: 4px; }
+  .meter progress::-moz-progress-bar { background: var(--pink); border-radius: 4px; }
+  .meter .pct { font-weight: 700; font-size: 14px; min-width: 3.2em; text-align: right; }
+  #status { margin: 10px 0 0; min-height: 1.55em; font-weight: 500; }
+  .progress .hold { margin: 10px 0 0; font-size: 13px; color: var(--warn); }
+
+  /* the extras, folded */
+  .more { margin: 28px 0 0; border-top: 1px solid var(--line); }
+  .more details { border-bottom: 1px solid var(--line); }
+  .more summary { cursor: pointer; padding: 16px 0; font-weight: 650; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+  .more summary::-webkit-details-marker { display: none; }
+  .more summary::after { content: "+"; color: var(--faint); font-weight: 400; font-size: 22px; line-height: 1; }
+  .more details[open] summary::after { content: "−"; }
+  .more .in { padding: 0 0 18px; color: var(--dim); font-size: 15px; }
+  .more .in p { margin: 0 0 12px; }
+  .more label { display: block; }
+  input[type=file] { font: inherit; font-size: 14px; color: var(--dim); max-width: 100%; margin-top: 4px; }
+  pre#log { margin: 0; color: var(--dim); font: 12px/1.45 ui-monospace, Menlo, monospace; white-space: pre-wrap; max-height: 260px; overflow: auto;
+            background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+  pre#log:empty::before { content: "—"; }
+  footer { padding-block: 28px 56px; font-size: 13px; color: var(--faint); }
+  footer p { margin: 0; }
+
+  /* the checks before the install */
+  dialog { border: 0; padding: 0; color: var(--ink); background: var(--card); width: min(480px, calc(100% - 32px));
+           border-radius: 18px; box-shadow: 0 20px 60px rgba(0, 0, 0, .3); }
+  dialog::backdrop { background: rgba(16, 15, 21, .5); backdrop-filter: blur(3px); }
+  dialog form { padding: 26px 24px 22px; }
+  dialog h2 { margin: 0 0 14px; font-size: 22px; letter-spacing: -.015em; }
+  dialog ul { margin: 0 0 16px; padding: 0; list-style: none; }
+  dialog li { padding: 8px 0; border-bottom: 1px solid var(--line); color: var(--dim); }
+  dialog li b { color: var(--ink); display: block; }
+  dialog .tick { display: flex; gap: 10px; align-items: flex-start; margin: 4px 0 18px; font-weight: 500; cursor: pointer; }
+  dialog .tick input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--pink); flex: none; }
+  dialog .row { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
 </style>
+<!-- Page counts: GoatCounter (no cookies, no personal data; localhost is not counted) -->
+<script data-goatcounter="https://shan-sherif.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </head>
 <body>
-<main>
-  <button class="lang" id="lang"></button>
-  <p class="back"><a href="../../">← FM-1 Midi-Mania</a></p>
-  <h1><img class="logo" src="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%201024%201024%22%3E%3Ctitle%3EFM-1%20Midi-Mania%3C/title%3E%3Crect%20width=%221024%22%20height=%221024%22%20fill=%22%23F4F1E8%22/%3E%3Cg%20fill=%22%2317151F%22%3E%3Crect%20x=%22160%22%20y=%22181%22%20width=%22136%22%20height=%22662%22%20rx=%2228%22/%3E%3Crect%20x=%22331%22%20y=%22307%22%20width=%22136%22%20height=%22320%22%20rx=%2228%22/%3E%3Crect%20x=%22557%22%20y=%22307%22%20width=%22136%22%20height=%22320%22%20rx=%2228%22/%3E%3Crect%20x=%22728%22%20y=%22181%22%20width=%22136%22%20height=%22662%22%20rx=%2228%22/%3E%3C/g%3E%3Crect%20x=%22444%22%20y=%22536%22%20width=%22136%22%20height=%22306%22%20rx=%2228%22%20fill=%22%23FF4F8B%22/%3E%3C/svg%3E" alt="" width="30" height="30">FM-1 Midi-Mania</h1>
-  <p data-t="intro"></p>
-  <p data-t="warn"></p>
-  <p class="small" data-t="direct"></p>
-  <p class="small" data-t="beta"></p>
-  <p class="small"><span data-t="brick"></span>
-    <a href="https://github.com/kurogedelic/FM-1-transporter" target="_blank" rel="noopener" style="color:inherit">FM-1-transporter</a></p>
-  <p><button id="go" disabled data-t="install"></button></p>
-  <details style="margin-top:24px">
-    <summary data-t="stockTitle"></summary>
-    <p class="small" data-t="back"></p>
-    <p class="small"><a href="https://www.m-vave.com/download" target="_blank" rel="noopener" style="color:inherit">M-VAVE Downloads</a></p>
-    <p><label><span data-t="stockFile"></span><br><input id="stock-file" type="file" accept=".fwsc"></label></p>
-    <p><button id="stock-go" disabled data-t="stockGo"></button></p>
-    <p class="small" data-t="stockBackup"></p>
-    <p class="small"><label><input id="stock-recovery" type="checkbox"> <span data-t="stockRecovery"></span></label></p>
-  </details>
-  <details style="margin-top:12px">
-    <summary data-t="restoreTitle"></summary>
-    <p class="small" data-t="restoreAbout"></p>
-    <p><label><span data-t="restoreFile"></span><br><input id="restore-file" type="file" accept=".json,application/json"></label></p>
-    <p class="small" id="restore-info"></p>
-    <p><button id="restore-go" disabled data-t="restoreGo"></button></p>
-  </details>
-  <progress id="bar" max="100" value="0"></progress>
-  <p id="status"></p>
-  <pre id="log"></pre>
-  <p class="small">Midi-Mania by Shan-Sherif. Based on <a href="https://github.com/hugelton/Felucca" target="_blank" rel="noopener" style="color:inherit">Felucca</a> by Leo Kuroshita (@kurogedelic), <a href="https://hugelton.com" target="_blank" rel="noopener" style="color:inherit">Hügelton Instruments</a>, with its drum voices, the Hügelton Sample Pack (CC0 1.0) and Fukiai icons (MIT).<br>
-    Font: Inter Tight (The Inter Project Authors, SIL OFL 1.1). Samples: Versilian Studios VSCO-2 Community Edition and VCSL (CC0 1.0).<br>
-    FM6 engine: msfa from Dexed (Google Inc., Pascal Gauthier, Apache-2.0). The package also holds three JieLi AC79 SDK files, uboot.boot, cfg_tool.bin and eq_cfg_hw.bin (JieLi Technology, Apache-2.0). <a href="../../firmware/LICENSING.md" style="color:inherit">Licences</a>: <a href="../../firmware/LICENSE" style="color:inherit">GPL-3.0</a>, <a href="../../firmware/LICENSES/Apache-2.0.txt" style="color:inherit">Apache-2.0</a>, <a href="../../firmware/LICENSES/" style="color:inherit">all</a>.<br>
-    M-VAVE and FM-1 are trademarks of their respective owners.<br>
-    <span data-t="license"></span> <a href="https://github.com/shan-sherif/fm-1-midi-mania" target="_blank" rel="noopener" style="color:inherit">github.com/shan-sherif/fm-1-midi-mania</a></p>
+<header class="wrap site">
+  <a class="brand" href="../../"><img src="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%201024%201024%22%3E%3Ctitle%3EFM-1%20Midi-Mania%3C/title%3E%3Crect%20width=%221024%22%20height=%221024%22%20fill=%22%23F4F1E8%22/%3E%3Cg%20fill=%22%2317151F%22%3E%3Crect%20x=%22160%22%20y=%22181%22%20width=%22136%22%20height=%22662%22%20rx=%2228%22/%3E%3Crect%20x=%22331%22%20y=%22307%22%20width=%22136%22%20height=%22320%22%20rx=%2228%22/%3E%3Crect%20x=%22557%22%20y=%22307%22%20width=%22136%22%20height=%22320%22%20rx=%2228%22/%3E%3Crect%20x=%22728%22%20y=%22181%22%20width=%22136%22%20height=%22662%22%20rx=%2228%22/%3E%3C/g%3E%3Crect%20x=%22444%22%20y=%22536%22%20width=%22136%22%20height=%22306%22%20rx=%2228%22%20fill=%22%23FF4F8B%22/%3E%3C/svg%3E" alt="" width="28" height="28">FM-1 Midi-Mania</a>
+  <nav><a href="../../" data-t="navHome"></a><a href="../studio/" data-t="navStudio"></a><a href="./" aria-current="page" data-t="navInstall"></a>
+    <button class="lang" id="lang" type="button"></button></nav>
+</header>
+<main class="wrap">
+  <section class="hero">
+    <p class="kicker" data-t="kicker"></p>
+    <h1><span data-t="title"></span><span class="v" id="ver"></span></h1>
+    <p class="lede" data-t="intro"></p>
+    <ul class="facts"><li data-t="factBrowser"></li><li data-t="factCable"></li><li data-t="factTime"></li></ul>
+  </section>
+  <p class="banner"><b data-t="betaHead"></b> <span data-t="beta"></span></p>
+
+  <section class="progress" aria-live="polite">
+    <ol class="stages" id="stages">
+      <li data-stage="verify" data-t="stVerify"></li><li data-stage="loader" data-t="stLoader"></li>
+      <li data-stage="write" data-t="stWrite"></li><li data-stage="reboot" data-t="stReboot"></li>
+      <li data-stage="done" data-t="stDone"></li>
+    </ol>
+    <div class="meter"><progress id="bar" max="100" value="0"></progress><span class="pct" id="pct">0%</span></div>
+    <p id="status"></p>
+    <p class="hold" id="hold" hidden data-t="leave"></p>
+  </section>
+
+  <ol class="steps">
+    <li class="step" id="step1" data-state="active"><div>
+      <h2 data-t="s1Title"></h2>
+      <p data-t="direct"></p>
+      <p class="small" data-t="s1Note"></p>
+    </div></li>
+    <li class="step" id="step2"><div>
+      <h2 data-t="s2Title"></h2>
+      <p data-t="s2Body"></p>
+      <p class="caution" data-t="warn"></p>
+      <p><button class="btn primary big" id="go" type="button" disabled data-t="install"></button></p>
+    </div></li>
+    <li class="step" id="step3"><div>
+      <h2 data-t="s3Title"></h2>
+      <p data-t="s3Body"></p>
+      <p><a class="btn" href="../studio/" data-t="openStudio"></a></p>
+    </div></li>
+  </ol>
+
+  <div class="more">
+    <details>
+      <summary data-t="stockTitle"></summary>
+      <div class="in">
+        <p data-t="back"></p>
+        <p><a href="https://www.m-vave.com/download" target="_blank" rel="noopener">M-VAVE Downloads</a></p>
+        <p><label><span data-t="stockFile"></span><br><input id="stock-file" type="file" accept=".fwsc"></label></p>
+        <p><button class="btn" id="stock-go" type="button" disabled data-t="stockGo"></button></p>
+        <p class="small" data-t="stockBackup"></p>
+        <p class="small"><label><input id="stock-recovery" type="checkbox"> <span data-t="stockRecovery"></span></label></p>
+      </div>
+    </details>
+    <details>
+      <summary data-t="restoreTitle"></summary>
+      <div class="in">
+        <p data-t="restoreAbout"></p>
+        <p><label><span data-t="restoreFile"></span><br><input id="restore-file" type="file" accept=".json,application/json"></label></p>
+        <p class="small" id="restore-info"></p>
+        <p><button class="btn" id="restore-go" type="button" disabled data-t="restoreGo"></button></p>
+      </div>
+    </details>
+    <details>
+      <summary data-t="stuckTitle"></summary>
+      <div class="in">
+        <p data-t="stuck"></p>
+        <p><span data-t="brick"></span>
+          <a href="https://github.com/kurogedelic/FM-1-transporter" target="_blank" rel="noopener">FM-1-transporter</a></p>
+      </div>
+    </details>
+    <details>
+      <summary data-t="logTitle"></summary>
+      <div class="in"><pre id="log"></pre></div>
+    </details>
+  </div>
 </main>
+<footer class="wrap">
+  <p>Midi-Mania by Shan-Sherif. Based on <a href="https://github.com/hugelton/Felucca" target="_blank" rel="noopener">Felucca</a> by Leo Kuroshita (@kurogedelic), <a href="https://hugelton.com" target="_blank" rel="noopener">Hügelton Instruments</a>, with its drum voices, the Hügelton Sample Pack (CC0 1.0) and Fukiai icons (MIT).<br>
+    Font: Inter Tight (The Inter Project Authors, SIL OFL 1.1). Samples: Versilian Studios VSCO-2 Community Edition and VCSL (CC0 1.0).<br>
+    FM6 engine: msfa from Dexed (Google Inc., Pascal Gauthier, Apache-2.0). The package also holds three JieLi AC79 SDK files, uboot.boot, cfg_tool.bin and eq_cfg_hw.bin (JieLi Technology, Apache-2.0). <a href="../../firmware/LICENSING.md">Licences</a>: <a href="../../firmware/LICENSE">GPL-3.0</a>, <a href="../../firmware/LICENSES/Apache-2.0.txt">Apache-2.0</a>, <a href="../../firmware/LICENSES/">all</a>.<br>
+    M-VAVE and FM-1 are trademarks of their respective owners.<br>
+    <span data-t="license"></span> <a href="https://github.com/shan-sherif/fm-1-midi-mania" target="_blank" rel="noopener">github.com/shan-sherif/fm-1-midi-mania</a></p>
+</footer>
+
+<dialog id="preflight">
+  <form method="dialog">
+    <h2 data-t="pfTitle"></h2>
+    <ul>
+      <li><b data-t="pf1"></b><span data-t="pf1b"></span></li>
+      <li><b data-t="pf2"></b><span data-t="pf2b"></span></li>
+      <li><b data-t="pf3"></b><span data-t="pf3b"></span></li>
+    </ul>
+    <label class="tick"><input type="checkbox" id="pf-ok"> <span data-t="pfTick"></span></label>
+    <div class="row">
+      <button class="btn" value="cancel" type="submit" data-t="cancel"></button>
+      <button class="btn pink" id="pf-go" value="go" type="submit" disabled data-t="startInstall"></button>
+    </div>
+  </form>
+</dialog>
 <script type="module">
 /*LIB*/
 const $ = (id) => document.getElementById(id);
 const TEXT = {
   ja: {
+    navHome: "ホーム", navStudio: "Studio", navInstall: "インストール",
+    kicker: "M-VAVE FM-1 用ファームウェア", title: "Midi-Mania をインストール",
     intro: "FM-1 を USB で接続してください。（Chrome か Edge で使えます）",
+    factBrowser: "Chrome または Edge", factCable: "USB データケーブル", factTime: "約 3 分",
+    betaHead: "ご注意:",
+    s1Title: "FM-1 を接続", s1Note: "MIDI を使う他のアプリやページは閉じておいてください。",
+    s2Title: "インストール", s2Body: "FM-1 を書き込みモードに切り替えて Midi-Mania を書き込み、再起動します。",
+    s3Title: "遊ぶ", s3Body: "FM-1 で SEQ を押すと SONGS が開きます。Studio で MIDI ファイルを曲にして FM-1 に送れます。",
+    openStudio: "Studio を開く",
+    stVerify: "確認", stLoader: "書き込みモード", stWrite: "書き込み", stReboot: "再起動", stDone: "完了",
+    pfTitle: "始める前に",
+    pf1: "このタブを開いたまま、前面に", pf1b: "書き込み中は閉じたり切り替えたりしないでください。",
+    pf2: "FM-1 は接続・電源オンのまま", pf2b: "途中で USB を抜かないでください。",
+    pf3: "約 3 分かかります", pf3b: "終わると FM-1 が再起動します。",
+    pfTick: "タブを開いたまま、FM-1 を接続したままにします。", cancel: "キャンセル", startInstall: "インストールを開始",
+    stuckTitle: "FM-1 が起動しないとき",
+    stuck: "書き込みが途中で止まっても、FM-1 は書き込みモードのまま待っています。USB を挿し直して、もう一度「インストール」を押すと続きから書き込みます。",
+    logTitle: "技術ログ",
     warn: "書き込み中は USB を抜かないでください。",
     install: "インストール", other: "English",
     direct: "USB ケーブルはパソコンに直接つないでください。Probe や Transporter などの機材は不要です。",
@@ -108,10 +287,28 @@ const TEXT = {
     mismatch: "書き込みは終わりましたが、FM-1 が別のバージョンを報告しています: ",
     badpkg: "インストールするファイルが壊れています。ページを再読み込みしてください。",
     leave: "書き込み中です。ページを閉じないでください。",
+    ready: "準備できました",
     license: "GPL-3.0、無保証。ソース:",
   },
   en: {
+    navHome: "Home", navStudio: "Studio", navInstall: "Install",
+    kicker: "Firmware for the M-VAVE FM-1", title: "Install Midi-Mania",
     intro: "Connect the FM-1 by USB. (Works in Chrome or Edge.)",
+    factBrowser: "Chrome or Edge", factCable: "A USB data cable", factTime: "About 3 minutes",
+    betaHead: "Heads up:",
+    s1Title: "Connect the FM-1", s1Note: "Close other apps and pages that use MIDI first.",
+    s2Title: "Install", s2Body: "The FM-1 switches to update mode, Midi-Mania is written, and it restarts.",
+    s3Title: "Play", s3Body: "On the FM-1, press SEQ for SONGS. Turn your MIDI files into songs in Studio and send them to your FM-1.",
+    openStudio: "Open Studio",
+    stVerify: "Check", stLoader: "Update mode", stWrite: "Write", stReboot: "Restart", stDone: "Done",
+    pfTitle: "Before you start",
+    pf1: "Keep this tab open and in front", pf1b: "Don't close it or switch away while it writes.",
+    pf2: "Leave the FM-1 connected and on", pf2b: "Don't unplug the USB cable until it's done.",
+    pf3: "It takes about 3 minutes", pf3b: "The FM-1 restarts when it's finished.",
+    pfTick: "I'll keep this tab open and the FM-1 connected.", cancel: "Cancel", startInstall: "Start installation",
+    stuckTitle: "If the FM-1 won't start",
+    stuck: "If an install stops part-way, the FM-1 waits in update mode. Replug the USB cable and press Install again: it carries on from there.",
+    logTitle: "Technical log",
     warn: "Do not unplug the USB cable while writing.",
     install: "Install", other: "日本語",
     direct: "Connect the USB cable directly to the computer. No probe or Transporter is needed.",
@@ -146,6 +343,7 @@ const TEXT = {
     mismatch: "Written, but the FM-1 reports another version: ",
     badpkg: "The file to install is damaged. Reload the page.",
     leave: "Writing. Do not close the page.",
+    ready: "Ready to install",
     license: "GPL-3.0, no warranty. Source:",
   },
 };
@@ -160,7 +358,21 @@ function applyLang() {
 }
 $("lang").addEventListener("click", () => { lang = lang === "ja" ? "en" : "ja"; applyLang(); });
 applyLang();
-const sayK = (k, arg = "") => { lastKey = k; lastArg = arg; $("status").textContent = t(k) + arg; };
+/* the progress card: the stage a step key is in (the ones before it done), the bar and its percentage; the steps'
+ * circles (1 connect, 2 install, 3 play) as the install goes */
+const STAGES = ["verify", "loader", "write", "reboot", "done"];
+function stage(k) {
+  const at = STAGES.indexOf(k);
+  if (at < 0) return;
+  document.querySelectorAll("#stages li").forEach((li, i) => {
+    li.classList.toggle("done", i < at || k === "done");
+    li.classList.toggle("now", i === at && k !== "done");
+  });
+}
+const resetStages = () => document.querySelectorAll("#stages li").forEach((li) => li.classList.remove("done", "now"));
+function setBar(v) { $("bar").value = v; $("pct").textContent = `${Math.round(v)}%`; }
+function steps(a, b, c) { $("step1").dataset.state = a; $("step2").dataset.state = b; $("step3").dataset.state = c; }
+const sayK = (k, arg = "") => { lastKey = k; lastArg = arg; $("status").textContent = t(k) + arg; stage(k); };
 const say = (txt) => { lastKey = null; $("status").textContent = txt; };
 const log = (t) => { $("log").textContent += t + "\n"; };
 let image = null;
@@ -168,7 +380,7 @@ const meta = /*META*/;
 
 let writing = false, stock = null, stockFileEpoch = 0, restore = null;   /* restore: {raw, parsed}, the chosen backup */
 const lockInstaller = (on) => { writing = on; $("go").disabled = on || !image; $("stock-go").disabled = on || !stock; $("stock-file").disabled = on; $("stock-recovery").disabled = on;
-  $("restore-go").disabled = on || !restore; $("restore-file").disabled = on; };
+  $("restore-go").disabled = on || !restore; $("restore-file").disabled = on; $("hold").hidden = !on; };
 const pct = (done, total) => `${Math.round(done / Math.max(1, total) * 100)}%`;
 window.addEventListener("beforeunload", (e) => { if (writing) { e.preventDefault(); e.returnValue = t("leave"); } });
 
@@ -180,15 +392,28 @@ window.addEventListener("beforeunload", (e) => { if (writing) { e.preventDefault
     const pkg = new Uint8Array(await r.arrayBuffer());
     if (productOf(pkg) !== meta.product) { sayK("badpkg"); return; }
     image = logicalImage(pkg);
-    say(`Midi-Mania ${meta.version}`);
+    $("ver").textContent = meta.version;
+    sayK("ready", ` · Midi-Mania ${meta.version}`);
     $("go").disabled = false;
   } catch (e) { sayK("loadfail", e.message); }
 })();
 
-$("go").addEventListener("click", async () => {
+/* Install: the checks first (the dialog), then the install as it always was */
+$("go").addEventListener("click", () => {
+  if (writing || !image) return;
+  $("pf-ok").checked = false;
+  $("pf-go").disabled = true;
+  if ($("preflight").showModal) $("preflight").showModal();
+  else runInstall();                                /* (no <dialog>: straight on) */
+});
+$("pf-ok").addEventListener("change", () => { $("pf-go").disabled = !$("pf-ok").checked; });
+$("preflight").addEventListener("close", () => { if ($("preflight").returnValue === "go" && $("pf-ok").checked) runInstall(); });
+
+async function runInstall() {
   if (writing) return;
   lockInstaller(true);
-  let midi;
+  resetStages(); setBar(0); steps("done", "active", "");
+  let midi, ok = false;
   try { midi = await navigator.requestMIDIAccess({ sysex: true }); }
   catch (e) { sayK("denied"); lockInstaller(false); return; }
   try {
@@ -197,26 +422,30 @@ $("go").addEventListener("click", async () => {
     const step = (k, a) => {
       log(`${k} ${a ?? ""}`);
       if (k === "start") sayK("start");
-      if (k === "verify") { sayK("verify"); $("bar").value = (a / total) * 100; }
+      if (k === "verify") { sayK("verify"); setBar((a / total) * 100); }
       if (k === "loader") sayK("loader");
-      if (k === "write") { sayK("write"); $("bar").value = ((74 + a) / total) * 100; }
+      if (k === "write") { sayK("write"); setBar(((74 + a) / total) * 100); }
       if (k === "reboot") sayK("reboot");
-      if (k === "done") { $("bar").value = 100; sayK("done"); }
+      if (k === "done") { setBar(100); sayK("done"); ok = true; }
     };
     const ota = await up.find((id) => /^ota-/i.test(id.model));
     if (ota) {
       ota.link.close();
-      sayK((await up.resume(image, step, meta.product)) ? "done" : "stopped");
+      const r = await up.resume(image, step, meta.product);
+      sayK(r ? "done" : "stopped");
+      ok = ok || !!r;
     } else {
       await up.install(image, meta.product, step);
     }
   } catch (e) {
+    ok = false;
     if (e && e.code && TEXT[lang][e.code]) sayK(e.code, e.detail || "");
     else sayK("error", e && e.message);
     log(String(e && e.stack || e));
   }
+  if (ok) steps("done", "done", "active");
   lockInstaller(false);
-});
+}
 
 $("stock-file").addEventListener("change", async () => {
   const epoch = ++stockFileEpoch, file = $("stock-file").files[0]; stock = null; lockInstaller(false);
@@ -246,12 +475,13 @@ function archiveInfo(a) {
 $("stock-go").addEventListener("click", async () => {
   if (!stock || writing) return;
   const selected = stock; lockInstaller(true);
+  resetStages(); setBar(0);
   let link = null;
   try {
     let midi;
     try { midi = await navigator.requestMIDIAccess({sysex:true}); } catch (e) { sayK("denied"); return; }
     const up = new Updater(midi, log);
-    const step = (k, n) => { log(`${k} ${n ?? ""}`); if (["start","verify","loader","write","reboot","done"].includes(k)) sayK(k); if (k === "done") $("bar").value = 100; };
+    const step = (k, n) => { log(`${k} ${n ?? ""}`); if (["start","verify","loader","write","reboot","done"].includes(k)) sayK(k); if (k === "done") setBar(100); };
     const loader = await up.find(id => id.model === "ota-FM-1");
     if (loader) {
       loader.link.close();
@@ -296,6 +526,7 @@ $("restore-file").addEventListener("change", async () => {
 $("restore-go").addEventListener("click", async () => {
   if (!restore || writing) return;
   const { raw, parsed } = restore; lockInstaller(true);
+  resetStages(); setBar(0);
   let link = null;
   try {
     let midi;
@@ -313,7 +544,7 @@ $("restore-go").addEventListener("click", async () => {
     let res = { sent: 0, skipped: 0, failed: [] };
     if (parsed.songs.length) res = await restoreSongs(req, parsed.songs, (done,total) => sayK("restoringSongs", pct(done, total)));
     for (const f of res.failed) log(`song not restored: ${f.title}: ${f.error}`);
-    $("bar").value = 100;
+    setBar(100);
     sayK("restored", `${t("songsAdded")}${res.sent}${t("songsHad")}${res.skipped}${t("songsFailed")}${res.failed.length}`);
   } catch (e) {
     if (e.code && TEXT[lang][e.code]) sayK(e.code,e.detail || ""); else sayK("error",e.message);

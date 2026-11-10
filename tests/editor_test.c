@@ -757,9 +757,9 @@ static int live_sync(void)
         other += sync_pass() != 0;
     }
     bad += check("PRESET of other engines: no push at all", !other && ed_w.eng == ed_eng(TSEL));
-    a[0] = 1; a[1] = G_ENGSEL; a[2] = (8192 + 5) & 127; a[3] = (8192 + 5) >> 7;
+    a[0] = 1; a[1] = G_ENGSEL; a[2] = (8192 + 8) & 127; a[3] = (8192 + 8) >> 7;
     request(ED_SET, a, 4);
-    bad += check("SET of G_ENGSEL to an engine not of the part (Midi-Mania: VOICE): refused, no RELOAD", ed_eng(TSEL) != 5u && !sync_pass());
+    bad += check("SET of G_ENGSEL to an engine not of the part (Midi-Mania: GRAIN): refused, no RELOAD", ed_eng(TSEL) != 8u && !sync_pass());
     sync_reload = 1;                                     /* a load on the device, not pushed yet */
     a[0] = 0; a[1] = 1;
     request(ED_PRESET, a, 2);

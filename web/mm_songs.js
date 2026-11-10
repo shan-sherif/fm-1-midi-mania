@@ -36,6 +36,9 @@ const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", 
 export const noteName = (n) => `${NOTE_NAMES[n % 12]}${Math.floor(n / 12) - 1}`;   // (60: C4, middle C)
 const ROLE_SOUND = [[4, 0], [10, 0], [9, 2], [12, 2]];
 const PRIORITY = { [DRUMS]: 0, [KEYS]: 1, [GUITAR]: 2, [BASS]: 3 };
+// each melodic part's range (gen_songs.py RANGE), lowest and highest kept: KEYS C2..C7 (61 keys), GUITAR E2..E6,
+// BASS E1..G4; DRUMS every note
+export const RANGE = { [KEYS]: [36, 96], [GUITAR]: [40, 88], [BASS]: [28, 67] };
 const MIN_LEN = Math.floor(FS / 50);
 const LEAD_IN = 2 * FS;
 const TITLE_MAX = 39;
@@ -244,6 +247,9 @@ export function midiInstruments(u8) {
 // opt.roles: {"track,channel": part or null} (midiInstruments' keys): your choice for those instruments, over the
 // converter's own (a part an instrument cannot take is ignored). Without it, the chart is tools/gen_songs.py's, byte
 // for byte (web/test_songs.mjs)
+// opt.roles: your parts (midiInstruments' keys -> a part or null); opt.from, opt.to: only the notes starting from
+// opt.from to opt.to seconds into the file (Studio's Start and End: a song made shorter), each one held at most to
+// opt.to. Without them, the same song as tools/gen_songs.py makes, byte for byte
 export function convertMidi(u8, name, opt = {}) {
   const { div, tempos, notes: raw, progs, bpb } = parse(u8);
   const toS = tickToSample(div, tempos);
@@ -257,17 +263,21 @@ export function convertMidi(u8, name, opt = {}) {
   const droppedSet = new Set();
   for (const k of units.keys()) if (role.get(k) === null) { const [t, c] = uk(k); droppedSet.add(programOf(progs, t, c)); }
   const dropped = [...droppedSet].sort((a, b) => (a == null ? -1 : a) - (b == null ? -1 : b));
-  const seen = new Set(), out = [];
+  const seen = new Set(), out = [], oorBy = [0, 0, 0, 0];
   let dup = 0;
   const sortedRaw = raw.slice().sort((x, y) => x[0] - y[0] || x[2] - y[2] || x[3] - y[3] || x[4] - y[4]);
+  const trim = opt.from > 0 || opt.to != null;
+  const fromS = trim ? Math.round((opt.from || 0) * FS) : 0, toS2 = trim && opt.to != null ? Math.round(opt.to * FS) : Infinity;
   for (const [on, off, t, ch, p, vel] of sortedRaw) {
     const r = role.get(key2(t, ch));
     if (r === null) continue;
+    if (trim) { const s0 = toS(on); if (s0 < fromS || s0 >= toS2) continue; }   // (outside Start..End: not in it)
+    if (RANGE[r] && (p < RANGE[r][0] || p > RANGE[r][1])) { oorBy[r]++; continue; }   // outside its range: dropped
     const sk = on + "," + p + "," + r;
     if (seen.has(sk)) { dup++; continue; }
     seen.add(sk);
     const s0 = toS(on);
-    const ln = r === DRUMS ? MIN_LEN : Math.max(toS(off) - s0, MIN_LEN);
+    const ln = r === DRUMS ? MIN_LEN : Math.max(Math.min(toS(off), toS2) - s0, MIN_LEN);
     let k = p;
     while (k < KEY_LO) k += 12;
     while (k > KEY_HI) k -= 12;
@@ -328,7 +338,8 @@ export function convertMidi(u8, name, opt = {}) {
   const bpm = tempos.length ? 60e6 / tempos[0][1] : 120.0;
   const per = [0, 1, 2, 3].map((r) => notes.filter((n) => (n[5] & 3) === r).length);
   return {
-    title: titleOf(name), notes, length, bpm_x10: pyRound(bpm * 10), per, dup, cut, cut_by: cutBy, dropped, lead,
+    title: titleOf(name), notes, length, bpm_x10: pyRound(bpm * 10), per, dup, oor: oorBy.reduce((a, b) => a + b, 0), oor_by: oorBy, cut,
+    cut_by: cutBy, dropped, lead,
     keys_from: keysFrom, beats, beat0: beat0 || 0, bpb,
   };
 }
@@ -389,5 +400,5 @@ export function chartBytes(s) {
 export function summary(s) {                  // the converter's line, as gen_songs.py prints it
   const modes = [0, 1, 2, 3].filter((r) => s.per[r]).map((r) => `${ROLE_NAME[r]} ${s.per[r]}`).join(", ");
   return `${s.notes.length} notes (${modes}), ${s.beats.length} beats (${s.bpb} a bar), ${(s.length / FS).toFixed(1)} s, ` +
-    `${s.bpm_x10 / 10} BPM; dropped: ${s.dup} doubled, ${s.cut} over ${NVOICE} voices`;
+    `${s.bpm_x10 / 10} BPM; dropped: ${s.dup} doubled, ${s.oor} out of range, ${s.cut} over ${NVOICE} voices`;
 }

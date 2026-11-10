@@ -871,3 +871,28 @@ static void draw_text_box(uint32_t x, uint32_t y, uint32_t w, const aafont_t *f,
 {
     draw_text_line(x, y, w, f, s, c, T_BG, align);
 }
+/* one-shot, left-aligned at tx in a box of colour bg, bold and italic (Midi-Mania: SONGS' FREE PLAY row). The fonts
+ * have neither, so both are made here: bold, the text again a pixel to the right; italic, each row of the box moved
+ * right by its height over the baseline's row / 4 (about 14 degrees; the descenders' rows stay put), the gap at
+ * its left in bg */
+static void draw_text_line_bi(uint32_t x, uint32_t y, uint32_t w, const aafont_t *f, const char *s, int32_t tx,
+                              uint16_t c, uint16_t bg)
+{
+    uint32_t r, i, h = f->h, base = (uint32_t)f->asc;
+    uint16_t bgs = swap16(bg);                       /* (the canvas holds its pixels as the screen takes them) */
+    cv_begin(w, h, bg);
+    cv_text(tx, 0, f, s, c);
+    cv_text(tx + 1, 0, f, s, c);                     /* (bold) */
+    for (r = 0; r < h && r < base; r++) {            /* (italic: the rows above the baseline, the higher the further) */
+        uint32_t sh = (base - r) / 4u;
+        uint16_t *row = cv_px + r * w;
+        if (!sh || sh >= w)
+            continue;
+        for (i = w; i-- > sh;)
+            row[i] = row[i - sh];
+        for (i = 0; i < sh; i++)
+            row[i] = bgs;
+    }
+    cv_blit(x, y);
+    lcd_sync();
+}

@@ -57,6 +57,8 @@ across them) while the song still sounds as written.
 - Notes sorted by `time`.
 - No two playable notes on the same key closer together than the judge's GOOD window (110 ms by default): one press
   could not tell them apart.
+- Melodic notes inside their part's range (MIDI notes): KEYS 36–96 (C2–C7, 61 keys), GUITAR 40–88 (E2–E6), BASS
+  28–67 (E1–G4). The others are dropped before the voice budget.
 - At most 8 notes sounding at once across all parts (Felucca's voice budget).
 - Drums (MIDI channel 10) on one part set to the DRUM engine.
 

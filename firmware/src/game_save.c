@@ -5,7 +5,9 @@
  * free: engines.c MM_ENG). So they are written as MENU's settings are (settings_later, then settings_poll: never while
  * a song plays) and go in the installer's backup with them (editor_backup.c object 1).
  *   row 11: the settings. [0] GS_MARK, [1] GS_VER, [2] your part (pl.mode), [3] SCROLL UP, [4] OFFSET (int8, 2 ms a
- *     step), [5] PLAY YOU, [6] RANGE, [7..10] NOTE SPEED per part. Anything else in [0..1] (a Felucca's favourites of
+ *     step), [5] PLAY (CPU 0, PLAY 1), [6] AUTO (pl.range), [7..10] NOTE SPEED per part, [11] [12] [13] [14] STYLE of
+ *     GUITAR, BASS, KEYS, DRUMS (pl.style; 0 each the default, so a row from before them reads as it; out of range:
+ *     0). Anything else in [0..1] (a Felucca's favourites of
  *     that engine, or nothing yet): the defaults, and this row and the scores' rows cleared
  *   rows 2 3 5 6 7 8: the high scores, HS_ENTRIES entries of 8 bytes: an id (hs_id: the song, your part, your RANGE; 0 empty)
  *     u32, the best score (judge.c units: 3 a PERFECT; shown x 100) u16, its accuracy %, its flags (bit 0: every note
@@ -20,10 +22,11 @@ static const uint8_t HS_ROWS[6] = {2, 3, 5, 6, 7, 8};
 static uint8_t *hs_at(uint32_t i) { return &favorites.factory[HS_ROWS[i / 4u]][(i % 4u) * 8u]; }
 static uint32_t hs_rd32(const uint8_t *b) { return b[0] | (uint32_t)b[1] << 8 | (uint32_t)b[2] << 16 | (uint32_t)b[3] << 24; }
 
-/* a song with your part and RANGE: FNV-1a over its title, its notes' count, its length and its first note's time */
+/* a song with your part and AUTO, and its STYLE (GUITAR, BASS: always; KEYS, DRUMS: any but the default, so their
+ * bests from before STYLE stay theirs): FNV-1a over its title, its notes' count, its length and its first note's time */
 static uint32_t hs_id(const mm_song_t *s, uint32_t mode, uint32_t range)
 {
-    uint32_t h = 2166136261u, i, v[4];
+    uint32_t h = 2166136261u, i, v[5], nv = mm_has_view(mode) || pl.style[mode & 3u] ? 5u : 4u;
     const char *t = s->title;
     for (i = 0; t && t[i] && i < 24u; i++)
         h = (h ^ (uint8_t)t[i]) * 16777619u;
@@ -31,7 +34,8 @@ static uint32_t hs_id(const mm_song_t *s, uint32_t mode, uint32_t range)
     v[1] = s->length;
     v[2] = s->nnote ? s->note[0].time : 0u;
     v[3] = mode * 16u + range;
-    for (i = 0; i < 16u; i++)
+    v[4] = 0x4C000000u | pl.style[mode & 3u];        /* ('L': once LANES, GUITAR and BASS's STYLE) */
+    for (i = 0; i < 4u * nv; i++)
         h = (h ^ (uint8_t)(v[i / 4u] >> (8u * (i % 4u)))) * 16777619u;
     return h ? h : 1u;                               /* (0: an empty entry) */
 }
@@ -74,6 +78,8 @@ static uint32_t gs_sig(void)
         h = (h ^ v[i]) * 16777619u;
     for (i = 0; i < 4u; i++)
         h = (h ^ pl.speed[i]) * 16777619u;
+    for (i = 0; i < 4u; i++)
+        h = (h ^ pl.style[i]) * 16777619u;
     return h;
 }
 static void gs_put(void)                             /* the settings into the row */
@@ -88,6 +94,10 @@ static void gs_put(void)                             /* the settings into the ro
     GS_ROW[6] = pl.range;
     for (i = 0; i < 4u; i++)
         GS_ROW[7u + i] = pl.speed[i];
+    GS_ROW[11] = pl.style[MM_GUITAR];
+    GS_ROW[12] = pl.style[MM_BASS];
+    GS_ROW[13] = pl.style[MM_KEYS];
+    GS_ROW[14] = pl.style[MM_DRUMS];
     gs.sig = gs_sig();
 }
 
@@ -107,12 +117,16 @@ static void game_load(void)
     pl.up = (uint8_t)(GS_ROW[3] != 0u);
     pl.offset = (int8_t)((int8_t)GS_ROW[4] < -50 ? -50 : (int8_t)GS_ROW[4] > 50 ? 50 : (int8_t)GS_ROW[4]);
     pl.you = (uint8_t)(GS_ROW[5] != 0u);
-    pl.range = (uint8_t)(GS_ROW[6] < MM_RANGES ? GS_ROW[6] : 0u);
+    pl.range = (uint8_t)(GS_ROW[6] < 4u ? GS_ROW[6] : 0u);   /* (beyond your part's AUTO: its first, mm_range) */
     for (i = 0; i < 4u; i++) {
         uint32_t v = GS_ROW[7u + i];
         if (v >= PL_SPEED_MIN && v <= PL_SPEED_MAX)
             pl.speed[i] = (uint8_t)v;
     }
+    pl.style[MM_GUITAR] = (uint8_t)(GS_ROW[11] < 2u ? GS_ROW[11] : 0u);
+    pl.style[MM_BASS] = (uint8_t)(GS_ROW[12] < 2u ? GS_ROW[12] : 0u);
+    pl.style[MM_KEYS] = (uint8_t)(GS_ROW[13] < KS_N ? GS_ROW[13] : 0u);
+    pl.style[MM_DRUMS] = (uint8_t)(GS_ROW[14] < DS_N ? GS_ROW[14] : 0u);
     gs.sig = gs_sig();
     track_select(pl.mode % NTRK);                    /* (the keys play your part, as ALGORITHM picks it) */
 }

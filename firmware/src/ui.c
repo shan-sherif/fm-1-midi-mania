@@ -1264,9 +1264,9 @@ static void pat_load_ui(track_t *t, uint32_t n)
  * TOOLS INIT) leaves alone. The mix (LEVEL, PAN, MUTE: the TRACKS faders), the arpeggiator (ARP, ARP 2),
  * the scale and key map (SCL), the pattern parameters (LEN, DIV, SWING, GATE; 1.2: QUANTIZE) and the SLICER
  * insert, which chops whatever the track plays in time with its sequencer */
-static int param_kept(uint32_t i)
-{
-    return i == P_LEVEL || i == P_PAN || i == P_MUTE || (i >= P_AMODE && i <= P_SGATE) ||
+static int param_kept(uint32_t i)               /* Midi-Mania: REV too, the MIXER's (0 at power-on: the reverb asleep, */
+{                                               /* fx.c fx_buses); a sound brings none of its own */
+    return i == P_LEVEL || i == P_PAN || i == P_MUTE || i == P_REV || (i >= P_AMODE && i <= P_SGATE) ||
            (i >= P_SLCR && i <= P_SLDEPTH) || i == P_CHRD || i == P_VOIC || i == P_SQNT;
 }
 
@@ -1371,7 +1371,8 @@ static void apply_preset_to(track_t *t, uint32_t pi)
         static const uint8_t FX_DEF[4] = {0, 24, 28, 36};
         const preset_t *pr = &e->presets[pi];
         for (i = 0; i < 4u; i++)
-            t->p[P_DIST + i] = (int16_t)(pr->fx[i] ? pr->fx[i] - 1 : FX_DEF[i]);
+            if (!param_kept(P_DIST + i))              /* (REV: the part's own, kept) */
+                t->p[P_DIST + i] = (int16_t)(pr->fx[i] ? pr->fx[i] - 1 : FX_DEF[i]);
     }
     fm6_track_loaded(t);                              /* FM6: the preset's patch (its SLOT) */
     load_end(t);

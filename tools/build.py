@@ -75,15 +75,23 @@ def tc(tool, *args):
     rel = [str(Path(a).resolve().relative_to(SRC)) if isinstance(a, Path) else a for a in args]
     if tool == "cc":                # the toolchain's cc wrapper needs python3; call clang directly
         tool, rel = "pi32v2/bin/clang", ["-target", "pi32v2", *rel]
-    if use_docker():
+    docker = use_docker()
+    if docker:
         cmd = ["docker", "run", "--rm", "--platform", "linux/amd64", "-v", f"{SRC}:/work",
                "-v", f"{toolchain()}:/opt/jieli:ro", "-w", "/work", DOCKER_IMAGE, f"/opt/jieli/{tool}", *rel]
     else:
         cmd = [str(toolchain() / tool), *rel]
     r = subprocess.run(cmd, cwd=SRC, capture_output=True, text=True)
+    if r.returncode and docker and not (r.stdout + r.stderr).strip():
+        # In a container (macOS: Colima or Docker Desktop, the x86 tools under Rosetta) a step now and then fails
+        # with no output at all, and the same step again passes (TODO.md). A tool's own error always says something,
+        # so a silent failure is the container's: once more, its exit code said (125..127: docker's own; 128 + n,
+        # or negative: a signal, as a crash under Rosetta)
+        sys.stderr.write(f"build: {tool} exited {r.returncode} with no output in its container: once more\n")
+        r = subprocess.run(cmd, cwd=SRC, capture_output=True, text=True)
     if r.returncode:
         sys.stderr.write(r.stdout + r.stderr)
-        raise SystemExit(f"build: {tool} failed")
+        raise SystemExit(f"build: {tool} failed (exit {r.returncode}{', in a container' if docker else ''})")
     if r.stderr.strip():
         sys.stderr.write(r.stderr)
     return r.stdout

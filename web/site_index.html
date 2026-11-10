@@ -3,7 +3,7 @@
      Copyright (C) 2026 fm-1-midi-mania contributors
      The site's start page (.github/workflows/pages.yml; web/make_site.py copies it too, for a local site): Studio, and
      the installer once a release has one (the workflow takes every block between INSTALLER-BEGIN and INSTALLER-END out
-     when it has none). Pictures and videos for it go in web/site_media/ (published as media/): see SCREENSHOTS below.
+     when it has none). Pictures and videos for it go in web/site_media/ (published as media/): the See it section below.
      The colours are the logo's (assets/logo.svg): cream, ink, pink. -->
 <html lang="en">
 <head>
@@ -47,7 +47,7 @@
   ol.steps li::before { content: counter(step); position: absolute; left: 0; top: -2px; width: 32px; height: 32px;
                         border-radius: 50%; background: var(--fg); color: var(--btn-fg); font-weight: 700;
                         display: flex; align-items: center; justify-content: center; }
-  ol.steps b { display: block; }
+  ol.steps li > b { display: block; }
   ol.steps span { color: var(--dim); }
 
   .shots { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
@@ -55,11 +55,24 @@
   .shots img, .shots video { display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--rule);
                              background: var(--card); }
   .shots figcaption { margin-top: 6px; font-size: 13px; color: var(--dim); }
+  .shots.screens { margin-top: 14px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .shots img.px { image-rendering: pixelated; }
+  /* Your MIDI, onto your FM-1: Studio's two steps, pictures beside what they show */
+  .studio { display: grid; gap: 18px 24px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); align-items: start; }
+  .studio figure { margin: 0; }
+  .studio img { display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--rule); }
+  .studio figcaption { margin-top: 10px; color: var(--dim); }
+  .studio figcaption b { display: block; color: var(--fg); font-size: 16px; margin-bottom: 2px; }
+  .studio-cta { margin: 18px 0 0; }
 
   footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--rule); font-size: 13px; color: var(--dim); }
   footer nav { margin-bottom: 8px; }
+  footer .fn { margin: 0 0 16px; }
+  .fnref { text-decoration: none; margin-left: 1px; }
   footer nav a { margin-right: 14px; }
 </style>
+<!-- Page counts: GoatCounter (no cookies, no personal data; localhost is not counted) -->
+<script data-goatcounter="https://shan-sherif.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </head>
 <body>
 <main>
@@ -69,38 +82,64 @@
     <p class="lead">A keyboard rhythm game for the M-VAVE FM&#8209;1. Turn your MIDI files into songs, watch the notes fall to
       the keys, and play your part while the FM&#8209;1 plays the rest.</p>
     <div class="actions">
-      <a class="btn main" href="webapp/studio/">Try it in your browser</a>
+      <a class="btn main" href="webapp/studio/">Open Studio: try it in your browser, load songs into your FM&#8209;1</a>
 <!--INSTALLER-BEGIN-->
       <a class="btn" href="webapp/installer/">Install on your FM&#8209;1</a>
 <!--INSTALLER-END-->
     </div>
     <p class="note">No FM&#8209;1 needed: in your browser, play the built-in songs or load your own MIDI files and play
-      them right there. Free and open source.</p>
+      them right there. Free and open source.<br>
+      <b>Have an FM&#8209;1? The same page sends your songs to it over USB.</b></p>
   </section>
+
+  <h2>See it</h2>
+  <div class="shots">
+    <figure><img src="media/preview.gif" alt="FM-1 Midi-Mania played on an FM-1: notes fall on its screen while the keys are played" loading="lazy">
+      <figcaption>On the FM&#8209;1</figcaption></figure>
+    <figure><img class="px" src="media/gameplay-keys.gif" alt="KEYS gameplay: notes fall to the hit line, each press judged PERFECT, the combo counting up" loading="lazy">
+      <figcaption>Piano in PLAY mode: every press judged, the combo counting up</figcaption></figure>
+  </div>
+  <div class="shots screens">
+    <figure><img class="px" src="media/screen-keys27.png" alt="KEYS on 27 KEYS, the FM-1's own keyboard" loading="lazy"><figcaption>KEYS, 27 keys</figcaption></figure>
+    <figure><img class="px" src="media/screen-keys49.png" alt="KEYS on 49 KEYS, C2 to C6" loading="lazy"><figcaption>KEYS, 49 keys</figcaption></figure>
+    <figure><img class="px" src="media/screen-drums.png" alt="DRUMS: eight lanes in their colours" loading="lazy"><figcaption>DRUMS</figcaption></figure>
+    <figure><img class="px" src="media/screen-guitar-strings.png" alt="GUITAR on STRINGS: coloured lanes, low to high" loading="lazy"><figcaption>GUITAR, strings</figcaption></figure>
+    <figure><img class="px" src="media/screen-guitar-chromatic.png" alt="GUITAR on CHROMATIC: 12 lanes, C to B" loading="lazy"><figcaption>GUITAR, chromatic</figcaption></figure>
+    <figure><img class="px" src="media/screen-bass-strings.png" alt="BASS on STRINGS: four lanes" loading="lazy"><figcaption>BASS, strings</figcaption></figure>
+    <figure><img class="px" src="media/screen-songs.png" alt="SONGS: the song list and each part's options" loading="lazy"><figcaption>SONGS</figcaption></figure>
+    <figure><img class="px" src="media/screen-sounds.png" alt="SOUNDS: each part's sound, a knob a part" loading="lazy"><figcaption>SOUNDS</figcaption></figure>
+  </div>
+
+  <h2>Your MIDI, onto your FM&#8209;1</h2>
+  <p>Any MIDI file can be a song. Drop it on Studio and it's set up for you: the parts are chosen automatically, so you
+    can send it to your FM&#8209;1 over USB straight away, all from the browser. Want more control? The advanced
+    options are there too.</p>
+  <div class="studio">
+    <figure><img src="media/midi-advance-selection.png" alt="Studio's song card: Start and End sliders to shorten the song, and Advanced, a table of the file's instruments, each with a play button, its notes and range, and the part it plays: KEYS, BASS, DRUMS or Leave out" loading="lazy">
+      <figcaption><b>1. Choose what plays (optional)</b>Studio picks the piano, drums, guitar and bass automatically, so
+        there's nothing you have to set. These are the advanced options: open Advanced to hear each instrument alone and
+        choose its part, or leave it out, and shorten the song with Start and End.</figcaption></figure>
+    <figure><img src="media/midi-load.png" alt="Studio's Your FM-1 panel, connected: the song space bar with the song about to be sent shown in green, 28 KB, and Send all your songs to the FM-1" loading="lazy">
+      <figcaption><b>2. Send it to your FM&#8209;1</b>Connect by USB (Chrome or Edge). The bar shows the room on your
+        FM&#8209;1 and what the song will take: green if it fits, red if not. Then find it in SONGS (the SEQ
+        button).</figcaption></figure>
+  </div>
+  <p class="studio-cta"><a class="btn main" href="webapp/studio/">Open Studio</a></p>
 
   <h2>What it does</h2>
   <div class="features">
     <div><h3>Your songs, from MIDI</h3><p>Drop your own MIDI files on <a href="webapp/studio/">FM&#8209;1 Midi-Mania
       Studio</a> and play them right there in your browser, no FM&#8209;1 needed. Each is turned into a song with drums,
-      keys, bass and guitar fitted to the FM&#8209;1's sounds.</p></div>
+      keys, bass and guitar fitted to the FM&#8209;1's sounds. Happy with it? Connect your FM&#8209;1 and send it over
+      from the same page.</p></div>
     <div><h3>Play your part</h3><p>Pick keys, drums, guitar or bass. Its notes fall to a line on the screen, laid out
       like the FM&#8209;1's keys, while the FM&#8209;1 plays the rest of the song on its own synth engines.</p></div>
     <div><h3>Scored as you play</h3><p>Every note is judged PERFECT, GREAT, GOOD or MISS, with a combo, a score and
       your result at the end. Your best for each song is kept, and a quick calibration makes the timing fair.</p></div>
-    <div><h3>Songs on your FM&#8209;1</h3><p>Send up to 16 songs to your FM&#8209;1 over USB, delete the ones you're done with, and
+    <div><h3>Songs on your FM&#8209;1</h3><p>Send up to 16 songs<a class="fnref" href="#songs-fn" aria-label="(see the note on how many songs fit)">*</a> to your FM&#8209;1 over USB, delete the ones you're done with, and
       keep a backup of them on your computer.</p></div>
   </div>
 
-<!-- SCREENSHOTS: put pictures and videos in web/site_media/ (published as media/), then uncomment this section and
-     list them, for example:
-  <h2>See it</h2>
-  <div class="shots">
-    <figure><img src="media/play.jpg" alt="The FM-1 playing a song, notes falling to the keys" loading="lazy">
-      <figcaption>Playing a song</figcaption></figure>
-    <figure><video src="media/demo.mp4" controls muted playsinline preload="metadata"></video>
-      <figcaption>A song from start to finish</figcaption></figure>
-  </div>
--->
 
   <h2>Get started</h2>
   <ol class="steps">
@@ -114,13 +153,23 @@
 <!--INSTALLER-END-->
     <li><b>Send your songs</b>
       <span>In Studio, connect your FM&#8209;1 and send the songs you tried. Find them in SONGS (the SEQ button).</span></li>
+    <li><b>Play</b>
+      <span><b>SEQ</b> opens SONGS: pick a song, and your part with ALGORITHM. <b>ENV</b> chooses the instruments, a
+        knob for each part. <b>PLAY</b> starts the song; play the keys as the notes reach the line.</span></li>
   </ol>
 
   <footer>
+    <p class="fn" id="songs-fn">* Up to 16 songs, as long as they fit: the FM&#8209;1 keeps your songs in 240 KB of
+      memory, so how many fit depends on their size. A song's size comes from its notes: each note takes 12 bytes
+      (each beat another 4), and a song takes whole 4 KB blocks. So a longer song, a busier one, or one with more
+      parts playing takes more room. A short song like the built-in FM&nbsp;Keys (about 300 notes) takes 4 KB, so 16 of
+      those fit easily; a busy four-minute song with all four parts (around 3,000 notes) takes about 40 KB, and six of
+      those fill the memory. Studio shows each song's size and the room left on your FM&#8209;1.</p>
     <nav><a href="https://github.com/shan-sherif/fm-1-midi-mania">Source</a><a
       href="https://github.com/shan-sherif/fm-1-midi-mania/releases">Releases</a><a
       href="https://github.com/shan-sherif/fm-1-midi-mania/issues">Report a problem</a></nav>
     FM-1 Midi-Mania by Shan-Sherif · <a href="https://www.gnu.org/licenses/gpl-3.0.html">GPL-3.0</a>, no warranty.
+    Visits are counted anonymously with <a href="https://www.goatcounter.com/">GoatCounter</a> (no cookies).
     Based on <a href="https://github.com/hugelton/Felucca">Felucca</a> by Leo Kuroshita, Hügelton Instruments.<br>
     M-VAVE and FM-1 are trademarks of their respective owners; Midi-Mania is not affiliated with or endorsed by them.
   </footer>

@@ -12,14 +12,38 @@
 <style>
 /* DotGothic16 (SIL OFL 1.1, fonts/OFL.txt), cut to printable ASCII, for the knob labels */
 @font-face { font-family: "DotGothic16"; src: url("fonts/DotGothic16-subset.woff") format("woff"); font-display: swap; }
-:root { --bg: #8e8e93; --fg: #111; --dim: #2c2c2e; --rule: #5a5a5e;
+/* the page: the site's colours (web/site_index.html: the logo's cream, ink), dark with the system's dark mode; the FM-1
+ * drawn in its own */
+:root { --bg: #f4f1e8; --fg: #17151f; --dim: #5b5866; --rule: #dcd7c8;
         --body: #1d1d1f; --tray: #141415; --part: #2a2a2d; --edge: #3a3a3e; --label: #d6d6d8;
         --lit: #fff4d6; --green: #5fe08a; color-scheme: light; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #100f15; --fg: #f4f1e8; --dim: #aaa6b5; --rule: #34313f; color-scheme: dark; }
+  .songs { border-color: #34313f !important; }
+}
 html, body { background: var(--bg); }
 body { margin: 0; color: var(--fg); font: 13px/1.6 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; }
 main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 32px; }
+/* a wide screen: the FM-1 on the left, Your songs beside it on the right, its top and bottom on the FM-1's body (the
+ * drawing is 4 / 1000 of its width in from its box: the box out by as much, so the body meets the row's edges) and
+ * scrolling within that height; its list and a song's details one above the other; the keys' hints under the FM-1.
+ * Narrower: Your songs under the FM-1 */
+@media (min-width: 1200px) {
+  main { max-width: 1520px; }
+  .stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(420px, 500px); grid-template-areas: "dev side" "keys fm1" "quick fm1";
+           column-gap: 16px; }
+  .stage > .device { grid-area: dev; margin: -0.4% 0; }
+  .stage > .keys { grid-area: keys; }
+  .stage > .quick { grid-area: quick; max-width: none; }
+  .stage > #fm1 { grid-area: fm1; margin: 16px 0 0; max-width: none; align-self: start; }
+  .stage > #songs { grid-area: side; margin: 0; max-width: none; contain: size; overflow-y: auto; box-sizing: border-box; }
+  .stage > #songs .panes { grid-template-columns: 1fr; }
+  .stage > #songs .rows { max-height: none; }
+}
 .title { margin: 0 0 12px; text-align: center; color: var(--fg); }
-.back { margin: 0 0 6px; font-size: 13px; }
+.back { margin: 0 0 6px; font-size: 13px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.back a.install { color: var(--fg); font-weight: 600; padding: 4px 12px; border: 1px solid #ff4f8b; border-radius: 999px; }
+.back a.install:hover, .back a.install:focus-visible { background: #ff4f8b; color: #1a0b12; text-decoration: none; }
 .back a { color: var(--dim); text-decoration: none; }
 .back a:hover, .back a:focus-visible { color: var(--fg); text-decoration: underline; }
 h1 .logo { vertical-align: middle; border-radius: 22%; margin: -4px 10px 0 0; }
@@ -73,46 +97,205 @@ a { color: inherit; }
 .keys, footer { margin: 16px 0 0; color: var(--dim); text-align: center; }
 .keys span { white-space: nowrap; margin: 0 8px; }
 .keys select { font: inherit; font-size: 12px; }
+/* Your songs scrolls within the FM-1's height (wide screens): a bar pinned to its bottom while there's more below */
+.songs button.morehint { position: sticky; bottom: -18px; z-index: 1; display: block; box-sizing: content-box;
+                         width: 100%; margin: 8px -18px -18px; padding: 26px 18px 10px; border: 0; border-radius: 0;
+                         background: linear-gradient(rgba(23, 21, 31, 0), var(--ink) 55%); color: var(--cream);
+                         font-weight: 600; text-align: center; cursor: pointer; }
+.songs button.morehint:hover, .songs button.morehint:focus-visible { color: var(--pink); }
+.songs button.morehint[hidden] { display: none; }
+/* Quick start: the buttons that matter, the computer key for each */
+.quick { margin: 16px auto 0; max-width: 860px; padding: 10px 16px 12px; border: 1px solid var(--rule); border-radius: 12px; }
+.quick summary { cursor: pointer; font-weight: 600; }
+.quick ol { margin: 8px 0 0; padding-left: 20px; }
+.quick li { margin: 3px 0; }
+.quick b { font-weight: 600; }
+.quick p { margin: 8px 0 0; color: var(--dim); font-size: 12px; }
 kbd { font: 600 11px ui-monospace, Menlo, monospace; border: 1px solid var(--rule); padding: 0 4px; color: var(--fg); }
 footer { margin-top: 12px; font-size: 12px; }
-.songs { margin: 18px auto 0; max-width: 720px; padding: 14px 16px; border: 2px dashed var(--rule); border-radius: 10px;
-         color: var(--fg); background: rgba(255, 255, 255, .12); }
-.songs.over { border-color: var(--fg); background: rgba(255, 255, 255, .3); }
-.songs h2 { margin: 0 0 4px; font-size: 15px; }
+/* Your songs: a song browser in Midi-Mania's own colours (the logo's ink, cream and pink); a part's colour each */
+.songs { --ink: #17151f; --panel: #201d2b; --row: #282436; --line: #3a3550; --cream: #f4f1e8; --mute: #a8a2b8;
+         --pink: #ff4f8b; --p0: #ffb84f; --p1: #ff4f8b; --p2: #5fe08a; --p3: #a88bff;
+         margin: 18px auto 0; max-width: 860px; padding: 16px 18px 18px; border: 2px solid var(--ink); border-radius: 14px;
+         color: var(--cream); background: var(--ink); color-scheme: dark; box-shadow: 0 6px 24px rgba(0, 0, 0, .25); }
+.songs.over { border: 2px dashed var(--pink); background: #241b2c; }
+.songs a { color: var(--cream); }
+.songs .sh { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.songs h2 { margin: 0; font-size: 18px; letter-spacing: .02em; }
+.songs .count { color: var(--mute); font-size: 12px; flex: 1; }
 .songs p { margin: 4px 0; }
+.songs .intro { color: var(--mute); font-size: 12px; margin: 6px 0 4px; }
+.songs .intro b { color: var(--cream); }
 .songs ul { list-style: none; margin: 8px 0 0; padding: 0; }
-.songs li { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; padding: 4px 0; border-top: 1px solid var(--rule); }
-.songs li .t { font-weight: 600; flex: 1 1 12em; overflow-wrap: anywhere; }
-.songs li .m { color: var(--dim); font-size: 12px; }
-.songs button { font: inherit; font-size: 12px; padding: 2px 10px; cursor: pointer; }
-.songs .msg { white-space: pre-wrap; font-size: 12px; }
-.songs .msg.err { color: #7a0d0d; font-weight: 600; }
+.songs button { font: inherit; font-size: 12px; padding: 4px 12px; cursor: pointer; border-radius: 8px;
+                border: 1px solid var(--line); background: var(--row); color: var(--cream); }
+.songs button:hover:not(:disabled), .songs button:focus-visible { border-color: var(--pink); outline: none; }
+.songs button:disabled { opacity: .45; cursor: default; }
+.songs button.add, .songs button.primary { background: var(--pink); border-color: var(--pink); color: #1a0b12; font-weight: 600; }
+.songs button.add:hover:not(:disabled), .songs button.primary:hover:not(:disabled) { filter: brightness(1.08); border-color: var(--cream); }
+.songs button.quiet { background: transparent; color: var(--mute); }
+.songs .msg { white-space: pre-wrap; font-size: 12px; color: var(--mute); }
+.songs .msg.err { color: #ffd0dd; font-weight: 600; }
+/* notes that need noticing, each in a box of its colour: a problem (pink), a warning (amber), a tip (teal) */
+.songs .msg.err:not(:empty), .songs .note.err { padding: 8px 12px; border: 1px solid var(--pink); border-radius: 8px;
+                                                background: rgba(255, 79, 139, .14); }
+.songs .note { margin: 8px 0; padding: 8px 12px; border-radius: 8px; font-size: 12px; }
+.songs .note.warn { border: 1px solid #ffb84f; background: rgba(255, 184, 79, .14); color: #ffe3b8; }
+.songs .note.tip { border: 1px solid #4fd1c5; background: rgba(79, 209, 197, .12); color: #c8f5ef; }
+.songs .note b { color: var(--cream); }
+.songs .pick .trim { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 10px; align-items: center;
+                     margin: 8px 0 0; font-size: 12px; }
+.songs .pick .trim label { color: var(--mute); }
+.songs .pick .trim input[type=range] { width: 100%; accent-color: var(--pink); }
+.songs .pick .trim output { font-variant-numeric: tabular-nums; min-width: 3.2em; text-align: right; }
+.songs .pick .trimline { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin: 4px 0 0;
+                         color: var(--mute); font-size: 12px; }
+.songs .browser { margin-top: 10px; padding: 10px; border-radius: 12px; background: var(--panel); }
+.songs .tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+.songs .tools input[type=search] { flex: 1 1 14em; min-width: 0; font: inherit; font-size: 13px; padding: 6px 10px;
+                                   border-radius: 8px; border: 1px solid var(--line); background: var(--ink); color: var(--cream); }
+.songs .tools input[type=search]:focus { outline: none; border-color: var(--pink); }
+.songs .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.songs .seg button { border: 0; border-radius: 0; background: transparent; color: var(--mute); padding: 5px 10px; }
+.songs .seg button + button { border-left: 1px solid var(--line); }
+.songs .seg button[aria-pressed=true] { background: var(--cream); color: var(--ink); font-weight: 600; }
+.songs .dir { padding: 4px 10px; font-weight: 700; }
+.songs .chips { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.songs .chips button { border-radius: 999px; padding: 3px 10px; font-size: 11px; font-weight: 600; letter-spacing: .04em;
+                       background: transparent; }
+.songs .chips button.p0 { color: var(--p0); border-color: var(--p0); }
+.songs .chips button.p1 { color: var(--p1); border-color: var(--p1); }
+.songs .chips button.p2 { color: var(--p2); border-color: var(--p2); }
+.songs .chips button.p3 { color: var(--p3); border-color: var(--p3); }
+.songs .chips button[aria-pressed=true] { color: var(--ink); }
+.songs .chips button.p0[aria-pressed=true] { background: var(--p0); }
+.songs .chips button.p1[aria-pressed=true] { background: var(--p1); }
+.songs .chips button.p2[aria-pressed=true] { background: var(--p2); }
+.songs .chips button.p3[aria-pressed=true] { background: var(--p3); }
+.songs .panes { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 10px; }
+.songs .browser.empty .panes { grid-template-columns: 1fr; }
+.songs .browser.empty .detail, .songs .browser.empty .tools { display: none; }
+@media (max-width: 640px) { .songs .panes { grid-template-columns: 1fr; } }
+.songs .rows { margin: 0; display: flex; flex-direction: column; gap: 6px; max-height: 420px; overflow-y: auto; }
+.songs .row { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "main busy" "sub busy";
+              gap: 2px 10px; padding: 8px 12px; border-radius: 10px; background: var(--row);
+              border: 1px solid transparent; border-left: 4px solid var(--line); cursor: pointer; }
+.songs .row:hover, .songs .row:focus-visible { border-color: var(--line); outline: none; }
+.songs .row[aria-selected=true] { border-color: var(--pink); border-left-color: var(--pink); background: #2f2238; }
+.songs .row .main { grid-area: main; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; min-width: 0; }
+.songs .row .t { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
+.songs .row .sub { grid-area: sub; color: var(--mute); font-size: 12px; }
+.songs .row .busy { grid-area: busy; align-self: center; display: inline-flex; gap: 3px; }
+.songs .row .busy i { width: 6px; height: 14px; border-radius: 2px; background: var(--line); }
+.songs .row .busy i.on { background: var(--pink); }
+.songs .row.fm { grid-template-areas: "main busy" "sub busy"; cursor: default; }
+.songs .row.fm button { grid-area: busy; align-self: center; }
+.songs .none { color: var(--mute); font-size: 12px; padding: 12px; text-align: center; }
+.songs .tags { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.songs .tag { font-size: 10px; font-weight: 700; letter-spacing: .05em; padding: 0 6px; border-radius: 999px; color: var(--ink); line-height: 16px; }
+.songs .tag.p0 { background: var(--p0); } .songs .tag.p1 { background: var(--p1); }
+.songs .tag.p2 { background: var(--p2); } .songs .tag.p3 { background: var(--p3); }
+.songs .onfm1 { margin-left: 8px; color: var(--p2); font-weight: 600; font-size: 11px; }
+.songs .detail { padding: 12px 14px; border-radius: 10px; background: var(--row); align-self: start; }
+.songs .detail h3 { margin: 0 0 6px; font-size: 17px; overflow-wrap: anywhere; }
+.songs .detail .hint { color: var(--mute); font-size: 12px; }
+.songs .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 12px 0; }
+.songs .stats dt { color: var(--mute); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+.songs .stats dd { margin: 0 0 4px; font-size: 16px; font-weight: 600; }
+.songs .parts { display: grid; gap: 6px; margin-bottom: 12px; }
+.songs .prow { display: grid; grid-template-columns: 4.6em minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: 11px; }
+.songs .pname { font-weight: 700; letter-spacing: .04em; color: var(--mute); }
+.songs .pbar { height: 8px; border-radius: 4px; background: var(--ink); overflow: hidden; }
+.songs .pfill { display: block; height: 100%; border-radius: 4px; }
+.songs .pfill.p0 { background: var(--p0); } .songs .pfill.p1 { background: var(--p1); }
+.songs .pfill.p2 { background: var(--p2); } .songs .pfill.p3 { background: var(--p3); }
+.songs .pnum { color: var(--mute); white-space: nowrap; }
+.songs .acts { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0; }
+.songs .mem { display: flex; gap: 10px; align-items: center; margin-top: 10px; font-size: 11px; color: var(--mute); }
+.songs .mem .bar { flex: 0 0 120px; height: 6px; border-radius: 3px; background: var(--ink); overflow: hidden; }
+.songs .mem .bar span { display: block; height: 100%; width: 0; background: var(--pink); }
 .songs meter { width: 100%; height: 8px; }
-.songs .pick { margin: 10px 0; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 8px; }
+.songs .pick { margin: 10px 0; padding: 12px 14px; border: 1px solid var(--pink); border-radius: 12px; background: var(--panel); }
 .songs .pick h3 { margin: 0 0 2px; font-size: 14px; overflow-wrap: anywhere; }
 .songs .pick .tbl { overflow-x: auto; }
 .songs .pick table { border-collapse: collapse; width: 100%; font-size: 12px; }
 .songs .pick td, .songs .pick th { padding: 3px 6px 3px 0; text-align: left; white-space: nowrap; }
-.songs .pick th { color: var(--dim); font-weight: normal; }
+.songs .pick th { color: var(--mute); font-weight: normal; }
 .songs .pick td.n { text-align: right; }
-.songs .pick tr.out td:not(:last-child) { color: var(--dim); }
-.songs .pick select { font: inherit; font-size: 12px; }
+.songs .pick tr.out td:not(:last-child) { color: var(--mute); opacity: .7; }
+/* Advanced's rows: an instrument in the colour of the part it plays (left out: none, dimmed) */
+.songs .pick tbody tr td { transition: background .12s; }
+.songs .pick tr.r0 td { background: color-mix(in srgb, var(--p0) 14%, transparent); }
+.songs .pick tr.r1 td { background: color-mix(in srgb, var(--p1) 14%, transparent); }
+.songs .pick tr.r2 td { background: color-mix(in srgb, var(--p2) 14%, transparent); }
+.songs .pick tr.r3 td { background: color-mix(in srgb, var(--p3) 14%, transparent); }
+.songs .pick tr.r0 td:first-child { box-shadow: inset 3px 0 var(--p0); }
+.songs .pick tr.r1 td:first-child { box-shadow: inset 3px 0 var(--p1); }
+.songs .pick tr.r2 td:first-child { box-shadow: inset 3px 0 var(--p2); }
+.songs .pick tr.r3 td:first-child { box-shadow: inset 3px 0 var(--p3); }
+.songs .pick tr.r0 select { border-color: var(--p0); color: var(--p0); }
+.songs .pick tr.r1 select { border-color: var(--p1); color: var(--p1); }
+.songs .pick tr.r2 select { border-color: var(--p2); color: var(--p2); }
+.songs .pick tr.r3 select { border-color: var(--p3); color: var(--p3); }
+.songs .pick td { padding-left: 6px !important; }
+.songs .pick .auto b.p0 { color: var(--p0); } .songs .pick .auto b.p1 { color: var(--p1); }
+.songs .pick .auto b.p2 { color: var(--p2); } .songs .pick .auto b.p3 { color: var(--p3); }
+.songs .pick select { font: inherit; font-size: 12px; background: var(--ink); color: var(--cream); border: 1px solid var(--line); border-radius: 6px; }
 .songs .pick .sum { margin: 6px 0; font-size: 12px; }
-.songs .fm1 { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--rule); }
-.songs .fm1 progress { width: 100%; height: 6px; }
-.songs li .on { color: var(--dim); font-size: 12px; }
-@media (prefers-color-scheme: dark) { .songs .msg.err { color: #ffb3b3; } }
+.songs .pick .m { color: var(--mute); font-size: 12px; }
+.songs button.hear { color: var(--cream); font-variant-numeric: tabular-nums; }
+.songs button.hear.on { border-color: var(--pink); color: var(--pink); }
+.songs .pick td button.hear { padding: 1px 8px; }
+.songs .pick .auto { margin: 4px 0; font-size: 13px; }
+.songs .pick .auto b { font-weight: 600; }
+.songs .pick details { margin: 6px 0; }
+.songs .pick summary { cursor: pointer; font-size: 12px; color: var(--mute); }
+.songs .pick details[open] summary { margin-bottom: 4px; }
+.songs.fm1 progress { width: 100%; height: 6px; }
+.songs.fm1 h3.sub { margin: 14px 0 6px; font-size: 13px; }
+.songs .state { font-size: 12px; color: var(--mute); flex: 1; }
+.songs .state::before, .fm1status i { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+                                       margin-right: 6px; background: #8a8599; vertical-align: 1px; }
+.songs .state[data-state=on]::before, .fm1status[data-state=on] i { background: #5fe08a; box-shadow: 0 0 6px #5fe08a; }
+.songs .state[data-state=busy]::before, .fm1status[data-state=busy] i { background: #ffb84f; }
+.songs .state[data-state=lost]::before, .fm1status[data-state=lost] i { background: #ff4f6d; }
+.songs .state[data-state=on] { color: var(--cream); }
+/* the space meter: what is used, what the song you are looking at would add (red: more than there is room for) */
+.songs .meter { margin: 10px 0 4px; padding: 10px 12px; border-radius: 10px; background: var(--ink); }
+.songs .meter .mhead { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; }
+.songs .meter .mhead span:last-child { font-variant-numeric: tabular-nums; color: var(--mute); }
+.songs .meter .mbar { position: relative; display: flex; height: 14px; border-radius: 7px; overflow: hidden;
+                      background: var(--row); box-shadow: inset 0 0 0 1px var(--line); }
+.songs .meter .mbar span { display: block; height: 100%; width: 0; transition: width .15s; }
+.songs .meter .used { background: var(--cream); }
+.songs .meter .add { background: repeating-linear-gradient(135deg, #5fe08a 0 6px, #3fb86a 6px 12px); }
+.songs .meter .mbar.over .add { background: repeating-linear-gradient(135deg, #ff4f6d 0 6px, #d7334f 6px 12px); }
+.songs .meter .mlegend { margin: 6px 0 0; font-size: 12px; color: var(--mute); }
+.songs .meter .mlegend b { color: var(--cream); }
+.songs .meter .mlegend .over { color: #ff8a9e; font-weight: 600; }
+.songs .meter .mlegend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 4px -1px 0; }
+.fm1status { font: inherit; font-size: 14px; font-weight: 600; color: var(--fg); background: transparent;
+             border: 1.5px solid var(--rule); border-radius: 999px; padding: 6px 16px; cursor: pointer; }
+.fm1status i { width: 11px; height: 11px; margin-right: 8px; }
+.fm1status:hover, .fm1status:focus-visible { border-color: var(--fg); }
+.back .links { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 footer nav a { margin: 0 6px; }
 footer small { font-size: 11px; opacity: .8; }
 </style>
+<!-- Page counts: GoatCounter (no cookies, no personal data; localhost is not counted) -->
+<script data-goatcounter="https://shan-sherif.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </head>
 <body>
 <main>
-<nav class="back"><a href="../../">← FM-1 Midi-Mania</a></nav>
+<nav class="back"><a href="../../">← FM-1 Midi-Mania</a>
+  <span class="links"><button type="button" class="fm1status" id="fm1status" data-state="off"
+    title="Your FM-1 over USB: connect it to send songs"><i aria-hidden="true"></i><span id="fm1statustext">FM-1 not connected</span></button>
+  <a class="install" href="../installer/">Install on your FM-1 →</a></span></nav>
 <header class="title">
   <h1><img class="logo" src="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%201024%201024%22%3E%3Ctitle%3EFM-1%20Midi-Mania%3C/title%3E%3Crect%20width=%221024%22%20height=%221024%22%20fill=%22%23F4F1E8%22/%3E%3Cg%20fill=%22%2317151F%22%3E%3Crect%20x=%22160%22%20y=%22181%22%20width=%22136%22%20height=%22662%22%20rx=%2228%22/%3E%3Crect%20x=%22331%22%20y=%22307%22%20width=%22136%22%20height=%22320%22%20rx=%2228%22/%3E%3Crect%20x=%22557%22%20y=%22307%22%20width=%22136%22%20height=%22320%22%20rx=%2228%22/%3E%3Crect%20x=%22728%22%20y=%22181%22%20width=%22136%22%20height=%22662%22%20rx=%2228%22/%3E%3C/g%3E%3Crect%20x=%22444%22%20y=%22536%22%20width=%22136%22%20height=%22306%22%20rx=%2228%22%20fill=%22%23FF4F8B%22/%3E%3C/svg%3E" alt="" width="28" height="28">FM-1 Midi-Mania Studio</h1>
   <p>Play the FM-1 in your browser, and load your own MIDI files as songs.</p>
 </header>
+<div class="stage">
 <div class="device" id="device">
   <svg id="panel" viewBox="0 0 1000 624" aria-hidden="true"></svg>
   <canvas id="screen" width="240" height="240" role="img" aria-label="The screen"></canvas>
@@ -135,34 +318,88 @@ footer small { font-size: 11px; opacity: .8; }
   </select></span>
 </p>
 
+<details class="quick" open>
+  <summary>Quick start</summary>
+  <ol>
+    <li>Press <b>Switch on</b>, then <b>SEQ</b> <kbd>0</kbd> for SONGS. Pick a song with <b>SELECT</b> <kbd>↑</kbd> <kbd>↓</kbd>
+      and your part (KEYS, DRUMS, GUITAR, BASS) with <b>ALGORITHM</b> <kbd>←</kbd> <kbd>→</kbd>.</li>
+    <li>Choose the instruments: <b>ENV</b> <kbd>3</kbd> opens SOUNDS, a knob for each part (KNOB 1 KEYS, 2 DRUMS,
+      3 GUITAR, 4 BASS). Turn one quickly to see its whole list. <b>ENV</b> again goes back.</li>
+    <li>In SONGS, <b>KNOB 1</b> picks <b>PLAY</b> to play your part yourself and be scored (CPU: the FM&#8209;1 plays it).
+      KNOB 3 changes the layout, KNOB 4 how many notes are yours.</li>
+    <li>Press <b>PLAY</b> <kbd>-</kbd>. Play the keys <kbd>Z</kbd>–<kbd>'</kbd> <kbd>Q</kbd>–<kbd>O</kbd> as the notes
+      reach the line. <b>PLAY</b> again stops; <b>HOME</b> <kbd>7</kbd> returns to the game.</li>
+  </ol>
+  <p>Turn a knob with the mouse wheel or by dragging it. Your own MIDI files: drop them on this page (Your songs).</p>
+</details>
+
 <section class="songs" id="songs" aria-labelledby="songs-h">
-  <h2 id="songs-h">Your songs</h2>
-  <p>Drop MIDI files anywhere on this page, or <button type="button" id="songpick">choose files…</button>
-    <input type="file" id="songfile" accept=".mid,.midi,audio/midi" multiple hidden>.
-    For each, choose which of its instruments play KEYS, DRUMS, GUITAR and BASS, then <b>Load</b>: it is converted here,
-    in your browser, and loaded into the FM-1's song memory: find it in SONGS (the SEQ
-    button), after the built-in songs. They stay in this browser. Have an FM-1? Send them to it below.</p>
+  <div class="sh">
+    <h2 id="songs-h">Your songs</h2>
+    <span class="count" id="songcount"></span>
+    <button type="button" class="add" id="songpick">+ Add MIDI files</button>
+    <input type="file" id="songfile" accept=".mid,.midi,audio/midi" multiple hidden>
+  </div>
+  <p class="intro">Drop MIDI files anywhere on this page. Each is set up for you (its piano, drums, guitar and bass go
+    to the FM-1's four parts); press <b>Load</b> and it's in SONGS (the SEQ button), after the built-in songs.
+    <b>Advanced</b> lets you choose which instrument plays what. Your songs stay in this browser; have an FM-1? Send
+    them to it.</p>
+  <p class="intro">Notes each part keeps: <b>KEYS</b> C2–C7 (61 keys), <b>GUITAR</b> E2–E6, <b>BASS</b> E1–G4
+    (C4 is middle C). Notes outside are left out, and the card says how many. <b>DRUMS</b> keeps every hit on channel 10.</p>
   <p class="msg" id="songmsg" role="status" aria-live="polite"></p>
   <div id="songcards"></div>
-  <ul id="songlist"></ul>
-  <p class="m" id="songused"></p>
-  <div class="fm1" id="fm1" hidden>
-    <h2>On your FM-1</h2>
-    <p>Connect your FM-1 by USB to send these songs to it: Chrome or Edge on a computer, and Midi-Mania 0.2.0 or
-      later on the FM-1 (<a href="../installer/">the installer</a>).
-      <button type="button" id="fm1connect">Connect the FM-1</button></p>
-    <p class="msg" id="fm1msg" role="status" aria-live="polite"></p>
-    <div id="fm1dev" hidden>
-      <progress id="fm1bar" max="1" value="0" hidden></progress>
-      <ul id="fm1list"></ul>
-      <p class="m" id="fm1room"></p>
-      <p><button type="button" id="fm1all">Send all your songs to the FM-1</button></p>
+  <div class="browser" id="songbrowser">
+    <div class="tools">
+      <input type="search" id="songq" placeholder="Search your songs" aria-label="Search your songs">
+      <div class="seg" id="songsort" role="group" aria-label="Sort by">
+        <button type="button" data-sort="order" title="As SONGS lists them on the FM-1">SONGS order</button>
+        <button type="button" data-sort="title">Title</button>
+        <button type="button" data-sort="bpm">BPM</button>
+        <button type="button" data-sort="length">Length</button>
+        <button type="button" data-sort="notes" title="Notes per second: how busy the song is">Busy</button>
+      </div>
+      <button type="button" class="dir" id="songdir" aria-label="Reverse the order">↓</button>
+      <div class="chips" id="songparts" role="group" aria-label="Show songs with any of these parts">
+        <button type="button" data-part="0" class="p0" aria-pressed="false">KEYS</button>
+        <button type="button" data-part="1" class="p1" aria-pressed="false">DRUMS</button>
+        <button type="button" data-part="2" class="p2" aria-pressed="false">GUITAR</button>
+        <button type="button" data-part="3" class="p3" aria-pressed="false">BASS</button>
+      </div>
     </div>
+    <div class="panes">
+      <ul id="songlist" class="rows" role="listbox" aria-label="Your songs"></ul>
+      <aside class="detail" id="songdetail" aria-live="polite"></aside>
+    </div>
+    <div class="mem"><div class="bar"><span id="songbar"></span></div><span id="songused"></span></div>
   </div>
+  <button type="button" class="morehint" id="songsmore" hidden>↓ More below</button>
 </section>
 
+<section class="songs fm1" id="fm1" aria-labelledby="fm1-h">
+  <div class="sh">
+    <h2 id="fm1-h">Your FM-1</h2>
+    <span class="state" id="fm1state" data-state="off">Not connected</span>
+    <button type="button" class="add" id="fm1connect">Connect the FM-1</button>
+  </div>
+  <p class="intro" id="fm1intro">Connect your FM-1 by USB to send your songs to it: Chrome or Edge on a computer, and
+    Midi-Mania 0.2.0 or later on the FM-1 (<a href="../installer/">the installer</a>).</p>
+  <div class="meter" id="fm1meter">
+    <div class="mhead"><span id="fm1space">Song space</span><span id="fm1pct"></span></div>
+    <div class="mbar" id="fm1mbar" role="img"><span class="used" id="fm1used"></span><span class="add" id="fm1add"></span></div>
+    <p class="mlegend" id="fm1legend"></p>
+  </div>
+  <p class="msg" id="fm1msg" role="status" aria-live="polite"></p>
+  <progress id="fm1bar" max="1" value="0" hidden></progress>
+  <div id="fm1dev" hidden>
+    <h3 class="sub">Songs on your FM-1</h3>
+    <ul id="fm1list" class="rows"></ul>
+    <p><button type="button" class="primary" id="fm1all">Send all your songs to the FM-1</button></p>
+  </div>
+</section>
+</div>
+
 <footer>
-  <small class="version">@VERSION@@PREVIEW@</small><br>
+  <small class="version">@VERSION@@PREVIEW@ · built @BUILT@</small><br>
   Midi-Mania by Shan-Sherif · <a href="https://www.gnu.org/licenses/gpl-3.0.html">GPL-3.0</a><br>
   Based on <a href="https://github.com/hugelton/Felucca">Felucca</a> by Leo Kuroshita, Hügelton Instruments · browser build after charlesvestal's <a href="https://github.com/charlesvestal/fm1-x0x">X0X</a> · DotGothic16 font, <a href="fonts/OFL.txt">SIL OFL 1.1</a><br>
   <nav><a href="https://github.com/shan-sherif/fm-1-midi-mania">Source</a></nav>
@@ -175,7 +412,7 @@ import { midiKnob, KNOB_MODES } from "./worklet.js";
 import { convertMidi, chartBytes, summary, ROLE_NAME, midiInstruments, noteName } from "./mm_songs.js";
 import { Updater } from "./fm1ota.js";
 import { BackupConnection } from "./fm1backup.js";
-import { listSongs, uploadChart, deleteSong, roomText } from "./fm1songs.js";
+import { listSongs, uploadChart, deleteSong, roomText, SONG_AREA } from "./fm1songs.js";
 const NS = "http://www.w3.org/2000/svg";
 // panel.c's labels (bit = label) and encoder roles
 const B = { FX: 0, SCL: 1, ENV: 2, LFO: 3, EDIT: 4, GLO: 5, HOME: 6, SAVE: 7, ARP: 8, SEQ: 9, PLAY: 10, REC: 11, "OCT-": 12, "OCT+": 13 };
@@ -562,16 +799,32 @@ async function midiOn() {
 // writes it into the FM-1's song memory (worklet.js songsAdd) and the firmware lists it in SONGS; the flash it
 // changed is kept with the other saves
 const songBox = document.getElementById("songs"), songMsg = document.getElementById("songmsg");
+{   // "More below": shown while Your songs (a scrolling panel on wide screens) has more under what is in view
+  const more = document.getElementById("songsmore");
+  let queued = false;
+  const check = () => {
+    queued = false;
+    const scrolls = /auto|scroll/.test(getComputedStyle(songBox).overflowY);   // (narrow: the page scrolls, not the panel)
+    more.hidden = !scrolls || songBox.scrollHeight - songBox.scrollTop - songBox.clientHeight <= (more.hidden ? 4 : 4 + more.offsetHeight);
+  };
+  const later = () => { if (!queued) { queued = true; requestAnimationFrame(check); } };
+  songBox.addEventListener("scroll", later, { passive: true });
+  addEventListener("resize", later);
+  new MutationObserver(later).observe(songBox, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden", "open", "class"] });
+  more.addEventListener("click", () => songBox.scrollBy({ top: songBox.clientHeight * 0.8, behavior: "smooth" }));
+  later();
+}
 const songList = document.getElementById("songlist"), songUsed = document.getElementById("songused");
 const songFile = document.getElementById("songfile");
 let songNotes = [];                                               // the lines about the files just loaded
 const tell = (lines, err) => { songMsg.textContent = lines.join("\n"); songMsg.classList.toggle("err", !!err); };
 let browserSongs = [];                                            // the worklet's last list
+let songMem = { used: 0, size: 0 };
 function renderSongs(m) {
   if (m.name) songNotes.push(m.error ? `${m.name}: not loaded: ${m.error}` : `${m.name}: loaded`);
   if (songNotes.length) tell(songNotes, m.error);
   browserSongs = m.list;
-  songUsed.textContent = `Song memory: ${Math.ceil(m.used / 1024)} of ${m.size / 1024} KB used`;
+  songMem = { used: m.used, size: m.size };
   drawSongs();
 }
 const songButton = (text, onClick, disabled = false) => {
@@ -580,44 +833,235 @@ const songButton = (text, onClick, disabled = false) => {
   b.addEventListener("click", onClick);
   return b;
 };
+const mk = (tag, cls, text) => {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+};
+const mmssF = (sec) => `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, "0")}`;
+const partTags = (parts) => {                                     // KEYS DRUMS GUITAR BASS, each in its colour
+  const box = mk("span", "tags");
+  for (let p = 0; p < 4; p++) if (parts >> p & 1) box.append(mk("span", `tag p${p}`, ROLE_NAME[p]));
+  return box;
+};
+const busy = (s) => (s.length > 0 ? s.notes / s.length : 0);      // notes a second, every part
+// The song browser: search, sort, the parts to show, a song selected (its details beside the list). The view is the
+// visitor's own (localStorage: kept in this browser, empty when it cannot be read)
+const view = { q: "", sort: "order", dir: 1, parts: 0, sel: null };
+try { const v = JSON.parse(localStorage.getItem("mm-song-view") || "{}"); view.sort = v.sort || view.sort; view.dir = v.dir === -1 ? -1 : 1; } catch { /* none */ }
+const saveView = () => { try { localStorage.setItem("mm-song-view", JSON.stringify({ sort: view.sort, dir: view.dir })); } catch { /* none */ } };
+const songQ = document.getElementById("songq"), songSort = document.getElementById("songsort");
+const songDir = document.getElementById("songdir"), songParts = document.getElementById("songparts");
+const songDetail = document.getElementById("songdetail"), songCount = document.getElementById("songcount");
+const songBrowser = document.getElementById("songbrowser");
+songQ.addEventListener("input", () => { view.q = songQ.value.trim().toLowerCase(); drawSongs(); });
+songSort.addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-sort]");
+  if (!b) return;
+  view.sort = b.dataset.sort;
+  saveView(); drawSongs();
+});
+songDir.addEventListener("click", () => { view.dir = -view.dir; saveView(); drawSongs(); });
+songParts.addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-part]");
+  if (!b) return;
+  view.parts ^= 1 << Number(b.dataset.part);
+  saveView(); drawSongs();
+});
+function shownSongs() {
+  const key = { order: (s, i) => i, title: (s) => s.title.toLowerCase(), bpm: (s) => s.bpm, length: (s) => s.length, notes: busy }[view.sort] || ((s, i) => i);
+  return browserSongs.map((s, i) => ({ s, k: key(s, i) }))
+    .filter(({ s }) => (!view.q || s.title.toLowerCase().includes(view.q)) && (!view.parts || (s.parts & view.parts)))
+    .sort((a, b) => (a.k < b.k ? -1 : a.k > b.k ? 1 : 0) * view.dir)
+    .map(({ s }) => s);
+}
 function drawSongs() {
+  for (const b of songSort.querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.sort === view.sort));
+  for (const b of songParts.querySelectorAll("button")) {            // each with how many songs have that part
+    const p = Number(b.dataset.part), have = browserSongs.filter((x) => x.parts >> p & 1).length;
+    b.setAttribute("aria-pressed", String(!!(view.parts >> p & 1)));
+    b.textContent = `${ROLE_NAME[p]} ${have}`;
+    b.title = `Show songs with a ${ROLE_NAME[p]} part (${have})`;
+  }
+  songDir.textContent = view.dir > 0 ? "↓" : "↑";
+  const n = browserSongs.length, shown = shownSongs();
+  songCount.textContent = n ? `${n} song${n === 1 ? "" : "s"}${shown.length < n ? ` · ${shown.length} shown` : ""}` : "";
+  songBrowser.classList.toggle("empty", !n);
+  const pct = songMem.size ? Math.min(100, songMem.used / songMem.size * 100) : 0;
+  document.getElementById("songbar").style.width = `${pct}%`;
+  songUsed.textContent = songMem.size ? `Your songs here: ${Math.ceil(songMem.used / 1024)} KB (an FM-1 keeps 240 KB of songs)` : "";
+  {   // more than an FM-1 holds: a note under it (they all play here; Send says what fits)
+    let over = document.getElementById("songover");
+    if (!over) { over = mk("p", "note warn"); over.id = "songover"; songUsed.after(over); }
+    over.hidden = songMem.used <= SONG_AREA;
+    over.textContent = "";
+    over.append(mk("b", "", "More than an FM-1 keeps. "), `Your songs here take ${Math.ceil(songMem.used / 1024)} KB; an FM-1 ` +
+      "keeps 240 KB of songs, so only some of them fit on it at once. They all play here.");
+  }
+  if (view.sel == null || !shown.some((s) => s.off === view.sel)) view.sel = shown.length ? shown[0].off : null;
   songList.textContent = "";
-  for (const s of browserSongs) {
-    const li = document.createElement("li"), t = document.createElement("span"), meta = document.createElement("span");
-    t.className = "t";
-    t.textContent = s.title;
-    meta.className = "m";
-    const parts = [0, 1, 2, 3].filter((p) => s.parts >> p & 1).map((p) => ROLE_NAME[p]).join(" ");
-    meta.textContent = `${Math.floor(s.length / 60)}:${String(Math.round(s.length % 60)).padStart(2, "0")} · ${s.bpm} BPM · ${parts} · ${Math.ceil(s.size / 1024)} KB`;
-    li.append(t, meta);
-    if (fm1.list) {                                                // (connected: send it, unless it is there already)
-      if (onFm1(s)) { const on = document.createElement("span"); on.className = "on"; on.textContent = "on the FM-1"; li.append(on); }
-      else li.append(songButton("Send to FM-1", () => sendToFm1([s]), fm1.busy));
-    }
-    li.append(songButton("Remove", () => { songNotes = [`${s.title}: removed`]; send({ type: "song-remove", off: s.off }); }));
+  const level = (s) => [1.5, 3, 5, 7].filter((t) => busy(s) > t).length + 1;   // 1..5: notes a second, a fixed scale
+  for (const s of shown) {
+    const li = mk("li", "row"), main = mk("span", "main"), sub = mk("span", "sub");
+    li.setAttribute("role", "option");
+    li.tabIndex = 0;
+    li.setAttribute("aria-selected", String(s.off === view.sel));
+    main.append(mk("span", "t", s.title), partTags(s.parts));
+    sub.append(`${s.bpm} BPM · ${mmssF(s.length)} · ${s.notes} notes`);
+    if (onFm1(s)) sub.append(mk("span", "onfm1", "on FM-1"));
+    const meter = mk("span", "busy");
+    meter.title = `How busy: ${busy(s).toFixed(1)} notes a second`;
+    for (let k = 0; k < 5; k++) meter.append(mk("i", k < level(s) ? "on" : ""));
+    li.append(main, sub, meter);
+    const pick = () => { view.sel = s.off; meterCard = null; drawSongs(); };
+    li.addEventListener("click", pick);
+    li.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
     songList.append(li);
   }
+  if (n && !shown.length) {                                       // a filter hides every song: say so, one click back
+    const li = mk("li", "none", view.parts ? "None of your songs has the parts picked above. " : "No song title matches your search. ");
+    const all = songButton("Show all songs", () => { view.parts = 0; view.q = ""; songQ.value = ""; drawSongs(); });
+    all.className = "primary";
+    li.append(all);
+    songList.append(li);
+  }
+  if (!n) songList.append(mk("li", "none", "No songs yet. Drop a MIDI file on this page, or press + Add MIDI files."));
+  drawDetail(browserSongs.find((s) => s.off === view.sel));
+  drawMeter();
   fm1All.hidden = !browserSongs.some((s) => !onFm1(s));
   fm1All.disabled = fm1.busy;
+}
+function drawDetail(s) {                                          // the selected song: its numbers, its parts, what to do
+  songDetail.textContent = "";
+  if (!s) { songDetail.append(mk("p", "hint", "Select a song to see it here.")); return; }
+  songDetail.append(mk("h3", "", s.title), partTags(s.parts));
+  const stats = mk("dl", "stats");
+  for (const [k, v] of [["Length", mmssF(s.length)], ["Tempo", `${s.bpm} BPM`], ["Notes", String(s.notes)],
+                        ["Size", `${Math.ceil(s.size / 4096) * 4} KB`]]) stats.append(mk("dt", "", k), mk("dd", "", v));
+  songDetail.append(stats);
+  {   // too big to send: say so here, before Send is pressed
+    const need = Math.ceil(s.size / 4096), note = mk("p", "note warn");
+    if (s.size > SONG_AREA)
+      note.append(mk("b", "", "Too big for an FM-1. "), `It takes ${Math.ceil(s.size / 4096) * 4} KB of the 240 KB an FM-1 keeps ` +
+        "for all its songs. It plays here; to send it, remove it, drop the MIDI file again and shorten it " +
+        "(Shorten it: Start and End).");
+    else if (fm1.list && !onFm1(s) && need > fm1.list.gap)
+      note.append(mk("b", "", "Not enough room on your FM-1. "), `It takes ${need * 4} KB; the most your FM-1 can take now ` +
+        `is ${fm1.list.gap * 4} KB. Delete a song there (On your FM-1, below), or load a shorter version of this one.`);
+    if (note.childNodes.length) songDetail.append(note);
+  }
+  const most = Math.max(1, ...s.per);
+  const bars = mk("div", "parts");
+  for (let p = 0; p < 4; p++) {
+    if (!s.per[p]) continue;
+    const row = mk("div", "prow"), bar = mk("span", "pbar"), fill = mk("span", `pfill p${p}`);
+    fill.style.width = `${s.per[p] / most * 100}%`;
+    bar.append(fill);
+    row.append(mk("span", "pname", ROLE_NAME[p]), bar,
+               mk("span", "pnum", `${s.per[p]} · ${(s.length ? s.per[p] / s.length : 0).toFixed(1)}/s`));
+    bars.append(row);
+  }
+  songDetail.append(bars);
+  const acts = mk("p", "acts");
+  if (fm1.list) {                                                  // (connected: send it, unless it is there already)
+    if (onFm1(s)) acts.append(mk("span", "onfm1", "On your FM-1"));
+    else { const b = songButton("Send to FM-1", () => sendToFm1([s]), fm1.busy); b.className = "primary"; acts.append(b); }
+  }
+  let armed = 0;
+  const rm = songButton("Remove", () => {
+    if (!armed) {                                                   // (a second click within 3 s removes: no dialogs)
+      rm.textContent = "Remove for good?";
+      armed = setTimeout(() => { armed = 0; rm.textContent = "Remove"; }, 3000);
+      return;
+    }
+    clearTimeout(armed);
+    songNotes = [`${s.title}: removed`];
+    send({ type: "song-remove", off: s.off });
+  });
+  rm.className = "quiet";
+  acts.append(rm);
+  songDetail.append(acts);
 }
 
 // ------------------------------------------------------------------ your songs onto a real FM-1 (USB-MIDI SysEx)
 // The songs above, sent on as they are stored here (worklet.js songsChart: the chart's bytes), through the FM-1's
 // song commands (web/fm1songs.js; firmware/src/editor_songs.c). The FM-1 is found as the installer finds it
 // (fm1ota.js Updater), the requests go through fm1backup.js's BackupConnection.
-const fm1 = { link: null, busy: false, list: null, notes: [] };
+const fm1 = { link: null, busy: false, busyText: "", lost: false, list: null, notes: [] };
 const fm1Box = document.getElementById("fm1"), fm1Msg = document.getElementById("fm1msg");
 const fm1Dev = document.getElementById("fm1dev"), fm1List = document.getElementById("fm1list");
 const fm1Bar = document.getElementById("fm1bar"), fm1All = document.getElementById("fm1all");
 const fm1Connect = document.getElementById("fm1connect");
-fm1Box.hidden = !navigator.requestMIDIAccess;
+const fm1Status = document.getElementById("fm1status"), fm1StatusText = document.getElementById("fm1statustext");
+const fm1State = document.getElementById("fm1state");
+if (!navigator.requestMIDIAccess) {                               // (no Web MIDI: Safari, Firefox: the space still shown)
+  fm1Connect.disabled = true;
+  document.getElementById("fm1intro").textContent = "Sending songs to an FM-1 needs Chrome or Edge on a computer (Web MIDI). " +
+    "The bar below shows the room a song would take on one.";
+}
+// the connection, at the top of the page and on the panel: off, busy (connecting, sending), on, lost
+function drawFm1State() {
+  const st = fm1.busy ? "busy" : fm1.list ? "on" : fm1.lost ? "lost" : "off";
+  let text = { busy: fm1.busyText || "Working…", off: "Not connected", lost: "Lost: connect again" }[st];
+  if (st === "on") {
+    const l = fm1.list, pct = l.sectors ? Math.round((l.sectors - l.free) / l.sectors * 100) : 0;
+    text = `Connected · ${l.songs.length} song${l.songs.length === 1 ? "" : "s"} · ${pct}% full`;
+  }
+  if (!navigator.requestMIDIAccess) text = "Needs Chrome or Edge";
+  for (const e of [fm1Status, fm1State]) e.dataset.state = st;
+  fm1StatusText.textContent = `FM-1: ${text}`;
+  fm1State.textContent = text;
+}
+fm1Status.addEventListener("click", () => {
+  fm1Box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  if (!fm1.list && !fm1.busy && navigator.requestMIDIAccess) fm1Connect.click();
+});
+// The space meter: an FM-1's 240 KB for songs (yours, connected: what it has, in whole 4 KB blocks as it keeps them),
+// and the song you are looking at on top of it: a new one's card as you change it (Shorten it), else the one selected
+// in the browser. Red when it does not fit (connected: the largest free gap, where the FM-1 would write it)
+let meterCard = null;                                             // {card, title, bytes}: the card changed last
+function meterSong() {
+  if (meterCard && meterCard.card.isConnected) return meterCard;
+  meterCard = null;
+  const s = browserSongs.find((x) => x.off === view.sel);
+  return s ? { title: s.title, bytes: s.size, song: s } : null;
+}
+function drawMeter() {
+  const l = fm1.list, total = l ? l.sectors * 4096 : SONG_AREA, used = l ? (l.sectors - l.free) * 4096 : 0;
+  const free = total - used, room = l ? l.gap * 4096 : SONG_AREA, KB = (b) => `${Math.round(b / 1024)} KB`;
+  const m = meterSong(), there = m && m.song && onFm1(m.song), need = m && !there ? Math.ceil(m.bytes / 4096) * 4096 : 0;
+  const full = l && l.songs.length >= l.max, over = need > 0 && (need > room || full);
+  document.getElementById("fm1used").style.width = `${used / total * 100}%`;
+  document.getElementById("fm1add").style.width = `${Math.min(need, free) / total * 100}%`;
+  const bar = document.getElementById("fm1mbar");
+  bar.classList.toggle("over", over);
+  bar.setAttribute("aria-label", `${KB(used)} of ${KB(total)} used${need ? `; this song ${KB(need)}${over ? ", too big" : ""}` : ""}`);
+  document.getElementById("fm1space").textContent = l ? "Song space on your FM-1" : "Song space on an FM-1";
+  document.getElementById("fm1pct").textContent = l ? `${Math.round(used / total * 100)}% used · ${KB(used)} of ${KB(total)}`
+                                                    : `${KB(total)} for songs`;
+  const lg = document.getElementById("fm1legend");
+  lg.textContent = "";
+  const sw = (c) => { const i = mk("i"); i.style.background = c; return i; };
+  if (l) lg.append(sw("var(--cream)"), `Used ${KB(used)} · ${KB(free)} free`, full ? ` · full: ${l.max} songs at most` : "");
+  else lg.append("Not connected: this is an empty FM-1. Connect yours to see its own songs and room.");
+  if (!m) return;
+  lg.append(mk("br"));
+  if (there) { lg.append(mk("b", "", `"${m.title}"`), " is on your FM-1 already."); return; }
+  lg.append(sw(over ? "#ff4f6d" : "#5fe08a"), mk("b", "", `"${m.title}"`), ` would take ${KB(need)}`);
+  if (full) lg.append(mk("span", "over", ` · no room: the FM-1 has ${l.max} songs, the most it keeps. Delete one first.`));
+  else if (need > total) lg.append(mk("span", "over", ` · ${KB(need - total)} more than an FM-1 keeps in all. Shorten it.`));
+  else if (over) lg.append(mk("span", "over", ` · ${KB(need - room)} more than ${free >= need ? "the largest free space on it" : "is free"}. ` +
+                                         "Delete a song on the FM-1, or shorten this one."));
+  else lg.append(` · ${Math.round((used + need) / total * 100)}% used after, ${KB(free - need)} left`);
+}
 const fm1Say = (lines, err) => { fm1Msg.textContent = [].concat(lines).join("\n"); fm1Msg.classList.toggle("err", !!err); };
 const fm1Request = (r, o) => fm1.link.request(r, o);
 const onFm1 = (s) => !!fm1.list && fm1.list.songs.some((d) => d.title === s.title);
 const mmss = (sec) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
 function fm1Lock(on) {
   fm1.busy = on;
-  fm1Connect.disabled = on;
+  fm1Connect.disabled = on || !navigator.requestMIDIAccess;
   drawSongs();
   drawFm1();
 }
@@ -626,14 +1070,14 @@ window.addEventListener("beforeunload", (e) => { if (fm1.busy) { e.preventDefaul
 function drawFm1() {
   fm1Dev.hidden = !fm1.list;
   fm1List.textContent = "";
+  drawFm1State();
+  drawMeter();
   if (!fm1.list) return;
   const l = fm1.list;
-  document.getElementById("fm1room").textContent = `${roomText(l)} · plus ${l.builtIn} built-in songs`;
   for (const s of l.songs) {
-    const li = document.createElement("li"), t = document.createElement("span"), meta = document.createElement("span");
-    t.className = "t"; t.textContent = s.title || "(untitled)";
-    meta.className = "m";
-    meta.textContent = `${mmss(s.seconds)} · ${s.bpm} BPM · ${ROLE_NAME.filter((_, i) => s.parts >> i & 1).join(" ")} · ${s.sectors * 4} KB`;
+    const li = mk("li", "row fm"), t = mk("span", "main"), meta = mk("span", "sub");
+    t.append(mk("span", "t", s.title || "(untitled)"), partTags(s.parts));
+    meta.textContent = `${s.bpm} BPM · ${mmss(s.seconds)} · ${s.sectors * 4} KB`;
     let armed = 0;
     const del = songButton("Delete", async () => {
       if (!armed) {                                    // (a second click within 3 s deletes: no dialogs here)
@@ -642,6 +1086,7 @@ function drawFm1() {
         return;
       }
       clearTimeout(armed);
+      fm1.busyText = "Deleting…";
       fm1Lock(true);
       try {
         fm1Say(`Deleting "${s.title}" from the FM-1…`);
@@ -651,14 +1096,12 @@ function drawFm1() {
       await fm1Refresh();
       fm1Lock(false);
     }, fm1.busy);
+    del.className = "quiet";
     li.append(t, meta, del);
     fm1List.append(li);
   }
-  if (!l.songs.length) {
-    const li = document.createElement("li");
-    li.className = "m"; li.textContent = "No songs of your own on the FM-1 yet.";
-    fm1List.append(li);
-  }
+  if (!l.songs.length) fm1List.append(mk("li", "none", "No songs of your own on the FM-1 yet."));
+  fm1List.append(mk("li", "none", `${roomText(l)} · plus ${l.builtIn} built-in songs, which take no room`));
 }
 async function fm1Refresh() {
   try {
@@ -671,6 +1114,7 @@ async function fm1Refresh() {
       fm1Say("This FM-1 runs a Midi-Mania without song uploads. Update it with the installer first (0.2.0 or later).", true);
     else fm1Say(`Lost the FM-1 (${e.message}). Check the cable and connect again.`, true);
     fm1Disconnect();
+    fm1.lost = e.message !== "old";
     return false;
   } finally { drawSongs(); drawFm1(); }
 }
@@ -678,11 +1122,13 @@ function fm1Disconnect() {
   if (fm1.link) fm1.link.close();
   fm1.link = null;
   fm1.list = null;
+  fm1.lost = false;
   fm1Connect.textContent = "Connect the FM-1";
 }
 fm1Connect.addEventListener("click", async () => {
   if (fm1.busy) return;
   fm1Disconnect();
+  fm1.busyText = "Connecting…";
   fm1Lock(true);
   try {
     let midi;
@@ -711,6 +1157,8 @@ fm1Connect.addEventListener("click", async () => {
   } finally { fm1Lock(false); }
 });
 
+drawFm1();                                                        // (not connected: an empty FM-1's room)
+
 // a stored chart's bytes from the worklet (song-get -> song-bytes)
 const chartWaits = new Map();
 let chartId = 0;
@@ -722,6 +1170,7 @@ const getChart = (off) => new Promise((res) => {
 });
 async function sendToFm1(songs) {
   if (fm1.busy || !fm1.link || !songs.length) return;
+  fm1.busyText = "Sending…";
   fm1Lock(true);
   fm1Bar.hidden = false;
   const notes = [];
@@ -729,11 +1178,25 @@ async function sendToFm1(songs) {
   for (const s of songs) {
     const chart = await getChart(s.off);
     if (!chart) { notes.push(`${s.title}: not found in this browser`); continue; }
+    {   // room on the FM-1 for it (its list: refreshed after each one sent)
+      const l = fm1.list, need = Math.ceil(chart.length / 4096);
+      if (l && l.songs.length >= l.max) {
+        notes.push(`${s.title}: not sent: the FM-1 already has ${l.max} songs, the most it keeps. Delete one there first.`);
+        continue;
+      }
+      if (l && need > l.gap) {
+        notes.push(`${s.title}: not sent: it takes ${need * 4} KB and the FM-1 has room for ${l.gap * 4} KB at most` +
+          (chart.length > SONG_AREA ? " (an FM-1 keeps 240 KB of songs in all). Load a shorter version of it (Shorten it)."
+                                    : ". Delete a song on the FM-1, or load a shorter version of this one (Shorten it)."));
+        continue;
+      }
+    }
     try {
       fm1Say([...notes, `Sending "${s.title}"…`]);
       await uploadChart(fm1Request, chart, (done, total) => { fm1Bar.max = total; fm1Bar.value = done; });
       ok++;
       notes.push(`${s.title}: sent`);
+      if (!(await fm1Refresh())) break;                         // (its room now, for the next one)
     } catch (e) {
       notes.push(`${s.title}: not sent: ${e.message}`);
       if (!(await fm1Refresh())) break;
@@ -762,24 +1225,171 @@ function partsLine(song) {                                        // what the so
   const parts = [0, 1, 2, 3].filter((r) => song.per[r]).map((r) => `${ROLE_NAME[r]} ${song.per[r]}`).join(", ");
   const cut = song.cut ? ` · ${song.cut} cut where more than 8 would sound at once` +
     ` (${[0, 1, 2, 3].filter((r) => song.cut_by[r]).map((r) => `${ROLE_NAME[r]} ${song.cut_by[r]}`).join(", ")})` : "";
-  return `The song: ${song.notes.length} notes (${parts}), ${Math.round(song.length / 44100)} s${cut}`;
+  const oor = song.oor ? ` · ${song.oor} out of the instrument's range` +
+    ` (${[0, 1, 2, 3].filter((r) => song.oor_by[r]).map((r) => `${ROLE_NAME[r]} ${song.oor_by[r]}`).join(", ")})` : "";
+  return `The song: ${song.notes.length} notes (${parts}), ${Math.round(song.length / 44100)} s${oor}${cut}`;
 }
+// A file heard on the FM-1 here before it is loaded: its notes as convertMidi gives them (your parts; Advanced's ▶:
+// one instrument alone) played on the parts' own sounds by the worklet (worklet.js preview, mm_host.c
+// fh_preview_note), from just before the first note. One at a time; its button says how far it is
+let preview = null, previewSeq = 0;      // {id, btn, text, base, at, make}: the one playing; make: the song again (your
+                                         // parts now), base: where in it this run began (ms), at: how far this run is
+const mmssMs = (ms) => mmssF(Math.max(0, ms) / 1000);
+function previewEvents(song, from = 0) {                         // chart notes -> [ms, part, note, vel] on and off, from
+  const t0 = song.notes.length ? song.notes[0][0] : 0, ev = [];  // `from` ms on (a note sounding then: from there)
+  let end = 0;
+  for (const n of song.notes) {
+    const on = (n[0] - t0) / 44.1 + 300, off = on + Math.max(n[1], 882) / 44.1, part = n[5] & 3;
+    if (off <= from) continue;
+    ev.push([Math.max(on, from) - from, part, n[3], Math.max(1, n[4])], [off - from, part, n[3], 0]);
+    end = Math.max(end, off - from);
+  }
+  ev.sort((a, b) => a[0] - b[0] || a[3] - b[3]);                  // (at one time: the note-offs first)
+  return { ev, end: Math.ceil(end + 400) };
+}
+function previewReset() {
+  if (!preview) return;
+  preview.btn.textContent = preview.text;
+  preview.btn.classList.remove("on");
+  preview = null;
+}
+function previewStop() {
+  if (!preview) return;
+  send({ type: "preview-stop" });
+  previewReset();
+}
+function previewStart(make, btn, from = 0, again = false) {
+  const was = preview && preview.btn === btn, text = was ? preview.text : btn.textContent;
+  previewStop();
+  if (was && !again) return;                                     // (its own button again: stopped)
+  const song = make();
+  if (!song.notes.length) return;
+  const { ev, end } = previewEvents(song, from), id = ++previewSeq;
+  if (!ev.length) return;                                        // (changed past its last note: done)
+  preview = { id, btn, text, base: from, at: 0, make };
+  btn.textContent = btn.dataset.compact ? "■" : "■ Stop";        // (Advanced's row buttons: the symbol alone)
+  btn.classList.add("on");
+  send({ type: "preview", id, events: ev, end });
+}
+function previewAt(p) {                                          // (the worklet's frame: how far it is)
+  if (!preview || preview.id !== p.id) return;
+  preview.at = p.at;
+  if (!preview.btn.dataset.compact)
+    preview.btn.textContent = `■ Stop ${mmssMs(preview.base + p.at - 300)} / ${mmssMs(preview.base + p.end - 700)}`;
+}
+// a part changed in Advanced while a preview of this card plays: on from the same moment, with the parts as they are now
+function previewRefresh(card) {
+  if (!preview || !card.contains(preview.btn)) return;
+  try { previewStart(preview.make, preview.btn, preview.base + preview.at, true); }
+  catch (e) { previewStop(); }
+}
+// a row of Advanced in the colour of the part it plays (left out: none), its select too
+function rowPart(tr, role) {
+  for (let r = 0; r < 4; r++) tr.classList.toggle(`r${r}`, role === r);
+  tr.classList.toggle("out", role === null);
+}
+function previewEnded(id) { if (preview && preview.id === id) previewReset(); }
 function pickCard(name, bytes, inst) {
   const card = document.createElement("div"), roles = {};
   card.className = "pick";
   const h = document.createElement("h3");
   h.textContent = name.replace(/\.midi?$/i, "");
+  // the simple view: who plays each part (the converter's choice, or yours from Advanced), what is left out, what the
+  // song holds; Advanced (a <details>, closed): the table, an instrument a row, its part to choose
+  const auto = document.createElement("p");
+  auto.className = "auto";
   const hint = document.createElement("p");
   hint.className = "m";
   hint.textContent = "Choose a part for each instrument. The FM-1 has four: KEYS, DRUMS, GUITAR and BASS; the rest are left out.";
   const tbl = document.createElement("div"), table = document.createElement("table");
   tbl.className = "tbl";
-  table.innerHTML = "<thead><tr><th>Instrument</th><th>Ch</th><th class=n>Notes</th><th>Range</th><th>Part</th></tr></thead>";
+  table.innerHTML = "<thead><tr><th></th><th>Instrument</th><th>Ch</th><th class=n>Notes</th><th>Range</th><th>Part</th></tr></thead>";
   const body = document.createElement("tbody"), sum = document.createElement("p");
   sum.className = "sum";
+  const autoLine = () => {
+    auto.textContent = "";
+    const parts = [0, 1, 2, 3].map((r) => [r, inst.filter((i) => roles[i.key] === r).map((i) => i.name)])
+      .filter(([, names]) => names.length);
+    parts.forEach(([r, names], k) => {
+      const b = document.createElement("b");
+      b.className = `p${r}`;
+      b.textContent = ROLE_NAME[r];
+      auto.append(k ? " · " : "", b, ` ${names.join(" + ")}`);
+    });
+    const out = inst.filter((i) => roles[i.key] === null).map((i) => i.name);
+    if (!parts.length) auto.append("No instrument plays a part yet: open Advanced and give one a part.");
+    if (out.length) auto.append(` · left out: ${out.join(", ")}`);
+  };
+  // Start and End: a shorter song (only the notes between, from the file's own time); the size it takes, and
+  // whether it fits on an FM-1 (240 KB for all its songs): a note in amber or teal, with how short would fit
+  let whole = 0;                                                  // the file's length, s (its last note's end)
+  try { const w = convertMidi(bytes, name); whole = Math.ceil((w.length + w.lead) / 44100); } catch { /* none */ }
+  const trim = { from: 0, to: whole };
+  const opts = () => ({ roles, ...(trim.from > 0 || trim.to < whole ? { from: trim.from, to: trim.to } : {}) });
+  const trimBox = mk("div", "trim"), trimLine = mk("p", "trimline"), sizeNote = mk("p", "note");
+  sizeNote.hidden = true;
+  const slider = (label, key) => {
+    const l = mk("label", "", label), r = document.createElement("input"), o = mk("output");
+    r.type = "range"; r.min = "0"; r.max = String(whole); r.step = "1"; r.value = String(trim[key]);
+    r.id = `trim-${key}-${Math.random().toString(36).slice(2, 8)}`;
+    l.htmlFor = r.id;
+    o.textContent = mmssF(trim[key]);
+    r.addEventListener("input", () => {
+      trim[key] = Number(r.value);
+      if (trim.to - trim.from < 5) {                              // (at least 5 s between them)
+        if (key === "from") trim.from = Math.max(0, trim.to - 5); else trim.to = Math.min(whole, trim.from + 5);
+        r.value = String(trim[key]);
+      }
+      o.textContent = mmssF(trim[key]);
+      update();
+      previewRefresh(card);
+    });
+    trimBox.append(l, r, o);
+    return { r, o };
+  };
+  const sFrom = slider("Start", "from"), sTo = slider("End", "to");
+  const trimReset = songButton("Whole song", () => {
+    trim.from = 0; trim.to = whole;
+    for (const [x, k] of [[sFrom, "from"], [sTo, "to"]]) { x.r.value = String(trim[k]); x.o.textContent = mmssF(trim[k]); }
+    update();
+    previewRefresh(card);
+  });
+  trimReset.className = "quiet";
+  const fits = (bytesN, secs, over) => {                          // about how long a song this busy fits in over bytes
+    const sec = Math.floor(secs * over / bytesN / 5) * 5;
+    return mmssF(Math.max(5, sec));
+  };
   const update = () => {
-    try { sum.textContent = partsLine(convertMidi(bytes, name, { roles })); }
+    autoLine();
+    let song = null;
+    try { song = convertMidi(bytes, name, opts()); sum.textContent = partsLine(song); }
     catch (e) { sum.textContent = `Could not convert it (${e.message})`; }
+    const kept = trim.to - trim.from;
+    trimLine.textContent = "";
+    trimLine.append(trim.from > 0 || trim.to < whole ? `Keeping ${mmssF(trim.from)} to ${mmssF(trim.to)} (${mmssF(kept)} of ${mmssF(whole)})`
+                                                     : `The whole song (${mmssF(whole)})`);
+    if (trim.from > 0 || trim.to < whole) trimLine.append(trimReset);
+    sizeNote.hidden = true;
+    if (!song || !song.notes.length) return;
+    const n = chartBytes(song).length, kb = Math.ceil(n / 4096) * 4, room = fm1.list ? fm1.list.gap * 4096 : 0;
+    meterCard = { card, title: h.textContent, bytes: n };
+    drawMeter();
+    trimLine.append(` · ${kb} KB`);
+    sizeNote.textContent = "";
+    if (n > SONG_AREA) {
+      sizeNote.className = "note warn";
+      sizeNote.append(mk("b", "", "Too big for an FM-1. "), `It takes ${kb} KB, and an FM-1 keeps 240 KB of songs in all. ` +
+        `It still loads and plays here; to send it to an FM-1, move Start or End to keep about ${fits(n, kept, SONG_AREA * 0.95)} or less.`);
+    } else if (fm1.list && n > room) {
+      sizeNote.className = "note warn";
+      sizeNote.append(mk("b", "", "Not enough room on your FM-1. "), `It takes ${kb} KB, and the most your FM-1 can take now ` +
+        `is ${fm1.list.gap * 4} KB. Delete a song there, or keep about ${fits(n, kept, room * 0.95)} or less of this one.`);
+    } else if (n > SONG_AREA / 4) {
+      sizeNote.className = "note tip";
+      sizeNote.append(mk("b", "", "Tip: "), `this song takes ${kb} KB, over a quarter of an FM-1's 240 KB for songs. ` +
+        `A shorter part of it (Start, End) leaves room for more songs.`);
+    } else return;
+    sizeNote.hidden = false;
   };
   for (const i of inst) {
     const tr = document.createElement("tr"), sel = document.createElement("select");
@@ -794,10 +1404,29 @@ function pickCard(name, bytes, inst) {
     roles[i.key] = i.role;
     sel.addEventListener("change", () => {
       roles[i.key] = sel.value === "" ? null : Number(sel.value);
-      tr.classList.toggle("out", roles[i.key] === null);
+      rowPart(tr, roles[i.key]);
       update();
+      previewRefresh(card);                         // (playing: heard with the change, from where it was)
     });
-    tr.classList.toggle("out", i.role === null);
+    rowPart(tr, i.role);
+    {   // ▶: this instrument alone, on its part (left out: KEYS, or DRUMS for the drum channel, to hear what it is)
+      const alone = () => {                         // (its part now, as it is changed)
+        const only = {};
+        for (const j of inst) only[j.key] = null;
+        only[i.key] = roles[i.key] ?? (i.channel === 9 ? 1 : 0);
+        return convertMidi(bytes, name, { ...opts(), roles: only });
+      };
+      const td = document.createElement("td"), hear = songButton("▶", () => {
+        try { previewStart(alone, hear); }
+        catch (e) { tell([`${name}: could not play it (${e.message})`], true); }
+      });
+      hear.className = "hear";
+      hear.dataset.compact = "1";
+      hear.title = `Hear ${i.name} alone`;
+      hear.setAttribute("aria-label", `Hear ${i.name}, channel ${i.channel + 1}, alone`);
+      td.append(hear);
+      tr.append(td);
+    }
     for (const [text, cls] of [[i.name], [String(i.channel + 1)], [String(i.notes), "n"],
                                [i.lo === i.hi ? noteName(i.lo) : `${noteName(i.lo)}–${noteName(i.hi)}`]]) {
       const td = document.createElement("td");
@@ -812,19 +1441,37 @@ function pickCard(name, bytes, inst) {
   }
   table.append(body);
   tbl.append(table);
+  const cardPreview = () => { if (preview && card.contains(preview.btn)) previewStop(); };   // (leaving: its sound stops)
   const load = songButton("Load", () => {
     songNotes = [];
     try {
-      const song = convertMidi(bytes, name, { roles });
+      const song = convertMidi(bytes, name, opts());
       if (!song.notes.length) { tell([`${name}: no notes to play: give an instrument a part`], true); return; }
+      cardPreview();
       loadSong(song);
       card.remove();
+      drawMeter();
     } catch (e) { tell([`${name}: could not convert it (${e.message})`], true); }
   });
-  const skip = songButton("Skip", () => card.remove());
+  const skip = songButton("Skip", () => { cardPreview(); card.remove(); drawMeter(); });
+  const hearAll = songButton("▶ Preview", () => {                 // the song as it would load: your parts
+    try { previewStart(() => convertMidi(bytes, name, opts()), hearAll); }
+    catch (e) { tell([`${name}: could not play it (${e.message})`], true); }
+  });
+  load.className = "primary";
+  skip.className = "quiet";
+  hearAll.className = "hear";
+  hearAll.title = "Hear it on the FM-1's sounds before you load it";
   const btns = document.createElement("p");
-  btns.append(load, " ", skip);
-  card.append(h, hint, tbl, sum, btns);
+  btns.className = "acts";
+  btns.append(load, hearAll, skip);
+  const adv = document.createElement("details"), advSum = document.createElement("summary");
+  advSum.textContent = "Advanced: choose which instrument plays what";
+  adv.append(advSum, hint, tbl);
+  const trimDet = document.createElement("details"), trimSum = document.createElement("summary");
+  trimSum.textContent = "Shorten it: choose where it starts and ends";
+  trimDet.append(trimSum, trimBox);
+  card.append(h, auto, sum, trimLine, sizeNote, trimDet, adv, btns);
   songCards.append(card);
   update();
 }
@@ -885,7 +1532,9 @@ async function switchOn() {
           const res = chartWaits.get(m.id);
           if (res) { chartWaits.delete(m.id); res(m.chart ? new Uint8Array(m.chart) : null); }
         }
+        else if (m.type === "preview-end") previewEnded(m.id);
         else if (m.type === "frame") {
+          if (m.preview) previewAt(m.preview);
           if (m.fb) drawScreen(m.fb);
           if (m.leds) drawLights(lastLeds = m.leds, m.anim);
           if (m.sectors && !saveFlash(m.sectors) && !warned) {

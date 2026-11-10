@@ -1518,6 +1518,7 @@ static void ui_input(void)
     if (!ui.menu)
         usb_serial_apply();                             /* (MENU > USB SERIAL: when the menu has closed) */
     game_save_poll();                                   /* (Midi-Mania: the game's settings and high scores into the settings) */
+    mm_lanes_fit();                                     /* (.. GAME's LANES, STRINGS: the pitches' lanes, player.c) */
     settings_later_poll();                              /* (#197: LIST / FAV written once the view is left or idle) */
     follow_poll();                                      /* (1.6, #242: SEQ's roll follows the play position) */
     if (scr_input(pressed, notes))                      /* MENU > SCREEN OFF: dark, or the wake gesture: swallowed */
@@ -1628,6 +1629,13 @@ static void ui_input(void)
             ui.save_t0 |= 2u;
         ui.pg_down = 0;
         songs_input(pressed, home, oct);
+        return;
+    }
+    if (snd_on() && !ui.confirm && !name_on()) {        /* .. SOUNDS has the knobs, HOME and ENV */
+        if (ui.save_t0)
+            ui.save_t0 |= 2u;
+        ui.pg_down = 0;
+        snd_input(pressed, home);
         return;
     }
     if (metro_on() && !ui.confirm && !name_on()) {      /* .. METRONOME has the knobs, HOME and SCL */

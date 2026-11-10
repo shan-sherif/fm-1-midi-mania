@@ -14,13 +14,23 @@ cd "$(dirname "$0")/../.."
 host_gen_ok web
 command -v emcc >/dev/null 2>&1 || { echo "web: no emcc (Emscripten)"; exit 1; }
 mkdir -p build/web/fonts
+# Studio's songs: 1 MiB and 64 songs of their own past the FM-1's 1 MiB of flash (the FM-1: 240 KB, 16 songs), so a
+# song loads here whatever its size; Studio says when it is too big to send (platforms/web/index.html)
 # shellcheck disable=SC2086
 emcc ${WEB_OPT:--O2} $HOST_CFLAGS ${WEB_CFLAGS:-} "-DMM_VERSION=\"$VERSION\"" $HOST_INC \
     '-DFH_API=__attribute__((used, visibility("default")))' -DMM_PLATFORM=FE_PLATFORM_WEB \
+    -DMM_HOST_NOR=0x200000u -DMM_SONG_BASE=0x100000u -DMM_SONG_SIZE=0x100000u -DMM_SONG_MAX=64u \
     --no-entry -sSTANDALONE_WASM -sSTACK_SIZE=1048576 -sINITIAL_MEMORY=33554432 -sFILESYSTEM=0 \
     -o build/web/midi-mania.wasm platforms/host/mm_host.c
 [ "${WEB_PREVIEW:-1}" = 0 ] && PREVIEW='' || PREVIEW=' (preview)'
-sed -e "s/@VERSION@/$VERSION/g" -e "s/@PREVIEW@/$PREVIEW/g" platforms/web/index.html > build/web/index.html
+# the build's time on the page (its footer: which Studio this is), and on the scripts it loads (?b=..: a new build's
+# page never runs with an old build's scripts a browser kept)
+BUILT=$(date '+%Y-%m-%d %H:%M %Z')
+STAMP=$(date -u '+%Y%m%d%H%M%S')
+sed -e "s/@VERSION@/$VERSION/g" -e "s/@PREVIEW@/$PREVIEW/g" -e "s/@BUILT@/$BUILT/g" \
+    -e "s#from \"\./\([a-z0-9_]*\)\.js\"#from \"./\1.js?b=$STAMP\"#g" \
+    -e "s#addModule(\"worklet\.js\")#addModule(\"worklet.js?b=$STAMP\")#" \
+    platforms/web/index.html > build/web/index.html
 cp platforms/web/worklet.js build/web/
 cp web/mm_songs.js build/web/                 # (the page's MIDI converter: Your songs)
 cp web/fm1ota.js web/fm1backup.js web/fm1songs.js build/web/   # (Your songs onto a real FM-1 over USB)

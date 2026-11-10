@@ -21,9 +21,13 @@ static uint8_t eng_mem_owner[NPART];       /* engine index + 1 whose state is in
 #define ENG_MEM(p) ((void *)eng_mem[p].b)  /* part p's region (p < NPART) */
 #define ENG_MEM_FITS(name, size) _Static_assert((size) <= ENG_MEM_PART, name " state over ENG_MEM_PART")
 
-#include "../engines/src/eng_analog.c"   /* Felucca-Engines (MIT): ANALOG LOFI TRIO WHEEL NOISE (Midi-Mania: BASS's
-                                         * SUB BASS and SQR BASS) */
+#include "../engines/src/eng_analog.c"   /* Felucca-Engines (MIT): ANALOG LOFI TRIO WHEEL NOISE (Midi-Mania: all but
+                                         * NOISE, the sounds MM_SOUNDS lists) */
+#include "../engines/src/eng_lofi.c"
 #include "eng_sample.c"
+#include "eng_formant.c"        /* VOICE: formant (CHOIR AAH, VOX LEAD, WOW BASS) */
+#include "../engines/src/eng_trio.c"
+#include "../engines/src/eng_wheel.c"
 #include "eng_phys.c"           /* PHYS: DaisySP physical models (phys_dsp.c, MIT) */
 #include "eng_drum.c"           /* DRUM: the 8-lane kit (drum_voice.c) */
 #include "eng_fm6.c"            /* FM6: 6-operator FM, msfa ported (fm6_core.c, Apache-2.0) */
@@ -61,11 +65,11 @@ static const engine_t *const ENGINES[NENGINES] = {
     &ENG_ANALOG,                 /* 0 */
     &ENG_FM4_GONE,               /* 1: reserved (DIGITAL, retired: its sounds convert to FM6, fm4_convert.c) */
     MM_ENG(ENG_PHASE),           /* 2 */
-    MM_ENG(ENG_LOFI),            /* 3 */
+    &ENG_LOFI,                   /* 3 */
     &ENG_SAMPLE,                 /* 4 */
-    MM_ENG(ENG_FORMANT),         /* 5 VOICE (eng_formant.c: "voice" is a sounding note in voice.c) */
-    MM_ENG(ENG_TRIO),            /* 6 */
-    MM_ENG(ENG_WHEEL),           /* 7 */
+    &ENG_FORMANT,                /* 5 VOICE (eng_formant.c: "voice" is a sounding note in voice.c) */
+    &ENG_TRIO,                   /* 6 */
+    &ENG_WHEEL,                  /* 7 */
     MM_ENG(ENG_GRAIN),           /* 8 */
     &ENG_PHYS,                   /* 9 (ENGI_PHYS) */
     &ENG_DRUM,                   /* 10 (ENGI_DRUM) */
@@ -131,18 +135,36 @@ static const uint8_t MM_PART_ENGINE[NPART] = {ENGI_SAMPLE, ENGI_DRUM, ENGI_PHYS,
 #define ENG_ORDER (&MM_PART_ENGINE[song.sel % NPART])
 #define eng_nshown() 1u
 
-/* each part's sounds: the ones that suit it, from the engines Midi-Mania builds (a part may play several engines: KEYS
- * SAMPLE PHYS FM6, BASS FM6 ANALOG). PRESETS (ui.c preset_all_*) and SONGS' SOUND (ui_songs.c) offer these only; ui.c
- * set_engine_of refuses an engine the part has no sound of. MM_ALL: every preset of the engine (the DRUM kits). The
- * presets' numbers: build/gen/mm_samples.h (SAMPLE: 0 PIANO 2 FLUTE), eng_fm6.c (0 TINE EP 2 FM BASS 6 ORGAN
- * 7 PLUCK), eng_phys.c (1 MARIMBA 2 PLUCK 4 KALIMBA 7 DRONE STRING 8 HARP), eng_analog.c (2 SQR BASS 7 SUB BASS) */
+/* each part's sounds: the ones that suit it, from the engines Midi-Mania builds (a part may play several engines). PRESETS
+ * (ui.c preset_all_*), SOUNDS (ENV) and SONGS' SOUND (ui_songs.c) offer these only, in this order; ui.c set_engine_of
+ * refuses an engine the part has no sound of. MM_ALL: every preset of the engine (the DRUM kits). No two of a part's
+ * share a name. The presets' numbers:
+ *   SAMPLE  build/gen/mm_samples.h: 0 PIANO 2 FLUTE
+ *   FM6     eng_fm6.c: 0 TINE EP 1 BELL 2 FM BASS 3 BRASS 4 PAD 6 ORGAN 7 PLUCK
+ *   PHYS    eng_phys.c: 0 BELL TREE 1 MARIMBA 2 PLUCK 3 BOWED METAL 4 KALIMBA 7 DRONE STRING 8 HARP
+ *   ANALOG  eng_analog.c: 0 SAW LEAD 2 SQR BASS 3 PWM STR 4 ACID 5 SINE KEY 6 RAVE 7 SUB BASS 11 STRINGS
+ *   LOFI    eng_lofi.c: 0 PULSE LD 1 WAVE BASS 3 WAVE LEAD
+ *   VOICE   eng_formant.c: 0 CHOIR AAH 1 VOX LEAD 2 WOW BASS
+ *   TRIO    eng_trio.c: 0 FAT BASS 1 ARP LEAD 2 SYNC LEAD
+ *   WHEEL   eng_wheel.c: 0 FULL ORGAN 1 JAZZ PERC 2 GOSPEL */
 typedef struct { uint8_t e, k; } mm_sound_t;
 #define MM_ALL 0xFFu
 static const mm_sound_t MM_SND_DRUMS[] = {{ENGI_DRUM, MM_ALL}};
-static const mm_sound_t MM_SND_KEYS[] = {{ENGI_SAMPLE, 0}, {ENGI_SAMPLE, 2}, {ENGI_FM6, 0}, {ENGI_FM6, 6},
-                                         {ENGI_PHYS, 8}, {ENGI_PHYS, 4}, {ENGI_PHYS, 1}};
-static const mm_sound_t MM_SND_GUITAR[] = {{ENGI_PHYS, 2}, {ENGI_PHYS, 8}, {ENGI_PHYS, 4}, {ENGI_PHYS, 7}};
-static const mm_sound_t MM_SND_BASS[] = {{ENGI_FM6, 2}, {ENGI_FM6, 7}, {ENGI_ANALOG, 7}, {ENGI_ANALOG, 2}};
+static const mm_sound_t MM_SND_KEYS[] = {
+    {ENGI_SAMPLE, 0}, {ENGI_SAMPLE, 2}, {ENGI_FM6, 0}, {ENGI_FM6, 6},              /* PIANO FLUTE TINE EP ORGAN */
+    {ENGI_PHYS, 8}, {ENGI_PHYS, 4}, {ENGI_PHYS, 1},                                /* HARP KALIMBA MARIMBA */
+    {ENGI_WHEEL, 0}, {ENGI_WHEEL, 1}, {ENGI_WHEEL, 2},                             /* FULL ORGAN JAZZ PERC GOSPEL */
+    {ENGI_FM6, 1}, {ENGI_PHYS, 0}, {ENGI_FM6, 4}, {ENGI_ANALOG, 11},               /* BELL BELL TREE PAD STRINGS */
+    {ENGI_FM6, 3}, {ENGI_FORMANT, 0}, {ENGI_ANALOG, 5}};                           /* BRASS CHOIR AAH SINE KEY */
+static const mm_sound_t MM_SND_GUITAR[] = {
+    {ENGI_PHYS, 2}, {ENGI_PHYS, 8}, {ENGI_PHYS, 4}, {ENGI_PHYS, 7},                /* PLUCK HARP KALIMBA DRONE STRING */
+    {ENGI_PHYS, 3}, {ENGI_ANALOG, 3},                                              /* BOWED METAL PWM STR */
+    {ENGI_ANALOG, 0}, {ENGI_TRIO, 2}, {ENGI_TRIO, 1}, {ENGI_FORMANT, 1},           /* SAW LEAD SYNC LEAD ARP LEAD VOX LEAD */
+    {ENGI_LOFI, 0}, {ENGI_LOFI, 3}};                                               /* PULSE LD WAVE LEAD */
+static const mm_sound_t MM_SND_BASS[] = {
+    {ENGI_FM6, 2}, {ENGI_FM6, 7}, {ENGI_ANALOG, 7}, {ENGI_ANALOG, 2},              /* FM BASS PLUCK SUB BASS SQR BASS */
+    {ENGI_TRIO, 0}, {ENGI_ANALOG, 4}, {ENGI_ANALOG, 6}, {ENGI_FORMANT, 2},         /* FAT BASS ACID RAVE WOW BASS */
+    {ENGI_LOFI, 1}};                                                               /* WAVE BASS */
 static const struct { const mm_sound_t *l; uint8_t n; } MM_SOUNDS[NPART] = {
     {MM_SND_KEYS, NELEM(MM_SND_KEYS)}, {MM_SND_DRUMS, NELEM(MM_SND_DRUMS)},
     {MM_SND_GUITAR, NELEM(MM_SND_GUITAR)}, {MM_SND_BASS, NELEM(MM_SND_BASS)}};

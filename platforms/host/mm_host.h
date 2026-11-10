@@ -50,6 +50,8 @@ FH_API uint32_t fh_held_keys(void);
 FH_API uint32_t fh_master_level(void);
 /* a MIDI channel message (status 0x80 .. 0xEF), as a USB-MIDI packet arrives: 0 = the device's queue was full */
 FH_API uint32_t fh_midi(uint32_t status, uint32_t d1, uint32_t d2);
+FH_API void fh_preview_note(uint32_t part, uint32_t note, uint32_t vel);   /* Studio's preview: a note on part */
+FH_API void fh_preview_stop(void);                                           /* .. every part's notes let go */
 
 /* --------------------------------------------------------- screen, LEDs --- */
 /* the screen: FH_SCREEN_W x FH_SCREEN_H RGB565 as the FM-1's panel gets it (high byte first); fh_screen_draws counts

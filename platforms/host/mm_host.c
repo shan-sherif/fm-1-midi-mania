@@ -35,7 +35,10 @@
 #define MM_VERSION "HOST"
 #endif
 
-static uint8_t nor[0x100000];            /* the SPI NOR (erased: 0xFF) */
+#ifndef MM_HOST_NOR
+#define MM_HOST_NOR 0x100000u              /* the FM-1's 1 MiB (Studio: 2 MiB, its songs in the second: build.sh) */
+#endif
+static uint8_t nor[MM_HOST_NOR];          /* the SPI NOR (erased: 0xFF) */
 #define SMP_USER_XIP(k) ((const uint8_t *)nor + SMP_USER_BASE + (k) * SMP_USER_SIZE)   /* eng_sample.c */
 #include "mm_host.h"
 #include "firmware.c"
@@ -409,6 +412,26 @@ FH_API uint32_t fh_midi(uint32_t status, uint32_t d1, uint32_t d2)
     return (uint32_t)midi_enqueue((status >> 4) | status << 8 | (d1 & 127u) << 16 | (d2 & 127u) << 24, 1);
 }
 
+/* Studio's preview of a MIDI file before it is loaded (platforms/web/index.html, worklet.js): a note on (vel > 0) or
+ * off on part p, straight to its voices as the song player starts them (player.c pl_note), so the part's own sound
+ * plays it; no MIDI routing (ROUT and the channels stay as they are). Called between render blocks (the worklet:
+ * nothing renders meanwhile). fh_preview_stop: every part's notes let go */
+FH_API void fh_preview_note(uint32_t part, uint32_t note, uint32_t vel)
+{
+    if (part >= NPART)
+        return;
+    if (vel)
+        trk_note_on(&trk[part], note & 127u, vel > 127u ? 127u : vel);
+    else
+        trk_note_off(&trk[part], note & 127u);
+}
+FH_API void fh_preview_stop(void)
+{
+    uint32_t p;
+    for (p = 0; p < NPART; p++)
+        trk_all_off(&trk[p]);
+}
+
 /* the LEDs: bit b = the button labelled b lit (bit 14: PLAY's green), keys bit k; the dim glow and the breath alike */
 static uint32_t led_on(const uint8_t *l, uint32_t id)
 {
@@ -474,6 +497,7 @@ FH_API void fh_test_stop(void) { transport_req = 2; player_stop(); }
  * stored; SONGS checks its selection, ui_songs.c sg_check) */
 FH_API uint32_t fh_song_base(void) { return MM_SONG_BASE; }
 FH_API uint32_t fh_song_size(void) { return MM_SONG_SIZE; }
+FH_API uint32_t fh_song_max(void) { return MM_SONG_MAX; }          /* the most songs listed */
 FH_API int32_t fh_song_room(uint32_t n) { return mm_song_room(n); }
 FH_API uint32_t fh_song_used(void) { return (MM_SONG_NSEC - mm_song_free_sectors()) * MM_SONG_SECTOR; }
 FH_API uint32_t fh_song_count(void) { return mm_nstored; }   /* the stored songs listed, as SONGS lists them: */

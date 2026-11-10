@@ -25,7 +25,7 @@ dv_bell_run 52
 dv_cym_run 67
 dv_out 35
 dv_metal_mix 16
-fm1_alnk0_irq 7845
+fm1_alnk0_irq 5763
 fm1_timer5_irq 14675
 click_render 30
 mod_begin 170

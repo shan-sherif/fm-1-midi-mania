@@ -4,8 +4,11 @@ FM-1 Midi-Mania (`fm-1-midi-mania`) is a modified version of Felucca and is lice
 parts below keeping their own licences. Wherever this file says "Felucca", the same applies to this firmware. Files
 this project added carry `Copyright (C) 2026 fm-1-midi-mania contributors` and are GPL-3.0-only.
 
+- Midi-Mania code and modifications: Copyright (C) 2026 Shan-Sherif and the fm-1-midi-mania contributors
+- Retained Felucca portions: Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments
+
 The rest of this file is Felucca's own licensing statement, with the parts Midi-Mania removed taken out (the ADPCM
-engine and its LGPL-2.1 DSP, the plugin engines and their interface's additional permission, the libretro core, five
+engine and its LGPL-2.1 DSP, the plugin engines and their interface's additional permission, the libretro core, two
 of the six MIT engines):
 
 Felucca is free software, licensed under the GNU General Public License, version 3 only
@@ -31,8 +34,8 @@ Three source files are ports and keep the licence of their originals:
 An engine and the code it shares are under the MIT licence, not the GPL. They are
 Hügelton Instruments' own work and live in their own repository, Felucca-Engines
 (<https://github.com/hugelton/Felucca-Engines>), included here as a copy in
-`firmware/engines/` (see `README.md`, Based on Felucca): the ANALOG engine (`eng_analog.c`; Midi-Mania leaves out
-the other five), the engine interface
+`firmware/engines/` (see `README.md`, Based on Felucca): the ANALOG, LOFI, TRIO and WHEEL engines (`eng_analog.c`,
+`eng_lofi.c`, `eng_trio.c`, `eng_wheel.c`; Midi-Mania leaves out NOISE and PHASE), the engine interface
 (`felucca_engine.h`), the shared DSP helpers (`dsp.c`) and the generator of their tables
 (`SPDX-License-Identifier: MIT`, `firmware/engines/LICENSE`, also
 `LICENSES/MIT-Felucca-Engines.txt`). The firmware built with them is GPL-3.0-only as a whole.
@@ -64,7 +67,7 @@ All by Hügelton Instruments (Leo Kuroshita), in this tree:
 | The Hügelton Sample Pack: Felucca's drum sounds, made by `tools/gen_waves.py`, the script and the sounds it makes | CC0 1.0 (<https://creativecommons.org/publicdomain/zero/1.0/>) | `tools/gen_waves.py` |
 | The controls picture | GPL-3.0-only | `docs/controls.jpg` |
 | The Fukiai icon font (<https://github.com/hugelton/Fukiai>): the firmware's icons (rasterised at build time by `tools/gen_aa_icons.py`) | MIT | `web/fukiai.ttf`, `LICENSES/MIT-Fukiai.txt`, `web/FUKIAI-LICENSE.txt` |
-| The ANALOG engine, the engine interface and the shared DSP helpers: Felucca-Engines (<https://github.com/hugelton/Felucca-Engines>) | MIT | `firmware/engines/`, `LICENSES/MIT-Felucca-Engines.txt` |
+| The ANALOG, LOFI, TRIO and WHEEL engines, the engine interface and the shared DSP helpers: Felucca-Engines (<https://github.com/hugelton/Felucca-Engines>) | MIT | `firmware/engines/`, `LICENSES/MIT-Felucca-Engines.txt` |
 
 ## Third-party material
 
@@ -72,7 +75,6 @@ All by Hügelton Instruments (Leo Kuroshita), in this tree:
 | --- | --- | --- |
 | Inter Tight font by The Inter Project Authors: the UI text, rasterised into the firmware at build time (`tools/gen_aa_font.py`; the generated tables are not offered as a font, and the font declares no Reserved Font Name) | SIL OFL 1.1 | `assets/fonts/InterTight[wght].ttf`, `LICENSES/OFL-InterTight.txt` (also `assets/fonts/OFL.txt`) |
 | Instrument samples (Versilian Studios VSCO-2 Community Edition, VCSL): the SAMPLE sets | CC0 1.0 | `assets/samples-cc0/`, provenance in `ATTRIBUTION.txt` there |
-| J. S. Bach's Prelude in C, BWV 846, as a MIDI file from the Mutopia Project (piece 5, maintained by Tobias Erbsland): the starter song built into the firmware | Public domain (Creative Commons public domain dedication) | `assets/songs/`, source in `assets/songs/README.md` |
 | DaisySP by Electrosmith, Corp and Emilie Gillet (<https://github.com/electro-smith/DaisySP>): the PHYS engine's modal and string models and the resonator, ported to fixed point | MIT | `firmware/src/phys_dsp.c`, `LICENSES/MIT-DaisySP.txt` |
 | Rings by Emilie Gillet (<https://github.com/pichenettes/eurorack>): the PHYS engine's sympathetic strings, ported to fixed point | MIT | `firmware/src/phys_symp.c`, `LICENSES/MIT-Rings.txt` |
 | msfa by Google Inc. and Pascal Gauthier, from Dexed (<https://github.com/asb2m10/dexed>): the FM6 engine's synthesis, ported to integer C (Dexed itself is GPL-3.0; only msfa is used; the FM6 factory patches are Felucca's own) | Apache-2.0 | `firmware/src/fm6_core.c`, `LICENSES/Apache-2.0-msfa.txt` |

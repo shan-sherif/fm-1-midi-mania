@@ -4,26 +4,28 @@
  *
  * Opened by the SEQ button (Midi-Mania without the sequencer; Felucca's build: ARP), over the whole screen as MENU is:
  *   SELECT or PRESETS  the song;
- *   KNOB 1             your part (Midi-Mania: ALGORITHM, mm_part_turn): those the song has that you can play
- *                      (player.c MM_PLAYABLE: KEYS DRUMS GUITAR BASS; HOME shows its notes: the keyboard's lanes, or for DRUMS
- *                      the drum grid's eight, ui_graph.c graph_notes);
+ *   ALGORITHM          your part (mm_part_turn): those the song has that you can play (player.c MM_PLAYABLE: KEYS DRUMS
+ *                      GUITAR BASS; HOME shows its notes as its STYLE lays them out, ui_graph.c graph_notes);
+ *   KNOB 1             CPU (the device plays your part) or PLAY (your notes silent, the keys play them: pl.you);
  *   KNOB 2             the tempo, 1 BPM a detent, from half the song's to twice it (its own shown beside);
  *   OCT-               the tempo back to the song's;
- *   KNOB 3             PLAY: AUTO (the device plays your part) or YOU (your notes silent, the keys play them: pl.you);
- *   KNOB 4             RANGE, your notes of your part (player.c mm_mine): KEYS GUITAR BASS ALL, RIGHT HAND, LEFT
- *                      HAND, NO LOW; DRUMS ALL 8, 5 PADS, 4 PADS, 2 PADS (the rest the device plays, unseen);
+ *   KNOB 3             STYLE, your part's (player.c mm_style): KEYS 49 KEYS, 27 KEYS, 1 OCTAVE; DRUMS FULL, QUARTER,
+ *                      HALF; GUITAR BASS STRINGS, CHROMATIC;
+ *   KNOB 4             AUTO, which of your part's notes are yours (player.c mm_mine; the rest the device plays): KEYS
+ *                      FULL, CURRENT RANGE, 1 OCTAVE; DRUMS ALL 8, 5 PADS, 4 PADS, 2 PADS; GUITAR BASS on STRINGS the
+ *                      lanes (6 4 2, BASS 4 2), on CHROMATIC 1 OCTAVE;
  *   PRESETS            (Midi-Mania) SOUND: your part's, of its own (engines.c MM_SOUNDS); SELECT alone the song;
  *   PLAY               starts it and goes HOME (where PLAY stops it, ui_input.c); on the song playing: stops it;
- *   HOME or ARP        back.
+ *   SEQ                again: GAME, the game's settings; HOME or ARP: back to the game.
  * The tempo turns while a song plays too. The keys still play the selected track meanwhile.
  *
  * Included by ui_input.c (before page_tap); ui_draw.c ui_draw_page calls songs_draw while songs_on(). */
 #define SG_ROWS 3u                       /* songs listed at once */
 #define SG_ROW_Y 28
 #define SG_ROW_H 24
-#define SG_OPT_Y (SG_ROW_Y + (int32_t)SG_ROWS * SG_ROW_H + 4)   /* PART, TEMPO, PLAY, RANGE (SCROLL: GAME, below) */
-#define SG_OPT_H 20
-#define SG_NOPT 5                        /* PART TEMPO PLAY RANGE SOUND */
+#define SG_OPT_Y (SG_ROW_Y + (int32_t)SG_ROWS * SG_ROW_H + 4)   /* PART, MODE, TEMPO, STYLE, AUTO, SOUND */
+#define SG_OPT_H 18
+#define SG_NOPT 6                        /* PART MODE TEMPO STYLE AUTO SOUND */
 #define SG_FOOT_Y (SG_OPT_Y + SG_NOPT * SG_OPT_H + 4)
 
 static struct {
@@ -35,6 +37,24 @@ static struct {
 } sg = {.free = 1};
 /* the list's rows: 0 FREE PLAY, then the songs; the cursor's row */
 #define SG_NROWS (mm_nsongs() + 1u)
+
+/* a colour a part, as Studio's (platforms/web/index.html --p0..--p3): KEYS amber, DRUMS pink, GUITAR green, BASS
+ * purple; darker on a light palette. In colour on GREY too, as the drum lanes (gfx.c cv_rgb): mm_part_text.
+ * mm_part_ink: text on a fill of it */
+static uint16_t mm_part_col(uint32_t m)
+{
+    static const uint16_t DARK_BG[4] = {0xFDC9u, 0xFA71u, 0x5F11u, 0xAC5Fu};    /* #FFB84F #FF4F8B #5FE08A #A88BFF */
+    static const uint16_t LIGHT_BG[4] = {0xB340u, 0xC8CBu, 0x1C47u, 0x69FAu};   /* #B06A00 #C8185A #1A8A3E #6A3FD0 */
+    return (ux.light ? LIGHT_BG : DARK_BG)[m & 3u];
+}
+static uint16_t mm_part_ink(void) { return ux.light ? 0xFFFFu : 0x0841u; }
+static void mm_part_text(uint32_t x, uint32_t y, uint32_t w, const aafont_t *f, const char *t, uint16_t fg, uint16_t bg,
+                         uint32_t align)
+{
+    cv_rgb = 1;
+    draw_text_line(x, y, w, f, t, fg, bg, align);
+    cv_rgb = 0;
+}
 static uint32_t sg_row(void) { return sg.free ? 0u : sg.sel + 1u; }
 /* FREE PLAY (player.c player_free): your part on its sound, no song; HOME draws the keys you press, scrolling away
  * from the hit line (ui_graph.c graph_free). Your parts: any you can play */
@@ -221,18 +241,18 @@ static void songs_input(uint32_t pressed, uint32_t home, uint32_t oct)
     sg_check();
     {   /* Midi-Mania: SONGS is on SEQ; HOME, ARP or SEQ the game, EDIT the MIXER, SCL the METRONOME, FX GAME, SAVE
          * PRESETS (mm_nav) */
-        static const uint8_t NAV[6] = {B_ARP, B_SEQ, B_EDIT, B_SCL, B_FX, B_SAVE};
+        static const uint8_t NAV[7] = {B_ARP, B_SEQ, B_EDIT, B_SCL, B_FX, B_SAVE, B_ENV};
         uint32_t k;
         if (home == BT_TAP) {
             mm_nav(B_HOME);
             enc_drop();
             return;
         }
-        for (k = 0; k < 6u; k++)
+        for (k = 0; k < 7u; k++)
             if ((pressed >> panel.btn[NAV[k]]) & 1u) {
                 if (NAV[k] == B_SAVE)
                     ui.save_t0 |= 2u;                /* (no UNDO on its release) */
-                mm_nav(NAV[k] == B_SEQ ? B_HOME : NAV[k]);   /* (SEQ again: back to the game) */
+                mm_nav(NAV[k] == B_SEQ ? B_FX : NAV[k]);     /* (SEQ again: GAME, the game's settings) */
                 enc_drop();
                 return;
             }
@@ -249,12 +269,14 @@ static void songs_input(uint32_t pressed, uint32_t home, uint32_t oct)
     if (m)                                           /* KNOB 1 (Midi-Mania: ALGORITHM): the next part the song has */
         mm_part_turn(m);
     {
-        int32_t y = panel_enc(EN_K3), r = panel_enc(EN_K4);
-        if (y)                                        /* KNOB 3: PLAY, clockwise YOU, the other way AUTO */
+        int32_t y = panel_enc(EN_K1), st = panel_enc(EN_K3), r = panel_enc(EN_K4);
+        if (y)                                        /* KNOB 1: PLAY clockwise (YOU), CPU the other way (AUTO) */
             pl.you = (uint8_t)(y > 0);
-        if (r) {                                      /* KNOB 4: RANGE */
-            int32_t v = (int32_t)pl.range + r;
-            pl.range = (uint8_t)(v < 0 ? 0 : v >= (int32_t)MM_RANGES ? (int32_t)MM_RANGES - 1 : v);
+        if (st)                                       /* KNOB 3: STYLE, your part's (its AUTO from the first) */
+            mm_style_turn(st);
+        if (r) {                                      /* KNOB 4: AUTO, your part's */
+            int32_t v = (int32_t)mm_range() + r;
+            pl.range = (uint8_t)(v < 0 ? 0 : v >= (int32_t)mm_ranges() ? (int32_t)mm_ranges() - 1 : v);
         }
     }
     if (so)                                           /* PRESETS: your part's SOUND */
@@ -308,8 +330,10 @@ static void sg_list(void)
             int sel = k == cur, now = playing && (k ? !player_is_free() && k - 1u == pl.song : player_is_free());
             uint16_t bg = sel ? T_SEL : T_BG, ink = sel ? T_INK : now ? T_ACCENT : T_TEXT;
             lcd_fill(0, (uint32_t)y, 240, SG_ROW_H, bg);
-            draw_text_line(8, (uint32_t)y + (SG_ROW_H - AF_M.h) / 2u, 172, &AF_M, k ? mm_song(k - 1u)->title : "FREE PLAY",
-                           ink, bg, 0);
+            if (k)
+                draw_text_line(8, (uint32_t)y + (SG_ROW_H - AF_M.h) / 2u, 172, &AF_M, mm_song(k - 1u)->title, ink, bg, 0);
+            else                                      /* (FREE PLAY: bold and italic, not a song: gfx.c) */
+                draw_text_line_bi(8, (uint32_t)y + (SG_ROW_H - AF_M.h) / 2u, 172, &AF_M, "FREE PLAY", 0, ink, bg);
             if (k)
                 sg_time(b, mm_song(k - 1u)->length);
             else
@@ -327,57 +351,59 @@ static void sg_options(void)
     uint32_t m, x = 76;                              /* 34 + 34 + 44 + 34 and 2 px gaps: 76 .. 226 */
     lcd_fill(0, SG_OPT_Y - 4, 240, SG_NOPT * SG_OPT_H + 4, T_BG);
     lcd_fill(0, SG_OPT_Y - 3, 240, 1, T_LINE);
-    draw_text_line(8, SG_OPT_Y + 3, 66, &AF_S, "ALG PART", T_MID, T_BG, 0);
+    lcd_fill(0, SG_OPT_Y + SG_OPT_H, 3, (SG_NOPT - 1) * SG_OPT_H - 2, mm_part_col(pl.mode));   /* your part's options */
+    draw_text_line(8, SG_OPT_Y + 2, 66, &AF_S, "ALG PART", T_MID, T_BG, 0);
     for (m = 0; m < MM_NMODES; m++) {               /* the four (those you can play), the song's lit, yours selected */
         int has = sg.free || !mm_nsongs() || ((s->parts >> m) & 1u), mine = m == pl.mode;
-        uint16_t bg = mine ? T_SEL : T_BG, ink = mine ? T_INK : has ? T_TEXT : T_DIM;
+        uint16_t bg = mine ? mm_part_col(m) : T_BG, ink = mine ? mm_part_ink() : has ? mm_part_col(m) : T_DIM;
         uint32_t w = MM_PLAYABLE == 0xFu ? (m == MM_GUITAR ? 44u : 34u) : 74u;
         if (!((MM_PLAYABLE >> m) & 1u))
             continue;
         lcd_fill(x, SG_OPT_Y, w, SG_OPT_H - 2, bg);
-        draw_text_line(x, SG_OPT_Y + (SG_OPT_H - 2 - AF_S.h) / 2u, w, &AF_S,
+        mm_part_text(x, SG_OPT_Y + (SG_OPT_H - 2 - AF_S.h) / 2u, w, &AF_S,
                        w > 44u ? MM_MODE_NAME[m] : m == MM_GUITAR ? "GTR" : m == MM_DRUMS ? "DRUM" : MM_MODE_NAME[m],
                        ink, bg, 1);
         x += w + 2u;
     }
-    if (sg.free || !mm_nsongs()) {                   /* FREE PLAY: no song, no tempo, PLAY or RANGE */
-        static const char *const L[3] = {"K2 TEMPO", "K3 PLAY", "K4 RANGE"};
-        for (m = 0; m < 3u; m++) {
-            draw_text_line(8, SG_OPT_Y + (m + 1u) * SG_OPT_H + 3u, 66, &AF_S, L[m], T_DIM, T_BG, 0);
-            draw_text_line(76, SG_OPT_Y + (m + 1u) * SG_OPT_H + 3u, 156, &AF_S, m ? "-" : "FREE PLAY: YOUR OWN",
-                           T_DIM, T_BG, 0);
-        }
-        goto sound;
-    }
-    draw_text_line(8, SG_OPT_Y + SG_OPT_H + 3, 66, &AF_S, "K2 TEMPO", T_MID, T_BG, 0);
-    e = sg_bpm(b, sg.bpm_x10);
-    str_cpy(e, " BPM", sizeof b - (uint32_t)(e - b));
-    draw_text_line(76, SG_OPT_Y + SG_OPT_H + 1, 86, &AF_M, b, sg.bpm_x10 == s->bpm_x10 ? T_TEXT : T_THEME, T_BG, 0);
-    str_cpy(b, "SONG ", sizeof b);
-    sg_bpm(b + 5, s->bpm_x10);
-    draw_text_line(164, SG_OPT_Y + SG_OPT_H + 3, 68, &AF_S, b, T_MID, T_BG, 2);
-    {   /* K3 PLAY: AUTO YOU, the one in use selected */
-        static const char *const PLAYS[2] = {"AUTO", "YOU"};
-        uint32_t y = SG_OPT_Y + 2 * SG_OPT_H, k;
-        draw_text_line(8, y + 3u, 66, &AF_S, "K3 PLAY", T_MID, T_BG, 0);
+    {   /* K1 MODE: CPU PLAY, the one in use selected (FREE PLAY: yours, no choice) */
+        static const char *const MODES[2] = {"CPU", "PLAY"};
+        uint32_t y = SG_OPT_Y + SG_OPT_H, k;
+        int fp = sg.free || !mm_nsongs();
+        draw_text_line(8, y + 2u, 66, &AF_S, "K1 MODE", fp ? T_DIM : T_MID, T_BG, 0);
         for (k = 0, x = 76; k < 2u; k++, x += 74u) {
-            int mine = k == pl.you;
-            uint16_t bg = mine ? T_SEL : T_BG;
+            int mine = !fp && k == pl.you;
+            uint16_t bg = mine ? mm_part_col(pl.mode) : T_BG;
             lcd_fill(x, y, 72, SG_OPT_H - 2, bg);
-            draw_text_line(x, y + (SG_OPT_H - 2 - AF_S.h) / 2u, 72, &AF_S, PLAYS[k], mine ? T_INK : T_TEXT, bg, 1);
+            mm_part_text(x, y + (SG_OPT_H - 2 - AF_S.h) / 2u, 72, &AF_S, MODES[k], mine ? mm_part_ink() : fp ? T_DIM : T_TEXT,
+                           bg, 1);
         }
     }
-    {   /* K4 RANGE: its name for your part (DRUMS: pads, the others: hands) */
-        uint32_t y = SG_OPT_Y + 3 * SG_OPT_H;
-        draw_text_line(8, y + 3u, 66, &AF_S, "K4 RANGE", T_MID, T_BG, 0);
-        draw_text_line(76, y + 1u, 156, &AF_M, MM_RANGE_NAME[mm_range_names(pl.mode)][pl.range % MM_RANGES],
-                       pl.range ? T_THEME : T_TEXT, T_BG, 0);
+    {   /* K2 TEMPO, the song's own beside (FREE PLAY: none) */
+        uint32_t y = SG_OPT_Y + 2 * SG_OPT_H;
+        draw_text_line(8, y + 2u, 66, &AF_S, "K2 TEMPO", sg.free || !mm_nsongs() ? T_DIM : T_MID, T_BG, 0);
+        if (sg.free || !mm_nsongs())
+            draw_text_line(76, y + 2u, 156, &AF_S, "FREE PLAY: YOUR OWN", T_DIM, T_BG, 0);
+        else {
+            e = sg_bpm(b, sg.bpm_x10);
+            str_cpy(e, " BPM", sizeof b - (uint32_t)(e - b));
+            draw_text_line(76, y, 86, &AF_M, b, sg.bpm_x10 == s->bpm_x10 ? T_TEXT : T_THEME, T_BG, 0);
+            str_cpy(b, "SONG ", sizeof b);
+            sg_bpm(b + 5, s->bpm_x10);
+            draw_text_line(164, y + 2u, 68, &AF_S, b, T_MID, T_BG, 2);
+        }
     }
-sound:
+    {   /* K3 STYLE and K4 AUTO: your part's (player.c mm_style, mm_range) */
+        uint32_t y = SG_OPT_Y + 3 * SG_OPT_H;
+        draw_text_line(8, y + 2u, 66, &AF_S, "K3 STYLE", T_MID, T_BG, 0);
+        mm_part_text(76, y, 156, &AF_M, mm_style_name(pl.mode, mm_style()), mm_part_col(pl.mode), T_BG, 0);
+        y += SG_OPT_H;
+        draw_text_line(8, y + 2u, 66, &AF_S, "K4 AUTO", T_MID, T_BG, 0);
+        mm_part_text(76, y, 156, &AF_M, mm_range_name(mm_range()), mm_part_col(pl.mode), T_BG, 0);
+    }
     {   /* PRESETS SOUND: your part's */
-        uint32_t y = SG_OPT_Y + 4 * SG_OPT_H;
-        draw_text_line(8, y + 3u, 66, &AF_S, "PRE SOUND", T_MID, T_BG, 0);
-        draw_text_line(76, y + 1u, 156, &AF_M, mm_sound_name(pl.mode), T_TEXT, T_BG, 0);
+        uint32_t y = SG_OPT_Y + 5 * SG_OPT_H;
+        draw_text_line(8, y + 2u, 66, &AF_S, "PRE SOUND", T_MID, T_BG, 0);
+        mm_part_text(76, y, 156, &AF_M, mm_sound_name(pl.mode), mm_part_col(pl.mode), T_BG, 0);
     }
 }
 
@@ -409,10 +435,10 @@ static void sg_progress(void)
             str_cpy(e, fl & HS_FULL_COMBO ? "% FC" : "%", 5);
         }
     }
-    draw_text_line(8, SG_FOOT_Y + 3, 224, &AF_S, b, playing ? T_TEXT : T_MID, T_BG, 0);
-    lcd_fill(8, SG_FOOT_Y + 22, 224, 4, T_LINE);
+    draw_text_line(8, SG_FOOT_Y + 2, 224, &AF_S, b, playing ? T_TEXT : T_MID, T_BG, 0);
+    lcd_fill(8, SG_FOOT_Y + 19, 224, 3, T_LINE);
     if (w)
-        lcd_fill(8, SG_FOOT_Y + 22, w, 4, T_THEME);
+        lcd_fill(8, SG_FOOT_Y + 19, w, 3, T_THEME);
 }
 
 static void songs_draw(void)
@@ -420,10 +446,12 @@ static void songs_draw(void)
     sg_check();
     uint32_t playing = player_busy(), pal = palette_cur() * 7919u;
     uint32_t list = 1u + sg_row() * 131u + (playing ? 7u + pl.song * 977u + (uint32_t)player_is_free() * 31u : 0u) + pal;
-    uint32_t opt = 1u + sg_row() * 31u + pl.mode * 7u + sg.bpm_x10 * 1009u + pl.you * 104729u + pl.range * 7907u + pal +
+    uint32_t opt = 1u + sg_row() * 31u + pl.mode * 7u + sg.bpm_x10 * 1009u + pl.you * 104729u + mm_range() * 7907u + pal +
+                   mm_style() * 1299709u +
                    (trk[pl.mode % NPART].eng_req * 257u + trk[pl.mode % NPART].preset) * 6553u;   /* (SOUND) */
     uint32_t prog = 1u + (playing ? 3u + pl.pos / (CHART_FS / 4u) * 17u + pl.song * 131u :   /* (stopped: the best */
-                          sg.sel * 7u + pl.mode * 113u + pl.range * 1031u + gs.gen * 65537u + sg.free * 3u) + pal;   /* shown) */
+                          sg.sel * 7u + pl.mode * 113u + mm_range() * 1031u + mm_style() * 4099u + gs.gen * 65537u +
+                          sg.free * 3u) + pal;   /* shown) */
     if (ui.force || list != sg.list_sig) {
         sg.list_sig = list;
         sg_list();
@@ -566,12 +594,12 @@ static void game_input(uint32_t pressed, uint32_t home, uint32_t oct)
         return;
     }
     {   /* ARP the game, SEQ the songs, EDIT the MIXER, SCL the METRONOME, SAVE PRESETS (mm_nav) */
-        static const uint8_t NAV[5] = {B_ARP, B_SEQ, B_EDIT, B_SCL, B_SAVE};
+        static const uint8_t NAV[6] = {B_ARP, B_SEQ, B_EDIT, B_SCL, B_SAVE, B_ENV};
         uint32_t k;
         int32_t al = panel_enc(EN_ALGO);
         if (al)
             mm_part_turn(al);                        /* ALGORITHM: your part, here too */
-        for (k = 0; k < 5u; k++)
+        for (k = 0; k < 6u; k++)
             if ((pressed >> panel.btn[NAV[k]]) & 1u) {
                 if (NAV[k] == B_SAVE)
                     ui.save_t0 |= 2u;
@@ -621,7 +649,8 @@ static void game_draw(void)
     uint32_t sig, m, x;
     game_cal_poll();
     sig = 1u + pl.up * 3u + PL_SPEED * 31u + (uint32_t)(pl.offset + 64) * 1009u + palette_cur() * 7919u +
-          gmc.cal * 104729u + pl_cal.taps * 7u + (pl_cal.clicks & 1u) * 13u + (uint32_t)gmc.cal_ms * 31337u;
+          gmc.cal * 104729u + pl_cal.taps * 7u + (pl_cal.clicks & 1u) * 13u + (uint32_t)gmc.cal_ms * 31337u +
+          pl.mode * 65537u;
     if (!ui.force && sig == gm.sig)
         return;
     gm.sig = sig;
@@ -715,12 +744,12 @@ static void metro_input(uint32_t pressed, uint32_t home)
         return;
     }
     {   /* ARP the game, SEQ the songs, EDIT the MIXER, FX GAME, SAVE PRESETS (mm_nav) */
-        static const uint8_t NAV[5] = {B_ARP, B_SEQ, B_EDIT, B_FX, B_SAVE};
+        static const uint8_t NAV[6] = {B_ARP, B_SEQ, B_EDIT, B_FX, B_SAVE, B_ENV};
         uint32_t k;
         int32_t al = panel_enc(EN_ALGO);
         if (al)
             mm_part_turn(al);                        /* ALGORITHM: your part, here too */
-        for (k = 0; k < 5u; k++)
+        for (k = 0; k < 6u; k++)
             if ((pressed >> panel.btn[NAV[k]]) & 1u) {
                 if (NAV[k] == B_SAVE)
                     ui.save_t0 |= 2u;
@@ -780,12 +809,175 @@ static void metro_draw(void)
     draw_text_line(8, 212, 224, &AF_S, "HOME OR SCL: BACK", T_MID, T_BG, 0);
 }
 
+/* ------------------------------------------------------------------------------------------------- SOUNDS ---
+ * On the ENV button (Midi-Mania leaves Felucca's envelope page out): each part's sound, a knob a part, as the MIDI
+ * channels play them (ROUT CH1-4): KNOB 1 KEYS (CH 1), KNOB 2 DRUMS (CH 2), KNOB 3 GUITAR (CH 3), KNOB 4 BASS (CH 4).
+ * Their sounds as PRESETS gives each part (engines.c MM_SOUNDS, mm_sound_step: wrapping). A knob turned, the keys play
+ * that part (to hear the sound) while the page is open: the knob's row marked; leaving it, they play your part again.
+ *   HOME or ENV: back; ARP SEQ EDIT SCL FX SAVE as from GAME; ALGORITHM your part */
+#define SND_FAST_MS 250u                         /* two turns this close: the list pops up */
+#define SND_POP_MS 1500u                         /* .. and stays this long after the last turn */
+#define SND_POP_ROWS 8u
+static struct {
+    uint8_t on;
+    uint8_t pop;                                 /* the list shown: its part + 1, 0 = none */
+    uint32_t sig;
+    uint32_t turn_t[NPART];                      /* fm1_ms of each knob's last turn */
+    uint32_t pop_t;                              /* .. of the list's part's last turn */
+    uint8_t drawn;                               /* the list on the screen: its part + 1, 0 = none (snd_draw) */
+} snd;
+
+static int snd_on(void) { return snd.on; }
+static void snd_open(void) { snd.on = 1; snd.pop = 0; snd.drawn = 0; snd.sig = 0; ui.force = 1; }
+static void snd_close(void)                      /* (the keys: your part's again) */
+{
+    if (snd.on)
+        track_select(pl.mode % NTRK);
+    snd.on = 0;
+    snd.pop = 0;
+    ui.force = 1;
+}
+
+static void snd_input(uint32_t pressed, uint32_t home)
+{
+    static const uint8_t KN[4] = {EN_K1, EN_K2, EN_K3, EN_K4};
+    uint32_t k;
+    if (home == BT_TAP || ((pressed >> panel.btn[B_ENV]) & 1u)) {
+        snd_close();
+        if (home == BT_TAP)
+            mm_nav(B_HOME);
+        enc_drop();
+        return;
+    }
+    {   /* ARP the game, SEQ the songs, EDIT the MIXER, SCL the METRONOME, FX GAME, SAVE PRESETS (mm_nav) */
+        static const uint8_t NAV[6] = {B_ARP, B_SEQ, B_EDIT, B_SCL, B_FX, B_SAVE};
+        int32_t al = panel_enc(EN_ALGO);
+        if (al)
+            mm_part_turn(al);                        /* ALGORITHM: your part, here too */
+        for (k = 0; k < 6u; k++)
+            if ((pressed >> panel.btn[NAV[k]]) & 1u) {
+                if (NAV[k] == B_SAVE)
+                    ui.save_t0 |= 2u;
+                mm_nav(NAV[k]);
+                enc_drop();
+                return;
+            }
+    }
+    for (k = 0; k < NPART; k++) {                    /* KNOB k + 1: part k's sound; the keys on it (to hear it) */
+        int32_t n = panel_enc(KN[k]);
+        if (!n)
+            continue;
+        track_select(k);                             /* (first: the sounds a part may load follow the keys' part) */
+        mm_sound_step(k, n);
+        if (n > 1 || n < -1 || fm1_ms - snd.turn_t[k] < SND_FAST_MS || snd.pop == k + 1u) {
+            snd.pop = (uint8_t)(k + 1u);             /* turned quickly: its list pops up (kept up while it turns) */
+            snd.pop_t = fm1_ms;
+        }
+        snd.turn_t[k] = fm1_ms;
+    }
+    if (snd.pop && fm1_ms - snd.pop_t >= SND_POP_MS)
+        snd.pop = 0;                                 /* (gone: the rows drawn again, snd_draw's sig) */
+    enc_drop();
+}
+
+/* the list a part's knob turned quickly pops up: its sounds, the one it plays filled in its colour, in a frame of it.
+ * whole: its frame too (the page under it just drawn); else only its head and rows, each over itself (a turn while
+ * it shows: nothing cleared first, so nothing flashes) */
+static void snd_pop_draw(uint32_t k, int whole)
+{
+    uint32_t n = mm_sound_n(k), cur = mm_sound_pos(k, trk[k].eng_req % NENGINES, trk[k].preset), top, i, e, pk;
+    uint32_t x = 16, y = 34, w = 208, h = 22u + SND_POP_ROWS * 20u + 4u;
+    uint16_t c = mm_part_col(k);
+    char b[24], *t;
+    static const char *const NAME[NPART] = {"KEYS", "DRUMS", "GUITAR", "BASS"};
+    top = cur < n && cur >= SND_POP_ROWS / 2u ? cur - SND_POP_ROWS / 2u : 0u;
+    if (n > SND_POP_ROWS && top > n - SND_POP_ROWS)
+        top = n - SND_POP_ROWS;
+    if (whole) {
+        lcd_fill(0, 208, 240, 32, T_BG);                   /* (the footer under it: hidden while it shows) */
+        lcd_fill(x - 2u, y - 2u, w + 4u, h + 4u, c);       /* the frame */
+        lcd_fill(x, y + 20u, w, h - 20u, T_SURF);
+        lcd_fill(x, y, w, 20, c);                          /* the head: the part, CH n, the place (its text: its box) */
+    }
+    str_cpy(b, NAME[k], sizeof b);
+    t = b + str_len(b);
+    str_cpy(t, "  CH ", sizeof b - (uint32_t)(t - b));
+    sg_uint(t + 5, k + 1u);
+    mm_part_text(x + 6u, y + (20u - AF_S.h) / 2u, 120, &AF_S, b, mm_part_ink(), c, 0);
+    t = sg_uint(b, cur < n ? cur + 1u : 0u);
+    *t++ = '/';
+    sg_uint(t, n);
+    mm_part_text(x + 126u, y + (20u - AF_S.h) / 2u, 76, &AF_S, b, mm_part_ink(), c, 2);
+    for (i = 0; i < SND_POP_ROWS; i++) {
+        uint32_t ry = y + 22u + i * 20u, me = top + i == cur;
+        uint16_t bg = me ? c : T_SURF;
+        if (top + i >= n) {                                /* (a short list: the rest empty) */
+            lcd_fill(x + 2u, ry, w - 4u, 20, T_SURF);
+            continue;
+        }
+        e = mm_sound_at(k, top + i, &pk);
+        mm_part_text(x + 8u, ry + (19u - AF_M.h) / 2u, w - 16u, &AF_M, ENGINES[e]->presets[pk].name,
+                     me ? mm_part_ink() : T_TEXT, bg, 0);
+        lcd_fill(x + 2u, ry, 6, 19, bg);                   /* (its edges: the text paints its own box) */
+        lcd_fill(x + w - 8u, ry, 6, 19, bg);
+        lcd_fill(x + 2u, ry + 19u, w - 4u, 1, T_SURF);
+    }
+    if (top)                                               /* more above, more below */
+        lcd_fill(x + w - 8u, y + 24u, 4, 4, T_MID);
+    if (top + SND_POP_ROWS < n)
+        lcd_fill(x + w - 8u, y + h - 8u, 4, 4, T_MID);
+}
+
+static void snd_draw(void)
+{
+    static const char *const LABEL[NPART] = {"K1 KEYS", "K2 DRUMS", "K3 GUITAR", "K4 BASS"};
+    char note[16], *e;
+    uint32_t sig = 1u + palette_cur() * 7919u + song.sel * 131u, k;
+    if (snd.pop && fm1_ms - snd.pop_t >= SND_POP_MS)
+        snd.pop = 0;
+    for (k = 0; k < NPART; k++)
+        sig = sig * 31u + trk[k].eng_req * 257u + trk[k].preset;
+    sig = sig * 7u + snd.pop;
+    if (!ui.force && sig == snd.sig)
+        return;
+    snd.sig = sig;
+    if (snd.pop && snd.drawn == snd.pop && !ui.force) {  /* the list up, turned again: the list only (no flash) */
+        snd_pop_draw(snd.pop - 1u, 0);
+        return;
+    }
+    snd.drawn = snd.pop;
+    lcd_fill(0, 0, 240, H_HEAD, T_SURF);
+    draw_text_line(8, (H_HEAD - AF_M.h) / 2, 160, &AF_M, "SOUNDS", T_TEXT, T_SURF, 0);
+    lcd_fill(0, H_HEAD, 240, GM_ROW_Y - H_HEAD, T_BG);
+    for (k = 0; k < NPART; k++) {                    /* a row a part: its sound, its channel, its place in its list */
+        const track_t *t = &trk[k];
+        uint32_t n = mm_sound_n(k), pos = mm_sound_pos(k, t->eng_req % NENGINES, t->preset);
+        uint32_t y = GM_ROW_Y + k * GM_ROW_H;
+        str_cpy(note, "CH ", sizeof note);
+        e = sg_uint(note + 3, k + 1u);
+        if (pos < n) {
+            *e++ = ' '; *e++ = ' ';
+            e = sg_uint(e, pos + 1u);
+            *e++ = '/';
+            sg_uint(e, n);
+        }
+        gm_row(k, LABEL[k], mm_sound_name(k), note);
+        mm_part_text(8, y + 8u, 72, &AF_S, LABEL[k], mm_part_col(k), T_BG, 0);   /* its channel's colour */
+        lcd_fill(0, y + 4u, song.sel == k ? 5u : 2u, GM_ROW_H - 8u, mm_part_col(k));   /* wide: the keys play it now */
+    }
+    lcd_fill(0, GM_ROW_Y + 4 * GM_ROW_H, 240, 240 - (GM_ROW_Y + 4 * GM_ROW_H), T_BG);
+    draw_text_line(8, 212, 224, &AF_S, "HEAR IT ON THE KEYS   ENV: BACK", T_MID, T_BG, 0);
+    if (snd.pop)
+        snd_pop_draw(snd.pop - 1u, 1);
+}
+
 /* ----------------------------------------------------------------------------------------------- the panel ---
  * What each button does, from anywhere.
  *   HOME  the game: HOME's view (the notes, the cards; ARP too)        SEQ   the songs (SONGS; also at power-on, main.c)
  *   FX    GAME (the game's settings)                                   EDIT  the MIXER
  *   SCL   METRONOME                                                    SAVE  PRESETS (your part's instrument's sounds)
- *   PLAY  the selected song (ui_input.c), stopping the one playing     ENV LFO GLO REC: nothing
+ *   PLAY  the selected song (ui_input.c), stopping the one playing     ENV   SOUNDS (each part's sound)
+ *   LFO GLO REC: nothing
  *   ALGORITHM  your part (mm_part_turn), from anywhere                 PRESETS  its sound (shown bottom left on HOME) */
 static void mm_open_page(int (*is)(const page_t *))   /* the page is() picks, out of SONGS and GAME */
 {
@@ -797,6 +989,7 @@ static void mm_open_page(int (*is)(const page_t *))   /* the page is() picks, ou
     songs_close();
     game_close();
     metro_close();
+    snd_close();
     ui.page = (uint8_t)i;
     ui.fam_last[PAGES[i].fam] = (uint8_t)i;
     ui.home = 0;
@@ -813,6 +1006,7 @@ static void mm_nav(uint32_t b)
     songs_close();
     game_close();
     metro_close();
+    snd_close();
     if (b == B_ARP || b == B_HOME)                    /* the game */
         go_home();
     else if (b == B_SEQ)
@@ -821,6 +1015,8 @@ static void mm_nav(uint32_t b)
         metro_open();
     else if (b == B_FX)
         game_open();
+    else if (b == B_ENV)
+        snd_open();
     else if (b == B_SAVE)
         open_family(FAM_SAVE);                        /* (PRESETS: ui.c open_family) */
 }
@@ -828,11 +1024,11 @@ static void mm_nav(uint32_t b)
 /* ui_input.c page_tap: a page button let go on a page or the game; 1: it acted */
 static int mm_page_tap(uint32_t b)
 {
-    if (b == B_ARP || b == B_EDIT || b == B_SCL || b == B_SEQ) {
+    if (b == B_ARP || b == B_EDIT || b == B_SCL || b == B_SEQ || b == B_ENV) {
         mm_nav(b);
         return 1;
     }
-    return b == B_ENV || b == B_LFO || b == B_GLO || b == B_REC;   /* (nothing) */
+    return b == B_LFO || b == B_GLO || b == B_REC;   /* (nothing) */
 }
 
 /* PLAY, no song playing (ui_input.c): the song selected, and the game */

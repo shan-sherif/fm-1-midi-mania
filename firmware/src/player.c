@@ -35,11 +35,17 @@ typedef struct {
  * deleted is listed (after the built-in songs: mm_nsongs, mm_song(i)) and its sectors are in use; anything else is
  * free. A song is deleted by erasing its sectors and a new one goes into the first gap it fits (mm_song_room): songs
  * never move, so a power cut loses at most the one being written or deleted */
+#ifndef MM_SONG_BASE                             /* (Studio, the browser build: a region of its own, bigger than the
+                                                 * FM-1's, so a song too big for an FM-1 still loads there:
+                                                 * platforms/web/build.sh) */
 #define MM_SONG_BASE 0xA0000u                    /* .. 0xDBFFF (240 KiB) */
 #define MM_SONG_SIZE 0x3C000u
+#endif
 #define MM_SONG_SECTOR 0x1000u
 #define MM_SONG_NSEC (MM_SONG_SIZE / MM_SONG_SECTOR)   /* 60 */
+#ifndef MM_SONG_MAX
 #define MM_SONG_MAX 16u                          /* stored songs listed at once */
+#endif
 static const uint8_t *mm_song_base;
 static mm_song_t mm_stored[MM_SONG_MAX];
 static char mm_stored_title[MM_SONG_MAX][25];
@@ -162,8 +168,8 @@ enum { PL_REQ_NONE, PL_REQ_START, PL_REQ_STOP };
  * (SONGS, ui_songs.c), whose notes HOME shows (ui_graph.c graph_notes) */
 enum { MM_KEYS, MM_DRUMS, MM_GUITAR, MM_BASS, MM_NMODES };   /* parts 1..4: 1 KEYS (piano), 2 DRUMS (engines.c MM_PART_ENGINE) */
 static const char *const MM_MODE_NAME[MM_NMODES] = {"KEYS", "DRUMS", "GUITAR", "BASS"};
-/* the parts you can play: all four (Midi-Mania 0.4.0; before it DRUMS and KEYS). GUITAR and BASS are melodic parts as KEYS
- * is: their notes on the 27 keys (the converter folds them there by octaves), HOME the keyboard's lanes */
+/* the parts you can play: all four (Midi-Mania 0.8.0; before it DRUMS and KEYS). GUITAR and BASS are melodic parts as KEYS
+ * is, laid out on HOME as GAME's LANES says (mm_view, below): STRINGS or CHROMATIC */
 #define MM_PLAYABLE ((1u << MM_KEYS) | (1u << MM_DRUMS) | (1u << MM_GUITAR) | (1u << MM_BASS))
 #define PL_RATE_ONE 65536u               /* pl.rate: the song's own tempo (Q16) */
 
@@ -183,10 +189,12 @@ static struct {
                                           * for the judge (judge.c judge_t.offset) */
     uint8_t you;                         /* main loop: SONGS' PLAY: 0 AUTO (the device plays your part), 1 YOU (your
                                           * notes silent: the keys play them; their keys still light, as guides) */
-    uint8_t range;                       /* main loop: SONGS' RANGE (mm_mine): your notes of your part, the others the
-                                          * device plays. KEYS GUITAR BASS: 0 ALL 1 RIGHT HAND 2 LEFT HAND 3 NO LOW;
-                                          * DRUMS: 0 ALL 1 5 PADS 2 4 PADS 3 2 PADS */
-    volatile uint32_t pos;               /* ISR: song samples since its start (the chart's clock) */
+    uint8_t range;                       /* main loop: SONGS' AUTO (K4; mm_range, mm_mine): your notes of your part, the
+                                          * others the device plays. KEYS 0 FULL 1 CURRENT RANGE 2 1 OCTAVE; DRUMS 0 ALL 8
+                                          * 1 5 PADS 2 4 PADS 3 2 PADS; GUITAR, BASS on STRINGS the lanes (6 4 2, 4 2) */
+    uint8_t style[4];                    /* main loop: SONGS' STYLE per part (K3; mm_style): KEYS KS_*, DRUMS DS_*, GUITAR
+                                          * BASS 0 STRINGS 1 CHROMATIC; 0 the default each */
+    volatile uint32_t pos;              /* ISR: song samples since its start (the chart's clock) */
     volatile uint32_t keys[CHART_NPART]; /* ISR: per part, bit k: a note of key k sounds (LEDs, HOME's strip) */
     uint32_t frac;                       /* pos's fraction (Q16) */
     uint32_t next;                       /* the next note to start */
@@ -244,33 +252,265 @@ static int32_t mm_drum_key_note(uint32_t k)
     return -1;
 }
 
-/* SONGS' RANGE: which notes of your part are yours (the others the device plays, unseen). The melodic parts: ALL; the
- * upper notes, from the part's split up; the lower, below it; NO LOW, from its low mark up. KEYS: RIGHT HAND (middle
- * C, 60, up), LEFT HAND, NO LOW (C3, 48, up). GUITAR (its range E2..E6): HIGH from G3 (55), LOW, NO LOW from A2 (45).
- * BASS (E1..G3): HIGH from E2 (40), LOW, NO LOW from A1 (33). DRUMS: the lanes of MM_DRUM_SETS */
-#define MM_RANGES 4u
-static const uint8_t MM_RANGE_SPLIT[MM_NMODES] = {60, 0, 55, 40};   /* by part: KEYS DRUMS GUITAR BASS */
-static const uint8_t MM_RANGE_LOW[MM_NMODES] = {48, 0, 45, 33};
-static const uint8_t MM_DRUM_SETS[MM_RANGES] = {0xFFu, 0x5Bu, 0x1Bu, 0x03u};   /* ALL; KICK SNR CH OH RIM; KICK SNR CH OH;
+/* SONGS' K3 STYLE and K4 AUTO, per part (mm_mine: the notes of your part that are yours; the device plays the rest):
+ *   KEYS    STYLE 49 KEYS (C2 .. C6 on HOME: the panel's 27 keys a window on them that OCT- and OCT+ move, a MIDI
+ *           keyboard all of them), 27 KEYS (the panel's F3 .. G5: the chart's own keys), 1 OCTAVE (12 lanes, C .. B:
+ *           any key of that name). AUTO FULL (every note yours, folded into the style's keys by octaves), CURRENT
+ *           RANGE (only those in the style's own range: C2 .. C6, F3 .. G5, C4 .. B4), 1 OCTAVE (only C4 .. B4)
+ *   DRUMS   STYLE FULL, QUARTER (only the hits on a beat: no 8ths or 16ths), HALF (only on a bar's beats 1 and 3, its
+ *           even beats). AUTO the pads: ALL 8, 5 PADS, 4 PADS, 2 PADS
+ *   GUITAR, BASS  STYLE STRINGS (lanes on the white keys F3 ..), CHROMATIC (12 lanes, C .. B). AUTO, STRINGS: the lanes,
+ *           6 4 2 (BASS 4 2), every note still yours, the song's pitches squeezed onto them; CHROMATIC: 1 OCTAVE alone
+ * pl.style per part (game_save.c keeps them); pl.range the AUTO of your part (0 when the part or its STYLE changes) */
+enum { KS_27, KS_49, KS_OCT, KS_N };                     /* KEYS' STYLE values (0: 27 KEYS, as before them) */
+static const uint8_t KS_ORDER[KS_N] = {KS_49, KS_27, KS_OCT};   /* .. as K3 steps through them */
+enum { DS_FULL, DS_QUARTER, DS_HALF, DS_N };            /* DRUMS' */
+static const uint8_t MM_DRUM_SETS[4] = {0xFFu, 0x5Bu, 0x1Bu, 0x03u};   /* ALL; KICK SNR CH OH RIM; KICK SNR CH OH;
                                                   * KICK SNR (bit l: the DRUM engine's lane l, eng_drum.c) */
-static const char *const MM_RANGE_NAME[3][MM_RANGES] = {{"ALL", "RIGHT HAND", "LEFT HAND", "NO LOW"},
-                                                         {"ALL 8", "5 PADS", "4 PADS", "2 PADS"},
-                                                         {"ALL", "HIGH", "LOW", "NO LOW"}};
-static uint32_t mm_range_names(uint32_t mode) { return mode == MM_KEYS ? 0u : mode == MM_DRUMS ? 1u : 2u; }
+static uint32_t mm_style_n(uint32_t mode) { return mode == MM_KEYS ? KS_N : mode == MM_DRUMS ? DS_N : 2u; }
+static uint32_t mm_style(void) { return pl.style[pl.mode & 3u] % mm_style_n(pl.mode); }
+static const char *mm_style_name(uint32_t mode, uint32_t st)
+{
+    static const char *const K[KS_N] = {"27 KEYS", "49 KEYS", "1 OCTAVE"}, *const D[DS_N] = {"FULL", "QUARTER", "HALF"},
+                      *const G[2] = {"STRINGS", "CHROMATIC"};
+    return mode == MM_KEYS ? K[st % KS_N] : mode == MM_DRUMS ? D[st % DS_N] : G[st % 2u];
+}
+/* K3: STYLE n steps on, in K3's order (KEYS: 49, 27, 1 OCTAVE), at the ends staying; its AUTO from the first */
+static void mm_style_turn(int32_t n)
+{
+    uint32_t m = pl.mode & 3u, cnt = mm_style_n(m), at = 0, i;
+    int32_t v;
+    for (i = 0; i < cnt; i++)
+        if ((m == MM_KEYS ? KS_ORDER[i] : i) == pl.style[m] % cnt)
+            at = i;
+    v = (int32_t)at + n;
+    v = v < 0 ? 0 : v >= (int32_t)cnt ? (int32_t)cnt - 1 : v;
+    if ((uint32_t)v != at)
+        pl.range = 0;
+    pl.style[m] = (uint8_t)(m == MM_KEYS ? KS_ORDER[v] : (uint32_t)v);
+}
+static uint32_t mm_string_n(void);                       /* (STRINGS' lanes: below) */
+static uint32_t mm_ranges(void)                          /* how many AUTO choices your part has now */
+{
+    if (pl.mode == MM_KEYS)
+        return 3u;
+    if (pl.mode == MM_DRUMS)
+        return 4u;
+    return mm_style() ? 1u : pl.mode == MM_BASS ? 2u : 3u;
+}
+static uint32_t mm_range(void) { return pl.range < mm_ranges() ? pl.range : 0u; }   /* your part's AUTO */
+static const char *mm_range_name(uint32_t r)
+{
+    static const char *const K[3] = {"FULL", "CURRENT RANGE", "1 OCTAVE"}, *const D[4] = {"ALL 8", "5 PADS", "4 PADS", "2 PADS"},
+                      *const G[3] = {"6 LANES", "4 LANES", "2 LANES"};
+    if (pl.mode == MM_KEYS)
+        return K[r % 3u];
+    if (pl.mode == MM_DRUMS)
+        return D[r % 4u];
+    if (mm_style())
+        return "1 OCTAVE";
+    return G[(r + (pl.mode == MM_BASS ? 1u : 0u)) % 3u];
+}
+/* KEYS: the lowest and highest note a STYLE holds (CURRENT RANGE: yours only between them) */
+static void mm_keys_range(uint32_t st, uint32_t *lo, uint32_t *hi)
+{
+    *lo = st == KS_49 ? 36u : st == KS_OCT ? 60u : 53u;
+    *hi = st == KS_49 ? 84u : st == KS_OCT ? 71u : 79u;
+}
+static uint32_t mm_fold49(uint32_t p)                    /* a note into 49 KEYS' C2 .. C6 by octaves */
+{
+    while (p < 36u)
+        p += 12u;
+    while (p > 84u)
+        p -= 12u;
+    return p;
+}
+static const mm_song_t *pl_song(void);
+/* DRUMS' QUARTER and HALF: a hit within an eighth of a beat of one (HALF: of a bar's even beat, 1 and 3) */
+static int mm_drum_kept(const chart_note_t *c)
+{
+    const mm_song_t *s;
+    uint32_t st = pl.style[MM_DRUMS] % DS_N, lo = 0, hi, b, len, d;
+    if (st == DS_FULL)
+        return 1;
+    s = pl_song();
+    if (s->nbeat < 2u)
+        return 1;
+    hi = s->nbeat;
+    while (lo < hi) {                                    /* (the first beat at or after the hit) */
+        uint32_t mid = (lo + hi) / 2u;
+        if (s->beat[mid] < c->time)
+            lo = mid + 1u;
+        else
+            hi = mid;
+    }
+    b = lo >= s->nbeat ? s->nbeat - 1u : lo;
+    if (b && c->time - s->beat[b - 1u] < (s->beat[b] > c->time ? s->beat[b] - c->time : c->time - s->beat[b]))
+        b--;                                             /* (the nearer of it and the one before) */
+    len = b + 1u < s->nbeat ? s->beat[b + 1u] - s->beat[b] : s->beat[b] - s->beat[b - 1u];
+    d = c->time > s->beat[b] ? c->time - s->beat[b] : s->beat[b] - c->time;
+    if (d > len / 8u)
+        return 0;
+    return st == DS_QUARTER || ((s->beat0 + b) % (s->bpb ? s->bpb : 4u)) % 2u == 0u;
+}
 static int mm_in_range(const chart_note_t *c)
 {
-    uint32_t r = pl.range % MM_RANGES, part = c->flags & CN_PART_MASK;
+    uint32_t r = mm_range(), lo, hi;
     if (c->flags & CN_DRUM)
-        return (MM_DRUM_SETS[r] >> (drum_lane(c->pitch) % NLANE)) & 1u;
-    return r == 0u || (r == 1u && c->pitch >= MM_RANGE_SPLIT[part]) || (r == 2u && c->pitch < MM_RANGE_SPLIT[part]) ||
-           (r == 3u && c->pitch >= MM_RANGE_LOW[part]);
+        return ((MM_DRUM_SETS[r % 4u] >> (drum_lane(c->pitch) % NLANE)) & 1u) && mm_drum_kept(c);
+    if ((c->flags & CN_PART_MASK) != MM_KEYS || r == 0u)
+        return 1;
+    if (r == 1u)
+        mm_keys_range(pl.style[MM_KEYS] % KS_N, &lo, &hi);
+    else
+        lo = 60u, hi = 71u;
+    return c->pitch >= lo && c->pitch <= hi;
 }
-static int mm_mine(const chart_note_t *c)       /* a note of your part, in your RANGE */
+static int mm_mine(const chart_note_t *c)       /* a note of your part, in your STYLE and AUTO */
 {
     return (c->flags & CN_PART_MASK) == pl.mode && mm_in_range(c);
 }
 
 static const mm_song_t *pl_song(void) { return mm_song(pl.song % (mm_nsongs() ? mm_nsongs() : 1u)); }
+
+/* How HOME lays out your part's notes and which keys play them (mm_view), from its STYLE:
+ *   STRINGS    GUITAR, BASS: mm_string_n() lanes (AUTO: 6 4 2, BASS 4 2) on the white keys F3 G3 A3 B3 C4 D4 (the bottom
+ *              row; DRUMS has the black keys): the distinct pitches your notes use in the song, lowest to highest,
+ *              spread over them, so a higher note is never left of a lower one (mm_lanes_fit). It sounds as written
+ *   CHROMATIC  GUITAR, BASS, and KEYS' 1 OCTAVE: 12 lanes, C to B: a note's lane is its name, whatever its octave; any key
+ *              of that name plays it, its light on C4 .. B4
+ *   KEYS       27 KEYS: the keyboard's 27 lanes, the chart's own key
+ *   KEYS49     49 KEYS: C2 .. C6, a note on its pitch folded in (mm_fold49); a panel key k plays 53 + k, OCT- and OCT+
+ *              an octave down or up (song.octave), a MIDI note its own (folded); lights on the panel keys under them
+ * Two of your notes on one key within MM_LANE_MERGE are one to play (a chord on a string, an octave folded onto the
+ * same key): the later one is the device's (mm_lane_dup), not judged */
+enum { MM_VIEW_STRINGS, MM_VIEW_CHROMATIC, MM_NVIEWS, MM_VIEW_KEYS = MM_NVIEWS, MM_VIEW_KEYS49 };
+#define MM_LANES_MAX 12u
+static const uint8_t MM_STRING_KEY[6] = {0, 2, 4, 6, 7, 9};   /* lane l's key: the white keys F3 G3 A3 B3 C4 D4 */
+#define MM_OCT_KEY0 7u                                        /* CHROMATIC: C's key, C4 (lane l: key 7 + l) */
+#define MM_LANE_MERGE (CHART_FS * 30u / 1000u)                /* (the judge's PERFECT window) */
+static int mm_has_view(uint32_t mode) { return mode == MM_GUITAR || mode == MM_BASS; }
+static uint32_t mm_view(void)
+{
+    uint32_t st = mm_style();
+    if (mm_has_view(pl.mode))
+        return st ? MM_VIEW_CHROMATIC : MM_VIEW_STRINGS;
+    if (pl.mode == MM_KEYS)
+        return st == KS_49 ? MM_VIEW_KEYS49 : st == KS_OCT ? MM_VIEW_CHROMATIC : MM_VIEW_KEYS;
+    return MM_VIEW_KEYS;                                  /* (DRUMS: its pads, graph_drums) */
+}
+static uint32_t mm_string_n(void)                        /* STRINGS' lanes: AUTO's 6 4 2 (BASS 4 2) */
+{
+    static const uint8_t G[3] = {6, 4, 2}, B[2] = {4, 2};
+    return pl.mode == MM_BASS ? B[mm_range() % 2u] : G[mm_range() % 3u];
+}
+static uint32_t mm_lanes(void)                   /* your part's lanes in a lane view; 0: a keyboard's (or DRUMS) */
+{
+    uint32_t v = mm_view();
+    return v == MM_VIEW_STRINGS ? mm_string_n() : v == MM_VIEW_CHROMATIC ? 12u : 0u;
+}
+static uint32_t mm_lane_key(uint32_t l)          /* lane l's key */
+{
+    return mm_view() == MM_VIEW_CHROMATIC ? MM_OCT_KEY0 + l % 12u : MM_STRING_KEY[l % 6u];
+}
+static int32_t mm_key_lane(uint32_t k)           /* the lane key k plays; -1: none */
+{
+    uint32_t l, n = mm_lanes();
+    if (mm_view() == MM_VIEW_CHROMATIC)
+        return k < CHART_NKEYS ? (int32_t)((k + 5u) % 12u) : -1;   /* (key 0 is F3: F is 5 above C) */
+    for (l = 0; l < n; l++)
+        if (MM_STRING_KEY[l] == k)
+            return (int32_t)l;
+    return -1;
+}
+static uint32_t mm_key0(void) { return (uint32_t)(53 + 12 * (int32_t)song.octave); }   /* 49 KEYS: panel key 0's note */
+/* STRINGS: each pitch's lane for the song shown, your part and STYLE and AUTO (MM_LANE_NONE: a pitch none of your notes
+ * has). Made in the main loop (mm_lanes_fit: once one of them changes); the audio ISR reads it */
+#define MM_LANE_NONE 0xFFu
+static uint8_t mm_str_lane[128];
+static uint32_t mm_lanes_sig;
+static void mm_lanes_fit(void)
+{
+    const mm_song_t *s = pl_song();
+    uint32_t sig = (uint32_t)(uintptr_t)s * 31u + pl.mode * 7u + mm_range() * 131u + mm_view() * 1031u + mm_lanes() * 8191u +
+                   s->nnote * 17u + 1u;
+    uint32_t i, p, n = 0, r = 0, lanes = mm_lanes(), seen[4] = {0, 0, 0, 0};
+    if (sig == mm_lanes_sig)
+        return;
+    mm_lanes_sig = sig;
+    for (i = 0; i < s->nnote; i++)
+        if (mm_mine(&s->note[i]) && !(s->note[i].flags & CN_DRUM))
+            seen[(s->note[i].pitch >> 5) & 3u] |= 1u << (s->note[i].pitch & 31u);
+    for (p = 0; p < 128u; p++)
+        n += (seen[p >> 5] >> (p & 31u)) & 1u;
+    for (p = 0; p < 128u; p++) {
+        if (!((seen[p >> 5] >> (p & 31u)) & 1u) || !lanes) {
+            mm_str_lane[p] = MM_LANE_NONE;
+            continue;
+        }
+        /* rank r of n onto the lanes: n <= lanes spread from the first to the last (rounded); more, equal shares */
+        mm_str_lane[p] = (uint8_t)(n <= lanes ? (n > 1u ? (2u * r * (lanes - 1u) + (n - 1u)) / (2u * (n - 1u)) : (lanes - 1u) / 2u)
+                                              : r * lanes / n);
+        r++;
+    }
+}
+static uint32_t mm_note_lane(const chart_note_t *c)   /* your note c's lane in a lane view */
+{
+    if (mm_view() == MM_VIEW_CHROMATIC)
+        return c->pitch % 12u;
+    return mm_str_lane[c->pitch & 127u] == MM_LANE_NONE ? 0u : mm_str_lane[c->pitch & 127u];
+}
+/* your note c on the key it sits on now (the judge's): a lane's key (a lane view), its folded note (49 KEYS: 36 .. 84),
+ * its pad (DRUMS), else the chart's own */
+static uint32_t mm_note_key(const chart_note_t *c)
+{
+    if (c->flags & CN_DRUM)
+        return pl_drum_key(c->pitch);
+    if ((c->flags & CN_PART_MASK) == pl.mode) {
+        if (mm_lanes())
+            return mm_lane_key(mm_note_lane(c));
+        if (mm_view() == MM_VIEW_KEYS49)
+            return mm_fold49(c->pitch);
+    }
+    return c->key;
+}
+/* the panel key whose light shows note c (49 KEYS: under the window OCT has put the keys on; none off it: 0xFF) */
+static uint32_t mm_led_key(const chart_note_t *c)
+{
+    uint32_t k = mm_note_key(c);
+    if (!(c->flags & CN_DRUM) && (c->flags & CN_PART_MASK) == pl.mode && mm_view() == MM_VIEW_KEYS49)
+        return k >= mm_key0() && k - mm_key0() < CHART_NKEYS ? k - mm_key0() : 0xFFu;
+    return k;
+}
+/* c the later of two of your notes on one key within MM_LANE_MERGE (one to play, the first) */
+static int mm_lane_dup(const chart_note_t *c)
+{
+    const mm_song_t *s = pl_song();
+    const chart_note_t *b;
+    uint32_t k;
+    if (c < s->note || c >= s->note + s->nnote || (c->flags & CN_DRUM))
+        return 0;
+    k = mm_note_key(c);
+    for (b = c; b-- > s->note && c->time - b->time <= MM_LANE_MERGE;)
+        if (mm_mine(b) && !(b->flags & CN_DRUM) && mm_note_key(b) == k)
+            return 1;
+    return 0;
+}
+static int mm_yours(const chart_note_t *c) { return mm_mine(c) && !mm_lane_dup(c); }   /* yours to play */
+/* a panel key pressed on your part as the key the notes are on (a lane view: its lane's key, any C is C's; 49 KEYS:
+ * its note under OCT); -1: none */
+static int32_t mm_press_key(uint32_t k)
+{
+    int32_t l;
+    if (mm_view() == MM_VIEW_KEYS49 && pl.mode == MM_KEYS) {
+        uint32_t p = mm_key0() + k;
+        return p >= 36u && p <= 84u ? (int32_t)p : -1;
+    }
+    if (!mm_lanes())
+        return (int32_t)k;
+    l = mm_key_lane(k);
+    return l < 0 ? -1 : (int32_t)mm_lane_key((uint32_t)l);
+}
 
 /* ---- the score (PLAY YOU): judge.c over your notes, the ones HOME draws (your part, your RANGE, on a key or a pad).
  * A song started with PLAY YOU is judged (pl_sc.on): a key pressed on your part takes the note it meets
@@ -316,9 +556,9 @@ static uint32_t pl_press_pos(uint32_t t0)
 }
 static int pl_judge_mine(const chart_note_t *c)
 {
-    return mm_mine(c) && ((c->flags & CN_DRUM) || c->key < CHART_NKEYS);
+    return mm_yours(c) && ((c->flags & CN_DRUM) || mm_lanes() || mm_view() == MM_VIEW_KEYS49 || c->key < CHART_NKEYS);
 }
-static uint32_t pl_judge_key(const chart_note_t *c) { return (c->flags & CN_DRUM) ? pl_drum_key(c->pitch) : c->key; }
+static uint32_t pl_judge_key(const chart_note_t *c) { return mm_note_key(c); }
 static int32_t pl_judge_offset(void) { return (int32_t)pl.offset * (int32_t)CHART_FS / 500; }   /* (2 ms a step) */
 static void pl_judge_start(const mm_song_t *s)   /* ISR: song s starts */
 {
@@ -405,20 +645,27 @@ static int32_t player_cal_ms(void)
     return (int32_t)((int64_t)a * 1000 / (int32_t)CHART_FS);
 }
 
-/* ISR (seq.c keyboard_block; MIDI IN, mm_midi_note): key k pressed on part, at TIMER4 tick t0 (0: unknown) */
-static void player_judge_key(uint32_t part, uint32_t k, uint32_t t0)
+/* ISR: the key the notes are on (mm_note_key's) pressed on part, at TIMER4 tick t0 (0: unknown), judged */
+static void player_judge_pk(uint32_t part, uint32_t pk, uint32_t t0)
 {
     int32_t dt = 0;
     uint32_t g;
-    pl_cal_press(t0);
     if (!pl_sc.on || !pl.playing || pl.free || pl.pre || part != pl.mode % NPART)
         return;
-    g = judge_press(&pl_judge, k, pl_press_pos(t0), &dt);
+    g = judge_press(&pl_judge, pk, pl_press_pos(t0), &dt);
     if (g == J_NONE)
         return;                                  /* (no note of yours near: not counted) */
     pl_sc.last = (uint8_t)g;
     pl_sc.dt_ms = (int16_t)((int64_t)dt * 1000 / (int32_t)CHART_FS);
     pl_sc.seq++;
+}
+/* ISR (seq.c keyboard_block; MIDI IN, mm_midi_note): panel key k pressed on part, at TIMER4 tick t0 (0: unknown) */
+static void player_judge_key(uint32_t part, uint32_t k, uint32_t t0)
+{
+    int32_t pk;
+    pl_cal_press(t0);
+    if ((pk = mm_press_key(k)) >= 0)              /* (a lane view: a key with no lane, none) */
+        player_judge_pk(part, (uint32_t)pk, t0);
 }
 /* the result: accuracy, 0..100 % (a PERFECT for every note: 100) */
 static uint32_t pl_judge_accuracy(void)
@@ -455,13 +702,14 @@ static void pl_note(const chart_note_t *c)       /* chart note c starts now */
                 old = k;
         pl_off(old);
     }
-    pl.on[pl.on_n].quiet = (uint8_t)(pl.you && mm_mine(c));   /* YOU: your note, the keys play it */
+    pl.on[pl.on_n].quiet = (uint8_t)(pl.you && mm_yours(c));  /* YOU: your note, the keys play it (a lane view's
+                                                  * merged one: the device's, mm_lane_dup) */
     if (!pl.on[pl.on_n].quiet)
         trk_note_on(&trk[part], c->pitch, c->vel);
     pl.on[pl.on_n].off = c->time + (c->len ? c->len : 1u);
     pl.on[pl.on_n].part = (uint8_t)part;
     pl.on[pl.on_n].pitch = c->pitch;
-    pl.on[pl.on_n].key = (uint8_t)(c->flags & CN_DRUM ? pl_drum_key(c->pitch) : c->key);
+    pl.on[pl.on_n].key = (uint8_t)mm_led_key(c);    /* (your part in a lane view: its lane's key lights) */
     if (part == pl.mode && !mm_in_range(c))
         pl.on[pl.on_n].key = 0xFFu;               /* (your part out of your RANGE: no key lights for it) */
     pl.on_n++;
@@ -584,6 +832,7 @@ static void player_block(uint32_t n)
  * free_track draws them as it does the panel's keys, and lights them on the strip). A note's key: its pitch folded
  * into F3..G5 (as tools/gen_songs.py places a song's); on DRUMS, the pad of its lane */
 static volatile uint32_t mm_midi_keys;           /* bit k: a MIDI note held on key k */
+static volatile uint64_t mm_midi_p49;            /* 49 KEYS: bit p - 36: a MIDI note held on C2 + p (folded) */
 static uint8_t mm_midi_n[CHART_NKEYS];           /* .. how many */
 static uint8_t mm_midi_k[128];                   /* a MIDI note's key + 1 while held (0: not counted) */
 static void mm_midi_note(uint32_t part, uint32_t note, int on)
@@ -593,6 +842,7 @@ static void mm_midi_note(uint32_t part, uint32_t note, int on)
     if (!on) {
         if (!mm_midi_k[note])
             return;
+        mm_midi_p49 &= ~((uint64_t)1 << (mm_fold49(note) - 36u));
         k = mm_midi_k[note] - 1u;
         mm_midi_k[note] = 0;
         if (mm_midi_n[k] && !--mm_midi_n[k])
@@ -614,6 +864,12 @@ static void mm_midi_note(uint32_t part, uint32_t note, int on)
     mm_midi_k[note] = (uint8_t)(k + 1u);
     mm_midi_n[k]++;
     mm_midi_keys |= 1u << k;
+    if (pl.mode == MM_KEYS && mm_view() == MM_VIEW_KEYS49) {   /* 49 KEYS: a MIDI keyboard plays every key, its own */
+        mm_midi_p49 |= (uint64_t)1 << (mm_fold49(note) - 36u);
+        pl_cal_press(0u);
+        player_judge_pk(part, mm_fold49(note), 0u);
+        return;
+    }
     player_judge_key(part, k, 0u);                /* (PLAY YOU: a MIDI keyboard's notes are judged as the keys') */
 }
 
@@ -654,15 +910,17 @@ static int32_t player_key_note(uint32_t part, uint32_t k)
 {
     const mm_song_t *s;
     uint32_t i, pos, best = ~0u;
-    int32_t note = -1;
+    int32_t note = -1, pk;
     if (!pl.playing || pl.free || !pl.you || pl.pre || part != pl.mode)
         return -1;
+    if ((pk = mm_press_key(k)) < 0)
+        return -1;                                /* (a lane view: a key with no lane plays its own note) */
     s = pl_song();
     pos = pl.pos;
     for (i = player_find(s, pos, PL_KEY_WIN); i < s->nnote && s->note[i].time <= pos + PL_KEY_WIN; i++) {
         const chart_note_t *c = &s->note[i];
-        uint32_t key = (c->flags & CN_DRUM) ? pl_drum_key(c->pitch) : c->key, d;
-        if (key != k || !mm_mine(c))
+        uint32_t d;
+        if (mm_note_key(c) != (uint32_t)pk || !mm_yours(c))
             continue;
         d = c->time > pos ? c->time - pos : pos - c->time;
         if (d < best) {

@@ -27,7 +27,7 @@ async function device(saved) {
   const ex = instance.exports, mem = ex.memory;
   ex._initialize();
   ex.fh_nor_erase();
-  if (saved) restoreSectors(new Uint8Array(mem.buffer, ex.fh_nor(), ex.fh_nor_size()), saved);
+  if (saved) restoreSectors(new Uint8Array(mem.buffer, ex.fh_nor(), ex.fh_nor_size()), saved, ex.fh_song_base());
   ex.fh_boot();
   const d = { ex, mem, peak: 0, sig: 0, rec: false, frames: 0, kept: [] };
   d.render = (ms) => {
@@ -86,6 +86,20 @@ a.render(300);
 a.ex.fh_midi(0x80, 64, 0);
 a.render(300);
 check(`a MIDI note in (USB-MIDI's queue) sounds (peak ${a.peak.toFixed(3)})`, a.peak > 0.01);
+{ // Studio's preview (mm_host.c fh_preview_note): a note on a part sounds on its own sound, whatever MIDI's routing;
+  // fh_preview_stop lets every part's notes go: silence once their release is over
+  a.render(1500);
+  a.peak = 0;
+  a.ex.fh_preview_note(3, 40, 100);                            // BASS, E2 (part 4: not where MIDI goes)
+  a.render(300);
+  const on = a.peak;
+  a.ex.fh_preview_stop();
+  a.render(2500);
+  a.peak = 0;
+  a.render(300);
+  check(`Studio's preview: a note on a part sounds (peak ${on.toFixed(3)}); stopped, silent (peak ${a.peak.toFixed(4)})`,
+        on > 0.01 && a.peak < 0.002);
+}
 const draws = a.ex.fh_screen_draws();
 a.turn(EN.ALGO, 1);                                            // (SONGS at power-on: ALGORITHM, your part)
 check("ALGORITHM redraws the screen (SONGS: your part)", a.ex.fh_screen_draws() > draws);
@@ -170,6 +184,25 @@ check("a fresh instance with the kept sectors has it; one without does not",
   const dChart = chartBytes(convertMidi(testMidi(), "D.mid")), got = songsChart(e.ex, mid);
   check("Your songs: songsChart gives back the stored chart byte for byte (sent on to an FM-1); none at a free place",
         got && got.length === dChart.length && got.every((b, i) => b === dChart[i]) && songsChart(e.ex, 999) === null);
+  // Studio's song memory is its own and bigger than an FM-1's (240 KB, 16 songs: platforms/web/build.sh), so a song
+  // too big for an FM-1 still loads here (the page says so; Send refuses it)
+  const many = [];                                                // (the song's notes again and again: a real chart)
+  for (let r = 0; many.length * 12 < 300 * 1024; r++) for (const n of song.notes) many.push([n[0] + r * song.length, ...n.slice(1)]);
+  const over = chartBytes({ ...song, notes: many, length: song.length * Math.ceil(many.length / song.notes.length), beats: song.beats });
+  const f = await device(null), fits = songsAdd(f.ex, over);
+  check(`Your songs: Studio's own memory (${f.ex.fh_song_size() / 1024} KB, ${f.ex.fh_song_max()} songs): a ${Math.round(over.length / 1024)} KB song loads`,
+        over.length > 300 * 1024 && f.ex.fh_song_size() > 240 * 1024 && f.ex.fh_song_max() > 16 && fits.ok && songsList(f.ex).length === 1);
+  // songs an earlier Studio kept where the FM-1 keeps them (0xA0000): moved into this one's memory at load, in place
+  const one = chartBytes(song), old = {};
+  for (let k = 0; k < one.length; k += 4096) {
+    const sec = new Uint8Array(4096).fill(0xFF);
+    sec.set(one.subarray(k, k + 4096));
+    old[0xA0000 + k] = sec;
+  }
+  const g = await device(old);
+  g.render(300);
+  check("Your songs: one saved by an earlier Studio at the FM-1's place: moved into Studio's memory, listed at boot",
+        f.ex.fh_song_base() !== 0xA0000 && songsList(g.ex).length === 1 && songsList(g.ex)[0].title === "Test Song");
 }
 
 // ---- the panel's knobs from a MIDI controller: the page turns them by midiKnob (worklet.js), as a drag does

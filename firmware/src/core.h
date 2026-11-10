@@ -104,6 +104,10 @@ static void params_by_count(int16_t *out, const int16_t *in, uint32_t np, const 
 
 /* engine indices the stores name (engines.c ENGINES[]: append-only) */
 #define ENGI_ANALOG 0u
+#define ENGI_LOFI 3u
+#define ENGI_FORMANT 5u            /* VOICE */
+#define ENGI_TRIO 6u
+#define ENGI_WHEEL 7u
 #define ENGI_PHYS 9u
 #define ENGI_DRUM 10u
 /* PHYS MODEL DRUM (MODEL 4, before 1.0) -> the DRUM engine, its E values in place: {MODEL, TUNE, TONE, DECY,

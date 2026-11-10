@@ -2088,8 +2088,11 @@ static void graph_song(void)
 /* Midi-Mania: HOME's panel while a song plays (player.c): the notes of your part (SONGS, pl.mode) fall towards the
  * hit line and reach it as they sound; the strip under it lights the keys sounding (as their LEDs: ui_input.c
  * key_leds).
- *   KEYS BASS GUITAR: lanes laid out as the FM-1's keys F3..G5 (16 white keys across, the black ones narrower
- *     between them); a note's lane is its chart key (the note folded into the keys' range), its height its length.
+ *   KEYS: lanes laid out as the FM-1's keys F3..G5 (16 white keys across, the
+ *     black ones narrower between them); a note's lane is its chart key (the note folded into the keys' range), its
+ *     height its length.
+ *   GUITAR, BASS on LANES STRINGS or CHROMATIC: 6 (BASS 4) or 12 equal lanes, the pads under them on their keys
+ *     (graph_lanes; player.c mm_view).
  *   DRUMS: eight wide lanes, BELL OH CH SNR RIM KICK CLAP TOM left to right, each in its colour (their keys: the
  *     black keys F#3 .. A#4 in that order, player.c MM_DRUM_ORDER / pl_drum_key); a hit is a short block.
  * NT_AHEAD: the song time from the top of the panel to the line, GAME's NOTE SPEED (player.c pl_ahead; a slower
@@ -2126,6 +2129,22 @@ static void nt_text(int32_t x, int32_t y, const char *s, uint16_t c)   /* (AF_S)
 static const uint16_t DRUM_LANE_COLOUR[NLANE] = {DR_PURPLE, DR_YELLOW, DR_RED, DR_BLUE, DR_BLUE, DR_GREEN, DR_YELLOW,
                                                  DR_RED};
 static const char *const DRUM_LANE_SHORT[NLANE] = {"KICK", "SNR", "CLAP", "CH", "OH", "TOM", "RIM", "BELL"};
+/* GUITAR, BASS in a lane view (GAME's LANES, player.c mm_lanes): STRINGS' lanes low to high, cool to warm (BASS the
+ * first four); CHROMATIC's C .. B, sharps red, naturals blue (as the keyboard's) */
+#define DR_ORANGE 0xFC00u                             /* #F88000 */
+static const uint16_t STR_LANE_COLOUR[6] = {DR_PURPLE, DR_BLUE, DR_GREEN, DR_YELLOW, DR_ORANGE, DR_RED};
+static const char *const OCT_NAME[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+static int oct_sharp(uint32_t l) { return (0x54Au >> (l % 12u)) & 1u; }
+static uint16_t nt_lane_colour(uint32_t l)
+{
+    return mm_view() == MM_VIEW_CHROMATIC ? (oct_sharp(l) ? DR_RED : DR_BLUE) : STR_LANE_COLOUR[l % 6u];
+}
+static void nt_lane_x(uint32_t l, int32_t *x, int32_t *w)   /* lane l of mm_lanes(): equal widths over the 224 px */
+{
+    int32_t n = (int32_t)mm_lanes(), lw = 224 / (n ? n : 1);
+    *x = 8 + (224 - lw * n) / 2 + (int32_t)l * lw;
+    *w = lw;
+}
 /* the columns your notes come down (your part, your RANGE: player.c mm_mine) in the song playing: a bit a key (KEYS ..)
  * or a lane's place (DRUMS, mm_drum_pos). The rest are greyed out. Found once for each song, part and RANGE */
 static uint32_t nt_used(void)
@@ -2133,7 +2152,10 @@ static uint32_t nt_used(void)
     static const mm_song_t *ks;
     static uint32_t key = ~0u, used;
     const mm_song_t *s = pl_song();
-    uint32_t k = pl.mode * 16u + pl.range, i;
+    uint32_t k = pl.mode * 16u + mm_range() + mm_view() * 256u + mm_lanes() * 4096u + pl.style[MM_DRUMS] * 65536u +
+                 (s->nnote * 2654435761u ^ (s->nnote ? s->note[0].time + s->note[s->nnote - 1u].time * 31u : 0u)), i;
+    mm_lanes_fit();                                   /* (STRINGS: the lanes for this song, part and RANGE; the song by
+                                                       * its notes too: a stored song's slot may hold another one now) */
     if (s == ks && k == key)
         return used;
     ks = s;
@@ -2143,7 +2165,9 @@ static uint32_t nt_used(void)
         const chart_note_t *c = &s->note[i];
         if (!mm_mine(c))
             continue;
-        if (pl.mode % MM_NMODES == MM_DRUMS)
+        if (mm_lanes())                               /* (a lane view: a bit a lane) */
+            used |= (c->flags & CN_DRUM) ? 0u : 1u << mm_note_lane(c);
+        else if (pl.mode % MM_NMODES == MM_DRUMS)
             used |= (c->flags & CN_DRUM) ? 1u << mm_drum_pos(drum_lane(c->pitch) % NLANE) : 0u;
         else if (!(c->flags & CN_DRUM) && c->key < CHART_NKEYS)
             used |= 1u << c->key;
@@ -2311,6 +2335,25 @@ static void nt_lane(uint32_t k, int32_t *x, int32_t *w)   /* key k's lane on the
 }
 /* FREE PLAY's presses (free_track): a key's from the line (held: touching it) up to where its press began; a drum
  * pad's a hit (5 rows) at where it was struck, in its lane's colour; keys off the pads: none */
+/* 49 KEYS (SONGS' STYLE, player.c MM_VIEW_KEYS49): C2 .. C6 as a keyboard, 29 white keys of K49_WW px across (the
+ * black ones narrower between them); note p's lane is its key */
+#define K49_WW 7
+#define K49_BW 5
+#define K49_X0 (8 + (224 - 29 * K49_WW) / 2)
+static int k49_black(uint32_t p) { return (0x54Au >> (p % 12u)) & 1u; }
+static void k49_lane(uint32_t p, int32_t *x, int32_t *w)
+{
+    uint32_t i, white = 0;
+    for (i = 36u; i < p; i++)
+        white += !k49_black(i);
+    if (k49_black(p)) {
+        *x = K49_X0 + (int32_t)white * K49_WW - K49_BW / 2;
+        *w = K49_BW;
+    } else {
+        *x = K49_X0 + (int32_t)white * K49_WW + 1;
+        *w = K49_WW - 1;
+    }
+}
 static void free_draw(int32_t hit, int32_t top, int drums)
 {
     uint32_t now = nt_now, i, p;
@@ -2320,6 +2363,30 @@ static void free_draw(int32_t hit, int32_t top, int drums)
             continue;
         y1 = fp[i].held ? hit : fp_y(hit, fp[i].t1, now);   /* its end (the nearer the line) */
         y0 = fp_y(hit, fp[i].t0, now);                      /* its start */
+        if (drums == 3) {                                   /* 49 KEYS: the panel key's note under OCT, its key */
+            int32_t pk = mm_press_key(fp[i].key);
+            if (pk < 0 || y1 <= top)
+                continue;
+            if (y0 < top)
+                y0 = top;
+            if (y1 - y0 < 2)
+                y0 = y1 - 2;
+            k49_lane((uint32_t)pk, &x, &w);
+            nt_rect(x, y0, w, y1 - y0, k49_black((uint32_t)pk) ? DR_RED : DR_BLUE);
+            continue;
+        }
+        if (drums == 2) {                                   /* a lane view: in the key's lane (none: not drawn) */
+            int32_t l = mm_key_lane(fp[i].key);
+            if (l < 0 || y1 <= top)
+                continue;
+            if (y0 < top)
+                y0 = top;
+            if (y1 - y0 < 2)
+                y0 = y1 - 2;
+            nt_lane_x((uint32_t)l, &x, &w);
+            nt_rect(x + 2, y0, w - 3, y1 - y0, nt_lane_colour((uint32_t)l));
+            continue;
+        }
         if (drums) {
             for (p = 0; p < NLANE && MM_DRUM_KEY[p] != fp[i].key; p++)
                 ;
@@ -2338,6 +2405,158 @@ static void free_draw(int32_t hit, int32_t top, int drums)
         nt_rect(x, y0, w, y1 - y0, key_is_black(fp[i].key) ? DR_RED : DR_BLUE);
     }
 }
+/* GUITAR, BASS in a lane view (GAME's LANES: STRINGS, CHROMATIC; player.c mm_view): mm_lanes() equal lanes, your notes
+ * in them (player.c mm_note_lane) as rectangles their length, in their lane's colour; CHROMATIC names its lanes at the
+ * top. The pads under the line: the lanes' keys, lit when a key of the lane is down or its note sounds */
+static void graph_lanes(void)
+{
+    const mm_song_t *s = pl_song();
+    uint32_t now = nt_now, n = mm_lanes(), keys = fm1_in.notes | mm_midi_keys | (nt_free() ? 0u : player_keys(pl.mode)),
+             i, l, used = nt_free() ? (1u << n) - 1u : nt_used(), down = 0;
+    int32_t h = nt_h, kb = h >= 80 ? 12 : 6, hit = h - kb - 3, top = h >= 80 && mm_view() == MM_VIEW_CHROMATIC ? 18 : 4,
+            x, w, x0, w0;
+    for (i = 0; i < CHART_NKEYS; i++)                 /* the lanes a key down plays (CHROMATIC: any octave of it) */
+        if ((keys >> i) & 1u) {
+            int32_t kl = mm_key_lane(i);
+            if (kl >= 0)
+                down |= 1u << kl;
+        }
+    for (l = 0; l < n; l++) {                         /* the lanes none of your notes come down: greyed out */
+        nt_lane_x(l, &x, &w);
+        if (!((used >> l) & 1u))
+            nt_rect(x + 1, top, w - 1, hit - top, NT_UNUSED);
+        if (l)
+            nt_rect(x, top, 1, hit - top, T_LINE);    /* the lanes' rules */
+    }
+    if (top > 4)
+        for (l = 0; l < n; l++) {                     /* CHROMATIC: the names, in their colours (none of yours: dim) */
+            int in = (used >> l) & 1u;
+            nt_lane_x(l, &x, &w);
+            cv_rgb = (uint8_t)in;                     /* (their colours on GREY too, as the drums': gfx.c ramp) */
+            nt_text(x + (w - (int32_t)ink_w(&AF_S, OCT_NAME[l])) / 2, 2, OCT_NAME[l], in ? nt_lane_colour(l) : T_DIM);
+            cv_rgb = 0;
+        }
+    if (nt_free())
+        free_draw(hit, top, 2);
+    for (i = player_find(s, now, CHART_FS * 8u); !nt_free() && i < s->nnote && s->note[i].time < now + NT_AHEAD; i++) {
+        const chart_note_t *c = &s->note[i];
+        int32_t y1, y0;                               /* its bottom (the start) and top (the end) */
+        if (!mm_mine(c) || (c->flags & CN_DRUM) || c->time + c->len <= now || mm_lane_dup(c))
+            continue;                                 /* (yours only; one of two merged in a lane: the first) */
+        y1 = nt_y(hit, c->time, now);
+        y0 = nt_y(hit, c->time + c->len, now);
+        if (y1 - y0 > 5)
+            y0 += 2;                                  /* a gap at its end: the same lane again reads as two */
+        if (y1 > hit)
+            y1 = hit;                                 /* sounding: cut at the line */
+        if (y1 < top + 2)
+            continue;
+        if (y0 < top)
+            y0 = top;
+        if (y1 - y0 < 2)
+            y0 = y1 - 2;
+        l = mm_note_lane(c);
+        nt_lane_x(l, &x0, &w0);
+        nt_rect(x0 + 2, y0, w0 - 3, y1 - y0, nt_lane_colour(l));
+        if (c->time >= now && y1 - y0 >= 4)
+            nt_rect(x0 + 2, y1 - 2, w0 - 3, 2, T_TEXT);   /* its start: a bright edge (still to come) */
+    }
+    nt_score(hit, top);                              /* PLAY YOU: the grade, the combo, the score */
+    nt_rect(8, hit, 224, 1, T_TEXT);                 /* the hit line */
+    for (l = 0; l < n; l++) {                        /* the pads: lit in their lane's colour (unused: dark) */
+        nt_lane_x(l, &x, &w);
+        nt_rect(x + 2, hit + 2, w - 3, kb, (down >> l) & 1u ? nt_lane_colour(l) : (used >> l) & 1u ? T_RAISE : NT_UNUSED);
+    }
+}
+/* KEYS on 49 KEYS: the 49 lanes, your notes in them (sharps red, naturals blue, as the 27 keys'), the strip a keyboard
+ * of 49: lit where a panel key (under OCT), a MIDI key or one of the song's notes of your part sounds; under it, the
+ * panel's 27 keys' window in the theme's colour (OCT- and OCT+ move it) */
+static void graph_keys49(void)
+{
+    const mm_song_t *s = pl_song();
+    uint32_t now = nt_now, i, p, lo, hi;
+    static const mm_song_t *us;                         /* (the keys your notes come down: found once a song, AUTO) */
+    static uint32_t uk = ~0u;
+    static uint64_t uused;
+    uint64_t used, lit = mm_midi_p49;
+    int32_t h = nt_h, kb = h >= 80 ? 12 : 6, hit = h - kb - 5, x, w, x1, w1;
+    uint32_t k0 = mm_range() + (s->nnote * 2654435761u ^ (s->nnote ? s->note[0].time + s->note[s->nnote - 1u].time * 31u : 0u));
+    if (us != s || uk != k0) {
+        us = s;
+        uk = k0;
+        uused = 0;
+        for (i = 0; i < s->nnote; i++)
+            if (mm_mine(&s->note[i]) && !(s->note[i].flags & CN_DRUM))
+                uused |= (uint64_t)1 << (mm_fold49(s->note[i].pitch) - 36u);
+    }
+    used = nt_free() ? ~(uint64_t)0 : uused;
+    for (p = 36u; p <= 84u; p++) {
+        if (k49_black(p) || ((used >> (p - 36u)) & 1u))
+            continue;
+        k49_lane(p, &x, &w);
+        nt_rect(x - 1, 4, w + 1, hit - 4, NT_UNUSED);
+    }
+    for (p = 36u; p <= 84u; p++)                        /* a sharp your notes use: its strip clear again (between */
+        if (k49_black(p) && ((used >> (p - 36u)) & 1u)) {   /* two greyed white lanes its notes would fall on grey) */
+            k49_lane(p, &x, &w);
+            nt_rect(x, 4, w, hit - 4, cv_bg);
+        }
+    for (p = 36u; p <= 84u; p += 12u) {                 /* a faint rule left of every C */
+        k49_lane(p, &x, &w);
+        if (p > 36u)
+            nt_rect(x - 1, 4, 1, hit - 4, T_LINE);
+    }
+    if (nt_free())
+        free_draw(hit, 4, 3);
+    for (i = player_find(s, now, CHART_FS * 8u); !nt_free() && i < s->nnote && s->note[i].time < now + NT_AHEAD; i++) {
+        const chart_note_t *c = &s->note[i];
+        int32_t y1, y0;
+        if (!mm_mine(c) || (c->flags & CN_DRUM) || c->time + c->len <= now || mm_lane_dup(c))
+            continue;
+        y1 = nt_y(hit, c->time, now);
+        y0 = nt_y(hit, c->time + c->len, now);
+        if (y1 - y0 > 5)
+            y0 += 2;
+        if (y1 > hit)
+            y1 = hit;
+        if (y1 < 6)
+            continue;
+        if (y0 < 4)
+            y0 = 4;
+        if (y1 - y0 < 2)
+            y0 = y1 - 2;
+        p = mm_fold49(c->pitch);
+        k49_lane(p, &x, &w);
+        nt_rect(x, y0, w, y1 - y0, k49_black(p) ? DR_RED : DR_BLUE);
+        if (c->time >= now && y1 - y0 >= 4)
+            nt_rect(x, y1 - 2, w, 2, T_TEXT);
+    }
+    nt_score(hit, 4);
+    nt_rect(K49_X0, hit, 29 * K49_WW, 1, T_TEXT);       /* the hit line */
+    for (i = 0; i < CHART_NKEYS; i++)                   /* the panel's keys down, on the notes OCT puts them on */
+        if (((fm1_in.notes >> i) & 1u) && mm_key0() + i >= 36u && mm_key0() + i <= 84u)
+            lit |= (uint64_t)1 << (mm_key0() + i - 36u);
+    for (i = 0; i < pl.on_n && !nt_free(); i++)          /* (the song's notes of your part sounding: their keys) */
+        if (pl.on[i].part == pl.mode)
+            lit |= (uint64_t)1 << (mm_fold49(pl.on[i].pitch) - 36u);
+    for (p = 36u; p <= 84u; p++)                        /* the keyboard: white keys, then the black over them */
+        if (!k49_black(p)) {
+            k49_lane(p, &x, &w);
+            nt_rect(x, hit + 2, w, kb, (lit >> (p - 36u)) & 1u ? DR_BLUE : (used >> (p - 36u)) & 1u ? KB_WHITE : KB_WHITE_OFF);
+        }
+    for (p = 36u; p <= 84u; p++)
+        if (k49_black(p)) {
+            k49_lane(p, &x, &w);
+            nt_rect(x, hit + 2, w, kb * 3 / 5, (lit >> (p - 36u)) & 1u ? DR_RED : KB_BLACK);
+        }
+    lo = mm_key0() < 36u ? 36u : mm_key0();             /* the panel's window: its 27 keys on the 49 */
+    hi = mm_key0() + CHART_NKEYS - 1u > 84u ? 84u : mm_key0() + CHART_NKEYS - 1u;
+    if (lo <= hi) {
+        k49_lane(lo, &x, &w);
+        k49_lane(hi, &x1, &w1);
+        nt_rect(x - 1, hit + 3 + kb, x1 + w1 - x + 2, 2, T_THEME);
+    }
+}
 static void graph_notes(void)
 {
     const mm_song_t *s = pl_song();
@@ -2349,11 +2568,24 @@ static void graph_notes(void)
         graph_drums();
         return;
     }
+    if (mm_lanes()) {
+        graph_lanes();
+        return;
+    }
+    if (mode == MM_KEYS && mm_view() == MM_VIEW_KEYS49) {
+        graph_keys49();
+        return;
+    }
     used = nt_free() ? (1u << CHART_NKEYS) - 1u : nt_used();
     for (k = 0; k < CHART_NKEYS; k++)                 /* the keys none of your notes come down: greyed out (a white */
-        if (!key_is_black(k) && !((used >> k) & 1u)) {   /* key's lane; a black key's notes still land over it) */
+        if (!key_is_black(k) && !((used >> k) & 1u)) {   /* key's lane) */
             nt_lane(k, &x, &w);
             nt_rect(x - 1, 4, w + 2, hit - 4, NT_UNUSED);
+        }
+    for (k = 0; k < CHART_NKEYS; k++)                 /* a black key your notes use: its strip clear again (between two */
+        if (key_is_black(k) && ((used >> k) & 1u)) {  /* greyed white lanes its notes would fall on grey) */
+            nt_lane(k, &x, &w);
+            nt_rect(x, 4, w, hit - 4, cv_bg);
         }
     for (k = 0; k < CHART_NKEYS; k++)                 /* the lanes: a faint rule left of every C and F */
         if (!key_is_black(k)) {

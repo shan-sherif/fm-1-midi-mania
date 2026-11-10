@@ -18,3 +18,15 @@ midi-mania_plugins.txt
 
 # my own task list (TODO.md: not in the repository)
 /TODO.md
+
+# my local build-and-serve helper (the installer and Studio on localhost)
+/local_site.sh
+
+# release notes, one a version, for the GitHub release description
+/RELEASE-v*.md
+
+# crash dumps (the toolchain under emulation)
+core
+
+# my own reference: what was renamed from Felucca (moved out of README.md)
+RENAMED-FROM-FELUCCA.md

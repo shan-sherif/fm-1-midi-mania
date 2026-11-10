@@ -80,12 +80,25 @@ console.log(bad ? `songs.js: ${bad} FAILED` : "songs.js: all ok");
   check("your choice the same as the converter's: the same chart, byte for byte",
         a.length === b.length && a.every((v, i) => v === b[i]));
   const g = convertMidi(u8, "Test Song.mid", { roles: { [bass.key]: GUITAR } });
-  check("the bass put on GUITAR: its 8 notes on part 3, none on BASS", g.per[GUITAR] === 8 && g.per[BASS] === 0);
+  check("the bass (C2) put on GUITAR: below its range (E2..E6), its 8 notes dropped, none on BASS",
+        g.per[GUITAR] === 0 && g.oor_by[GUITAR] === 8 && g.oor === 8 && g.per[BASS] === 0);
+  const gp = convertMidi(u8, "Test Song.mid", { roles: { [piano.key]: GUITAR } });
+  check("the piano (C3..C6) put on GUITAR: its 13 notes on part 3, none on KEYS, none out of range",
+        gp.per[GUITAR] === 13 && gp.per[KEYS] === 0 && gp.oor === 0);
   const o = convertMidi(u8, "Test Song.mid", { roles: { [piano.key]: null } });
   check("the piano left out: no KEYS, the drums and bass kept", o.per[KEYS] === 0 && o.per[DRUMS] > 0 && o.per[BASS] === 8);
   const x = convertMidi(u8, "Test Song.mid", { roles: { [drums.key]: KEYS, [piano.key]: DRUMS } });
   check("a part an instrument cannot take (the drum kit on KEYS, the piano on DRUMS): ignored",
         x.per[DRUMS] === convertMidi(u8, "Test Song.mid").per[DRUMS] && x.per[KEYS] === convertMidi(u8, "Test Song.mid").per[KEYS]);
+  // Studio's Start and End: only the notes starting between them, none held past End; Start 0 and no End: the song
+  const full = convertMidi(u8, "Test Song.mid"), fileEnd = (full.length + full.lead) / 44100;
+  const half = fileEnd / 2, t = convertMidi(u8, "Test Song.mid", { from: half, to: fileEnd });
+  const inFile = (n) => n[0] + t.lead;                           // (a note's start in the file's own time)
+  check(`Start and End: the second half (from ${half.toFixed(1)} s) keeps ${t.notes.length} of ${full.notes.length} notes, each starting in it, none held past End`,
+        t.notes.length > 0 && t.notes.length < full.notes.length &&
+        t.notes.every((n) => inFile(n) >= Math.round(half * 44100) && inFile(n) + n[1] <= Math.round(fileEnd * 44100) + 882));
+  const z = chartBytes(convertMidi(u8, "Test Song.mid", { roles: same, from: 0 }));
+  check("Start 0 and no End: the same chart as the whole song, byte for byte", z.length === a.length && z.every((v, i) => v === a[i]));
 }
 
 process.exit(bad ? 1 : 0);

@@ -39,14 +39,25 @@ On Windows, read [docs/BUILDING_WINDOWS.md](docs/BUILDING_WINDOWS.md) first.
 
 For every build:
 
-- Python 3 with Pillow and fontTools: `pip3 install Pillow fonttools` (the UI font and icons are
-  rasterised at build time)
+- Python 3.10 or later with Pillow and fontTools (the UI font and icons are rasterised at build time), in a
+  virtual environment: Homebrew's Python, like Debian's and Ubuntu's, refuses a system-wide `pip install`, and
+  Apple's `/usr/bin/python3` (3.9) is too old for Emscripten. FriBiDi: Pillow loads it at run time for the UI font's
+  OpenType features (without it `gen_aa_font.py` fails: "not supported without libraqm").
+
+  ```
+  brew install python@3.12 fribidi
+  python3.12 -m venv ~/.venvs/midi-mania
+  ~/.venvs/midi-mania/bin/pip install Pillow fonttools
+  export PATH="$HOME/.venvs/midi-mania/bin:$PATH"   # in each terminal that builds (or in ~/.zprofile)
+  ```
 
 For the FM-1:
 
-- Docker Desktop. The JieLi toolchain is Linux x86-64 only; the build runs each tool in a
-  `linux/amd64` `debian:bookworm-slim` container (Rosetta on Apple silicon). Keep the source
-  tree in a folder Docker can share, e.g. under `/Users`.
+- Docker: Docker Desktop, or [Colima](https://github.com/abiosoft/colima) from the terminal
+  (`brew install colima docker`, then `colima start --vm-type vz --vz-rosetta`, again after a restart). The JieLi
+  toolchain is Linux x86-64 only; the build runs each tool with `docker run` in a `linux/amd64`
+  `debian:bookworm-slim` container (Rosetta on Apple silicon). Keep the source tree in a folder Docker can share,
+  e.g. under `/Users` (Colima shares your home folder).
 - The JieLi Linux toolchain (clang 4.0.1 for pi32v2, from JieLi's package server):
 
   ```
@@ -67,7 +78,9 @@ For the host platforms and the tests (each optional):
 
 - a C compiler (clang or gcc);
 - SDL2 for the desktop build (`brew install sdl2`; Debian / Ubuntu: `libsdl2-dev`, and `libasound2-dev` for MIDI);
-- Emscripten (`emcc`) for the browser build;
+- Emscripten (`emcc`) for the browser build: [emsdk](https://emscripten.org/docs/getting_started/downloads.html)
+  in `~/emsdk` (`./emsdk install latest && ./emsdk activate latest`, with the virtual environment on `PATH`), then
+  `. ~/emsdk/emsdk_env.sh` in each terminal that builds;
 - Node.js for the web tests.
 
 ## Build the FM-1 firmware
@@ -138,6 +151,10 @@ python3 -m http.server -d build/web 8790        # http://localhost:8790/
 
 [platforms/README.md](platforms/README.md) lists the platforms, and [docs/PORTING.md](docs/PORTING.md) explains how to add one.
 
+The game's pictures in the README and on the site (`web/site_media/`: a screenshot of each view and
+`gameplay-keys.gif`) come from the host build: `tools/make_screens.sh` plays the built-in songs with every note hit on
+time and writes them again (Pillow needed). Run it after changing how a screen looks.
+
 ## Tests
 
 ```
@@ -161,7 +178,7 @@ renders the same samples as the native build) and the desktop build (headless: i
 Use the web installer in Chrome or Edge:
 <https://hugelton.github.io/Felucca/webapp/installer/>. It installs the released package.
 
-From the command line (needs `pip3 install mido python-rtmidi`):
+From the command line (needs `pip install mido python-rtmidi` in the virtual environment above):
 
 ```
 python3 tools/fm1_install.py build/midi-mania.fwsc

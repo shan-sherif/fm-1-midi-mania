@@ -16,6 +16,8 @@ static int game_on(void);
 static void game_draw(void);
 static int metro_on(void);
 static void metro_draw(void);
+static int snd_on(void);
+static void snd_draw(void);
 static int game_cards(void);                           /* .. HOME's cards while a song plays */
 static int game_cards_shown(void);                     /* .. (hidden until a knob turns: the notes' panel there) */
 static uint32_t gc_bpm(void);                          /* .. the song's tempo now, BPM x 10 */
@@ -1369,61 +1371,39 @@ static void draw_columns(void)
 }
 
 
-/* The power-on splash (main.c fm1_main, platforms/host/mm_host.c; 1.1.5): a RAISE square centred on the screen, square
- * corners (in every style; LINE too: RAISE from the palette's SURF), in it in AF_M, the ink SPL_PAD in from the left:
- * at the top the name and the version, the first line's capitals' top SPL_PAD down; at the bottom the maker and
- * "with community", the last line's capitals' bottom (its baseline) SPL_PAD up from the square's bottom. Both
- * margins are measured to the capitals (the descender of "community" hangs into the bottom one, as off a baseline).
- * The square (176 x 176) is more than the canvas (CV_MAX, 240 x 124): it is filled straight on the screen and its
- * two text bands drawn on it as canvases, the top one from the square's top edge, the bottom one to its bottom edge.
- * In the saved palette (settings_init before it) */
-#define SPL_SQ 176                                  /* the square (even: centred exactly) */
-#define SPL_X0 ((240u - SPL_SQ) / 2u)               /* its top-left on the screen (x and y) */
-#define SPL_PAD 16                                  /* the text's inset: left (its ink), top and bottom (the capitals) */
-#define SPL_PITCH 20                                /* line to line */
-static const char *const SPLASH_LINES[] = {"FM-1 Midi-Mania", MM_VERSION, "Based on Felucca", "H\xFCgelton Instruments"};
-/* a band of two lines, h tall, at y on the screen: the first line's top at ly; the two lines' capitals declared
- * against al0..al1 (mode: AL_V the band centred there, AL_B the last baseline on al1) */
-static void splash_band(uint32_t y, uint32_t h, int32_t ly, const char *const *l, uint32_t mode, int32_t al0,
-                        int32_t al1, const char *tag)
-{
-    cv_begin(SPL_SQ, h, T_RAISE);
-    GFX_HOOK_ALIGN(0, al0, 0, al1, mode | AL_N(2), tag);
-    cv_text_on(SPL_PAD, ly, &AF_M, l[0], T_TEXT, T_RAISE);
-    cv_text_on(SPL_PAD, ly + SPL_PITCH, &AF_M, l[1], T_TEXT, T_RAISE);
-    cv_blit(SPL_X0, y);
-}
 /* FM-1 Midi-Mania's logo: four keys, the one in the middle pink and pressed down, on its cream tile; the artwork's
- * 1024 px square (assets/logo.png) scaled to LOGO_SZ (a 16th). Its own colours on every palette. Drawn from these boxes, not stored as
- * a picture (a few hundred bytes of code; a 64 x 64 picture would be 8 KB) */
-#define LOGO_SZ 64
+ * 1024 px square (assets/logo.png) at sz px (its boxes from the 64 px drawing, scaled). Its own colours on every
+ * palette. Drawn from these boxes, not stored as a picture (a few hundred bytes of code; an 88 x 88 picture would be
+ * 15 KB) */
 #define LOGO_CREAM 0xF79Du                          /* #F4F1E8 */
 #define LOGO_INK 0x10A3u                            /* #17151F */
 #define LOGO_PINK 0xFA71u                           /* #FF4F8B */
-static void draw_logo(int32_t x, int32_t y, uint16_t under)   /* on the canvas: the tile's top-left at x, y */
+static void draw_logo(int32_t x, int32_t y, int32_t sz, uint16_t under)   /* on the canvas: the tile's top-left at x, y */
 {
     static const uint8_t KEY[4][4] = {{10, 11, 8, 42}, {21, 19, 8, 20}, {35, 19, 8, 20}, {46, 11, 8, 42}};   /* x y w h */
     uint32_t i;
-    cv_rrect(x, y, LOGO_SZ, LOGO_SZ, -8, LOGO_CREAM, under);
+#define LS(v) (((int32_t)(v) * sz + 32) / 64)       /* (64 px drawing -> sz, rounded) */
+    cv_rrect(x, y, sz, sz, -LS(8), LOGO_CREAM, under);
     for (i = 0; i < 4u; i++)
-        cv_rrect(x + KEY[i][0], y + KEY[i][1], KEY[i][2], KEY[i][3], -2, LOGO_INK, LOGO_CREAM);
-    cv_rrect(x + 28, y + 34, 8, 19, -2, LOGO_PINK, LOGO_CREAM);   /* the pink key, over the two short ones' edges: */
-    cv_rect(x + 28, y + 34, 8, 2, LOGO_PINK);                     /* its top corners square (they lie on the ink) */
+        cv_rrect(x + LS(KEY[i][0]), y + LS(KEY[i][1]), LS(KEY[i][2]), LS(KEY[i][3]), -LS(2), LOGO_INK, LOGO_CREAM);
+    cv_rrect(x + LS(28), y + LS(34), LS(8), LS(19), -LS(2), LOGO_PINK, LOGO_CREAM);   /* the pink key, over the two */
+    cv_rect(x + LS(28), y + LS(34), LS(8), LS(2), LOGO_PINK);  /* short ones' edges: its top corners square (on the ink) */
+#undef LS
 }
+/* The power-on splash (main.c fm1_main, platforms/host/mm_host.c), one centred column on the screen's background:
+ * the logo (SPL_LOGO px), the name in AF_L in the theme's colour, what it is, the version, and the credit, dim, at
+ * the bottom. In the saved palette (settings_init before it) */
+#define SPL_LOGO 88
 static void draw_splash(void)
 {
-    int32_t h = SPL_PAD - AF_M_CAP_Y + SPL_PITCH + AF_M.h;     /* a band: its two lines, the descenders in */
-    int32_t lb = h - SPL_PAD - AF_M_CAP_H - AF_M_CAP_Y;         /* the bottom band's last line: its top */
     lcd_fill(0, 0, 240, 240, T_BG);
-    lcd_fill(SPL_X0, SPL_X0, SPL_SQ, SPL_SQ, T_RAISE);
-    cv_begin(LOGO_SZ, LOGO_SZ, T_RAISE);                        /* the logo, between the bands, its left at the text's */
-    draw_logo(0, 0, T_RAISE);
-    cv_blit(SPL_X0 + SPL_PAD, SPL_X0 + (uint32_t)h + (SPL_SQ - 2u * (uint32_t)h - LOGO_SZ) / 2u);
-    splash_band(SPL_X0, (uint32_t)h, SPL_PAD - AF_M_CAP_Y, SPLASH_LINES, AL_V, SPL_PAD,
-                SPL_PAD + SPL_PITCH + AF_M_CAP_H, "splash name + version SPL_PAD from the top");
-    splash_band(SPL_X0 + SPL_SQ - (uint32_t)h, (uint32_t)h, lb - SPL_PITCH, SPLASH_LINES + 2, AL_B, 0, h - SPL_PAD,
-                "splash maker's baseline SPL_PAD from the bottom");
-    lcd_sync();
+    cv_begin(SPL_LOGO, SPL_LOGO, T_BG);
+    draw_logo(0, 0, SPL_LOGO, T_BG);
+    cv_blit((240u - SPL_LOGO) / 2u, 28);
+    draw_text_box(0, 128, 240, &AF_L, "MIDI-MANIA", T_THEME, 1);
+    draw_text_box(0, 166, 240, &AF_M, "FM-1 rhythm game", T_TEXT, 1);
+    draw_text_box(0, 188, 240, &AF_S, MM_VERSION, T_MID, 1);
+    draw_text_box(0, 216, 240, &AF_S, "Based on Felucca by H\xFCgelton Instruments", T_DIM, 1);
 }
 
 /* UPDATE MODE countdown (main.c: OCT- + OCT+ held): over everything, the menu and the dialogs too */
@@ -1674,6 +1654,11 @@ static void ui_draw_page(uint32_t counting)
     }
     if (songs_on() && !ui.confirm && !name_on()) {     /* Midi-Mania: SONGS, over the page (ui_songs.c) */
         songs_draw();
+        ui.force = 0;
+        return;
+    }
+    if (snd_on() && !ui.confirm && !name_on()) {       /* .. SOUNDS (ui_songs.c) */
+        snd_draw();
         ui.force = 0;
         return;
     }

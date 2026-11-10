@@ -11,7 +11,6 @@ thanks the work below; each keeps its own licence (see [LICENSE](LICENSE), [LICE
 - Fonts: [Inter Tight](https://github.com/rsms/inter-tight) by The Inter Project Authors, [SIL OFL 1.1](LICENSES/OFL-InterTight.txt);
   the browser emulator's labels: [DotGothic16](https://github.com/fontworks-fonts/DotGothic16) by The DotGothic16 Project Authors, [SIL OFL 1.1](LICENSES/OFL-DotGothic16.txt)
 - Samples: [Versilian Studios](https://versilian-studios.com/) [VSCO-2 Community Edition](https://github.com/sgossner/VSCO-2-CE) and [VCSL](https://github.com/sgossner/VCSL), CC0 1.0: the SAMPLE sets, also SLICE's PIANO and PIANO HD ([attribution](assets/samples-cc0/ATTRIBUTION.txt))
-- Starter song: J. S. Bach's Prelude in C, BWV 846, from the [Mutopia Project](https://www.mutopiaproject.org/cgibin/piece-info.cgi?id=5) (maintained by Tobias Erbsland; public domain): `assets/songs/` ([source and licence](assets/songs/README.md))
 - VOICE engine: after [klattsch](https://github.com/tgies/klattsch) by Tony Gies (MIT); formant data from Klatt (1980) and Hillenbrand et al. (1995)
 - PHYS engine: models ported from [DaisySP](https://github.com/electro-smith/DaisySP) by Electrosmith and Emilie Gillet ([MIT](LICENSES/MIT-DaisySP.txt)) and from Emilie Gillet's [eurorack](https://github.com/pichenettes/eurorack) code ([MIT](LICENSES/MIT-Rings.txt))
 - FM6 engine: msfa from [Dexed](https://github.com/asb2m10/dexed) by Google Inc. and Pascal Gauthier ([Apache-2.0](LICENSES/Apache-2.0-msfa.txt))
@@ -22,6 +21,8 @@ thanks the work below; each keeps its own licence (see [LICENSE](LICENSE), [LICE
   measurements and hardening after [Jangada](https://github.com/zednaked/jangada) by [zednaked](https://github.com/zednaked) (GPL-3.0)
 - AFTERTOUCH's key pressure: after [fm1-base](https://github.com/charlesvestal/fm1-base) by [charlesvestal](https://github.com/charlesvestal) ([MPL-2.0](LICENSES/MPL-2.0-felucca-bsp.txt); `firmware/src/keytouch.{c,h}`)
 - Browser emulator: after [X0X](https://github.com/charlesvestal/fm1-x0x) by [charlesvestal](https://github.com/charlesvestal) (GPL-3.0), a Felucca fork whose browser build showed the way
+- Installer page: its layout follows [Melodee](https://github.com/keremimo/melodee)'s by Kerem Kilic
+  (Ellic Studio, [keremimo](https://github.com/keremimo)), another Felucca-based FM-1 firmware; no code or artwork copied
 - Package format and boot files: [JieLi AC79 SDK](https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK) ([Apache-2.0](LICENSES/Apache-2.0.txt); three of its files are in every package, none in this tree)
 - Contributions: [keremimo](https://github.com/keremimo) (white-key scales, #2), [ChanceTheMaker](https://github.com/ChanceTheMaker)
   (TRS MIDI, bend, sustain and clock, palettes, favourites, editor display settings: #8, #10, #11, #12),

@@ -75,6 +75,9 @@ int main(int argc, char **argv)
     for (i = 1; i < s->nnote; i++)
         order &= s->note[i].time >= s->note[i - 1].time;
     check("the chart's notes are in time order", order);
+    for (i = 0; i < s->nnote && !((MM_PLAYABLE >> (s->note[i].flags & CN_PART_MASK)) & 1u); i++)
+        ;                                             /* your part: the first note's you can play (song 0 may have */
+    pl.mode = (uint8_t)(i < s->nnote ? s->note[i].flags & CN_PART_MASK : MM_KEYS);   /* no KEYS: FM Bass) */
 
     player_start(0);
     check("START: busy at once (before the ISR took it)", player_busy());
@@ -285,32 +288,30 @@ int main(int argc, char **argv)
         mix_block(out, CTL);
         check("metronome (CLICK ON): every beat of the song clicks in its block, the bar's first accented; OFF: none", ok);
     }
-    /* PLAY YOU: your part's notes are not played (no voice of your part starts), their keys light all the same; RANGE
-     * RIGHT HAND (KEYS GUITAR BASS): no lit key of your part comes from a note below middle C */
+    /* PLAY YOU, AUTO FULL: your part's notes are not played (no voice of your part starts), their keys light all the
+     * same (AUTO's other choices: the STYLE / AUTO test below) */
     {
-        uint32_t first = 0, mode, played = 0, lit = 0, low = 0, i2;
+        uint32_t first = 0, mode, played = 0, lit = 0, i2, r;
         while (first + 1u < s->nnote && !((MM_PLAYABLE >> (s->note[first].flags & CN_PART_MASK)) & 1u))
             first++;                                  /* (your part: the first note's you can play) */
         mode = s->note[first].flags & CN_PART_MASK;
         pl.mode = (uint8_t)mode;
         pl.you = 1;
-        pl.range = mode == MM_DRUMS ? 0u : 1u;
-        player_start(0);
-        for (b = 0; b < (s->note[first].time + 2u * CHART_FS) / CTL; b++) {   /* (to 2 s past that note) */
+        for (r = 0; r < 1u; r++) {
+            pl.range = (uint8_t)r;
+            player_start(0);
+            for (b = 0; b < (s->note[first].time + 2u * CHART_FS) / CTL; b++) {   /* (to 2 s past that note) */
+                mix_block(out, CTL);
+                for (i2 = 0; i2 < NVOICE; i2++)
+                    played += trk[mode].v[i2].active && trk[mode].v[i2].gate;
+                lit |= player_keys(mode);
+            }
+            player_stop();
             mix_block(out, CTL);
-            for (i2 = 0; i2 < NVOICE; i2++)
-                played += trk[mode].v[i2].active && trk[mode].v[i2].gate;
-            lit |= player_keys(mode);
-            for (i2 = 0; i2 < pl.on_n; i2++)
-                low += pl.on[i2].part == mode && pl.on[i2].key < CHART_NKEYS && mode != MM_DRUMS &&
-                       pl.on[i2].pitch < MM_RANGE_SPLIT[MM_KEYS];
         }
         check("PLAY YOU: your part's notes silent (the keys play them), their keys still lit", !played && lit);
-        check("RANGE RIGHT HAND: no key lit for your part's notes below middle C", !low);
         pl.you = 0;
         pl.range = 0;
-        player_stop();
-        mix_block(out, CTL);
     }
     /* PLAY YOU: a key pressed on time for one of your notes plays the song's note (seq.c kb_map); another part, or
      * AUTO: nothing (the key's own sound) */
@@ -329,7 +330,8 @@ int main(int argc, char **argv)
         player_start(0);
         for (b = 0; b < CHART_FS * 60u / CTL && (pl.pre || !pl.playing || pl.pos + CTL < c->time); b++)
             mix_block(out, CTL);
-        k = (c->flags & CN_DRUM) ? pl_drum_key(c->pitch) : c->key;
+        mm_lanes_fit();                               /* (GUITAR, BASS: STRINGS by default, a lane's key: the main loop's) */
+        k = mm_note_key(c);
         ok = player_key_note(mode, k) == (int32_t)c->pitch && player_key_note((mode + 1u) & 3u, k) < 0;
         pl.you = 0;
         ok &= player_key_note(mode, k) < 0;
@@ -459,6 +461,302 @@ int main(int argc, char **argv)
                      "its song, byte for byte, and listed", argv[k3]);
             check(msg, w && same);
         }
+        mm_song_base = 0;
+        mm_song_scan();
+    }
+    /* GAME's LANES (player.c mm_view) on a GUITAR song of 10 pitches, a chord of C3 and C4 in it: STRINGS 6 lanes on
+     * the white keys F3 .. D4, a higher pitch never left of a lower one, the lowest on the first, the highest on the
+     * last; CHROMATIC 12, a note's name its lane, any key of that name plays it, C3 + C4 one note to play; KEYS the
+     * chart's own keys. PLAY YOU judged on the lanes' keys: every note pressed PERFECT */
+    {
+        static uint8_t region[MM_SONG_SIZE];
+        static const uint8_t P[11] = {40, 45, 50, 52, 55, 59, 64, 48, 60, 57, 0};
+        static const uint32_t T10[11] = {10, 15, 20, 25, 30, 35, 40, 50, 50, 60, 0};   /* tenths of a second */
+        static chart_note_t gn[10];
+        static uint32_t gb[8];
+        mm_song_t g;
+        char msg2[160];
+        uint32_t i2, p, ok = 1, last = 0, view, mode = pl.mode, range = pl.range, you = pl.you;
+        memset(&g, 0, sizeof g);
+        for (i2 = 0; i2 < 10u; i2++) {
+            int32_t k = P[i2];
+            while (k < 53)
+                k += 12;
+            while (k > 79)
+                k -= 12;
+            gn[i2] = (chart_note_t){T10[i2] * (CHART_FS / 10u), CHART_FS / 5u, (uint8_t)(k - 53), P[i2], 100, MM_GUITAR};
+        }
+        for (i2 = 0; i2 < 8u; i2++)
+            gb[i2] = i2 * CHART_FS;
+        g.title = "LANES TEST";
+        g.note = gn;
+        g.nnote = 10;
+        g.length = 7u * CHART_FS;
+        g.bpm_x10 = 600;
+        g.parts = 1u << MM_GUITAR;
+        g.beat = gb;
+        g.nbeat = 8;
+        g.bpb = 4;
+        memset(region, 0xFF, sizeof region);
+        put_chart(region, 0, &g, 0xFFu);
+        mm_song_base = region;
+        mm_song_scan();
+        pl.mode = MM_GUITAR;
+        pl.range = 0;
+        pl.you = 0;
+        pl.style[MM_GUITAR] = MM_VIEW_STRINGS;
+        player_start(MM_NSONGS);
+        mix_block(out, CTL);
+        mm_lanes_fit();
+        s = pl_song();
+        ok &= mm_lanes() == 6u && s->nnote == 10u;
+        for (p = 0; p < 128u; p++)                    /* (by pitch: never lower than the one before) */
+            if (mm_str_lane[p] != MM_LANE_NONE) {
+                ok &= mm_str_lane[p] >= last && mm_str_lane[p] < 6u;
+                last = mm_str_lane[p];
+            }
+        ok &= mm_str_lane[40] == 0u && mm_str_lane[64] == 5u && mm_str_lane[41] == MM_LANE_NONE;
+        for (i2 = 0; i2 < 10u; i2++) {
+            uint32_t k = mm_note_key(&s->note[i2]);
+            ok &= k == 0u || k == 2u || k == 4u || k == 6u || k == 7u || k == 9u;   /* (F3 G3 A3 B3 C4 D4) */
+        }
+        ok &= mm_key_lane(1) < 0 && mm_key_lane(0) == 0 && mm_key_lane(9) == 5 && mm_press_key(3) < 0;
+        check("LANES STRINGS: 6 lanes on F3 G3 A3 B3 C4 D4, by pitch low to high, the lowest first, the highest last", ok);
+        pl.mode = MM_BASS;
+        ok = mm_lanes() == 4u;
+        pl.mode = MM_KEYS;
+        ok &= mm_lanes() == 0u;
+        pl.mode = MM_GUITAR;
+        check("LANES: BASS 4 strings, KEYS the keyboard (no lanes)", ok);
+        pl.style[MM_GUITAR] = MM_VIEW_CHROMATIC;
+        mm_lanes_fit();
+        ok = mm_lanes() == 12u;
+        for (i2 = 0; i2 < 10u; i2++)
+            ok &= mm_note_lane(&s->note[i2]) == s->note[i2].pitch % 12u &&
+                  mm_note_key(&s->note[i2]) == MM_OCT_KEY0 + s->note[i2].pitch % 12u;
+        ok &= mm_press_key(0) == 12 && mm_press_key(12) == 12 && mm_press_key(24) == 12;   /* (F3 F4 F5: F's key, F4) */
+        ok &= !mm_lane_dup(&s->note[7]) && mm_lane_dup(&s->note[8]);   /* (C3 and C4 at once: one, the first) */
+        check("LANES CHROMATIC: 12 lanes, a note's name its lane, any key of that name F's; C3 + C4 at once one note", ok);
+        pl.style[MM_GUITAR] = 2;                      /* (no third choice for GUITAR: as STRINGS) */
+        mm_lanes_fit();
+        ok = MM_NVIEWS == 2u && mm_view() == MM_VIEW_STRINGS && mm_lanes() == 6u;
+        pl.mode = MM_KEYS;                            /* (the KEYS part: the keyboard's, the chart's own keys) */
+        mm_lanes_fit();
+        ok &= mm_view() == MM_VIEW_KEYS && mm_lanes() == 0u;
+        pl.mode = MM_GUITAR;
+        check("LANES: GUITAR STRINGS or CHROMATIC only (a stored KEYS view: STRINGS); the KEYS part the keyboard", ok);
+        for (view = MM_VIEW_STRINGS; view <= MM_VIEW_CHROMATIC; view++) {   /* PLAY YOU on the lanes' keys */
+            uint32_t pressed = 0, b2, k = 0, sung = 1;
+            pl.style[MM_GUITAR] = (uint8_t)view;
+            pl.you = 1;
+            player_start(MM_NSONGS);
+            mix_block(out, CTL);
+            mm_lanes_fit();
+            ok = player_key_note(MM_GUITAR, 1u) < 0;  /* (a black key: no lane) */
+            for (b2 = 0; b2 < 10u * CHART_FS / CTL && (pl.playing || pl.req); b2++) {
+                mix_block(out, CTL);
+                for (; k < s->nnote && s->note[k].time < pl.pos; k++) {
+                    const chart_note_t *c = &s->note[k];
+                    uint32_t key = mm_note_key(c);
+                    if (!pl_judge_mine(c))
+                        continue;
+                    if (view == MM_VIEW_CHROMATIC)       /* (another octave's key of that name) */
+                        key = key >= 12u ? key - 12u : key + 12u;
+                    sung &= player_key_note(MM_GUITAR, key) == (int32_t)c->pitch;
+                    player_judge_key(MM_GUITAR, key, 0u);
+                    pressed++;
+                }
+            }
+            ok &= pressed == (view == MM_VIEW_CHROMATIC ? 9u : 10u) && pl_judge.count[J_PERFECT] == pressed &&
+                  !pl_judge.count[J_MISS] && sung && pl_sc.done;
+            snprintf(msg2, sizeof msg2, "LANES %s, PLAY YOU: each note on its lane's key PERFECT (%u), its pitch sounding%s",
+                     mm_style_name(MM_GUITAR, view), (unsigned)pressed, view == MM_VIEW_CHROMATIC ? ", any octave" : "");
+            check(msg2, ok);
+            player_stop();
+            mix_block(out, CTL);
+        }
+        memset(pl.style, 0, sizeof pl.style);
+        pl.mode = (uint8_t)mode;
+        pl.range = (uint8_t)range;
+        pl.you = (uint8_t)you;
+        mm_song_base = 0;
+        mm_song_scan();
+    }
+    /* the reverb (fx.c fx_buses): asleep while every part's REV is 0 (the default: its comb lines never move); a send
+     * wakes it (a tail heard); REV back to 0, it rings on for REV_TAIL, then its lines are cleared and it sleeps */
+    {
+        uint32_t b2, p2, ci, ok = 1, heard = 0, zero = 1;
+        host_tracks_init();
+        ok &= TP[P_REV].def == 0;
+        for (p2 = 0; p2 < NPART; p2++)                /* (the songs before: the harness's presets' sends; a tail) */
+            trk[p2].p[P_REV] = 0;
+        for (b2 = 0; b2 < REV_TAIL / CTL + 2u; b2++)
+            mix_block(out, CTL);
+        ok &= !fx.rev_left;
+        ci = fx.comb_i[0];
+        trk_note_on(&trk[0], 60, 100);
+        for (b2 = 0; b2 < 200u; b2++)
+            mix_block(out, CTL);
+        ok &= !fx.rev_left && fx.comb_i[0] == ci;     /* (REV 0: asleep, its lines still) */
+        trk[0].p[P_REV] = 100;
+        for (b2 = 0; b2 < 200u; b2++) {
+            mix_block(out, CTL);
+            for (p2 = 0; p2 < CTL; p2++)
+                heard |= wet[p2] != 0;
+        }
+        ok &= heard && fx.rev_left > 0u && fx.comb_i[0] != ci;
+        trk_note_off(&trk[0], 60);
+        trk[0].p[P_REV] = 0;
+        for (b2 = 0; b2 < 200u; b2++)                 /* (the note's own release: still sent while it fades) */
+            mix_block(out, CTL);
+        ok &= fx.rev_left > 0u;                       /* (its tail: still running) */
+        for (b2 = 0; b2 < REV_TAIL / CTL + 2u; b2++)
+            mix_block(out, CTL);
+        for (p2 = 0; p2 < sizeof rev_comb / 2u; p2++)
+            zero &= rev_comb[p2] == 0;
+        for (p2 = 0; p2 < sizeof rev_ap / 2u; p2++)
+            zero &= rev_ap[p2] == 0;
+        ok &= !fx.rev_left && zero;
+        ci = fx.comb_i[0];
+        mix_block(out, CTL);
+        ok &= fx.comb_i[0] == ci;
+        check("reverb: REV 0 by default, asleep; a send wakes it; 8 s after the last, cleared and asleep again", ok);
+    }
+    /* SONGS' STYLE and AUTO (player.c mm_style, mm_range, mm_mine) on a song of 120 BPM (a beat 0.5 s), 4/4:
+     *   DRUMS  kicks on beats 4 5 6 7 (a bar's 1 2 3 4), hats on the 8ths after 4 and 5: FULL 6, QUARTER 4, HALF 2
+     *   KEYS   E2 G3 C4 G4 C5 E6 C7: AUTO FULL all 7; CURRENT RANGE 27 KEYS (F3 .. G5) 4, 49 KEYS (C2 .. C6) 5;
+     *          1 OCTAVE (C4 .. B4) 2. 49 KEYS: E6 C7 folded onto E5 C6; a panel key's note under OCT; its light
+     *          under the window; a MIDI keyboard's notes judged as their own keys, every one PERFECT
+     *   GUITAR six pitches: STRINGS on 6, 4, 2 lanes, never lower for a higher pitch, every note yours */
+    {
+        static uint8_t region[MM_SONG_SIZE];
+        static chart_note_t sn[32];
+        static uint32_t sb[32];
+        static const uint8_t KP[7] = {40, 55, 60, 67, 72, 88, 96}, GP[6] = {40, 45, 50, 55, 60, 65};
+        const uint32_t B = CHART_FS / 2u;
+        mm_song_t g;
+        uint32_t n = 0, i2, k, ok, cnt, mode = pl.mode, range = pl.range, you = pl.you;
+        char msg3[160];
+        for (k = 4; k < 8u; k++)
+            sn[n++] = (chart_note_t){k * B, 0, 0, 36, 100, MM_DRUMS | CN_DRUM};
+        sn[n++] = (chart_note_t){4u * B + B / 2u, 0, 0, 42, 90, MM_DRUMS | CN_DRUM};
+        sn[n++] = (chart_note_t){5u * B + B / 2u, 0, 0, 42, 90, MM_DRUMS | CN_DRUM};
+        for (k = 0; k < 7u; k++)
+            sn[n++] = (chart_note_t){(8u + k) * B, B / 2u, 0, KP[k], 100, MM_KEYS};
+        for (k = 0; k < 6u; k++)
+            sn[n++] = (chart_note_t){(16u + k) * B, B / 2u, 0, GP[k], 100, MM_GUITAR};
+        for (i2 = 1; i2 < n; i2++) {                  /* (by time; their keys folded as the converter's) */
+            uint32_t j = i2;
+            while (j && sn[j].time < sn[j - 1u].time) {
+                chart_note_t t = sn[j]; sn[j] = sn[j - 1u]; sn[j - 1u] = t; j--;
+            }
+        }
+        for (i2 = 0; i2 < n; i2++) {
+            int32_t kk = sn[i2].pitch;
+            while (kk < 53) kk += 12;
+            while (kk > 79) kk -= 12;
+            sn[i2].key = (sn[i2].flags & CN_DRUM) ? 0 : (uint8_t)(kk - 53);
+        }
+        for (i2 = 0; i2 < 32u; i2++)
+            sb[i2] = i2 * B;
+        memset(&g, 0, sizeof g);
+        g.title = "STYLE TEST"; g.note = sn; g.nnote = n; g.length = 24u * B; g.bpm_x10 = 1200;
+        g.parts = (1u << MM_KEYS) | (1u << MM_DRUMS) | (1u << MM_GUITAR); g.beat = sb; g.nbeat = 32; g.bpb = 4;
+        memset(region, 0xFF, sizeof region);
+        put_chart(region, 0, &g, 0xFFu);
+        mm_song_base = region;
+        mm_song_scan();
+        memset(pl.style, 0, sizeof pl.style);
+        pl.you = 0;
+        player_start(MM_NSONGS);
+        mix_block(out, CTL);
+        s = pl_song();
+        #define COUNT_MINE() (cnt = 0, ({ for (i2 = 0; i2 < s->nnote; i2++) cnt += mm_mine(&s->note[i2]) != 0; }), cnt)
+        pl.mode = MM_DRUMS;
+        pl.range = 0;
+        ok = 1;
+        for (k = 0; k < DS_N; k++) {
+            static const uint32_t WANT[DS_N] = {6, 4, 2};
+            pl.style[MM_DRUMS] = (uint8_t)k;
+            ok &= COUNT_MINE() == WANT[k];
+        }
+        pl.style[MM_DRUMS] = 0;
+        check("STYLE DRUMS: FULL every hit (6), QUARTER the ones on a beat (4), HALF on beats 1 and 3 (2)", ok);
+        pl.mode = MM_KEYS;
+        ok = 1;
+        pl.style[MM_KEYS] = KS_27; pl.range = 0; ok &= COUNT_MINE() == 7u;
+        pl.range = 1; ok &= COUNT_MINE() == 4u;
+        pl.style[MM_KEYS] = KS_49; ok &= COUNT_MINE() == 5u;
+        pl.range = 2; ok &= COUNT_MINE() == 2u;
+        pl.style[MM_KEYS] = KS_OCT; ok &= COUNT_MINE() == 2u && mm_lanes() == 12u;
+        pl.range = 0; ok &= COUNT_MINE() == 7u;
+        check("AUTO KEYS: FULL all 7; CURRENT RANGE on 27 KEYS 4, on 49 KEYS 5; 1 OCTAVE 2 (on 1 OCTAVE too)", ok);
+        pl.style[MM_KEYS] = KS_49;
+        pl.range = 0;
+        ok = mm_view() == MM_VIEW_KEYS49 && !mm_lanes();
+        for (i2 = 0; i2 < s->nnote; i2++)
+            if (s->note[i2].pitch == 88u)
+                ok &= mm_note_key(&s->note[i2]) == 76u;
+            else if (s->note[i2].pitch == 96u)
+                ok &= mm_note_key(&s->note[i2]) == 84u;
+        song.octave = 0;
+        ok &= mm_press_key(7) == 60 && mm_press_key(0) == 53;
+        song.octave = -1;
+        ok &= mm_press_key(7) == 48 && mm_press_key(26) == 67;
+        song.octave = -2;
+        ok &= mm_press_key(0) < 0 && mm_press_key(7) == 36;   /* (below C2: none) */
+        for (i2 = 0; i2 < s->nnote; i2++)               /* (KEYS' C4: the GUITAR has one too, its own light) */
+            if (s->note[i2].pitch == 60u && (s->note[i2].flags & CN_PART_MASK) == MM_KEYS)
+                ok &= mm_led_key(&s->note[i2]) == 0xFFu;   /* (C4 off the window F1 .. G3: no light) */
+        song.octave = 0;
+        for (i2 = 0; i2 < s->nnote; i2++)
+            if (s->note[i2].pitch == 60u && (s->note[i2].flags & CN_PART_MASK) == MM_KEYS)
+                ok &= mm_led_key(&s->note[i2]) == 7u;
+        check("STYLE 49 KEYS: E6 C7 folded onto E5 C6; a panel key under OCT its note (none below C2); lights on the window", ok);
+        {   /* PLAY YOU on 49 KEYS: a MIDI keyboard's notes, each in the block it starts in: PERFECT, all 7 */
+            uint32_t b2, kk = 0, pressed = 0;
+            pl.you = 1;
+            player_start(MM_NSONGS);
+            mix_block(out, CTL);
+            for (b2 = 0; b2 < 30u * CHART_FS / CTL && (pl.playing || pl.req); b2++) {
+                mix_block(out, CTL);
+                for (; kk < s->nnote && s->note[kk].time < pl.pos; kk++)
+                    if (pl_judge_mine(&s->note[kk])) {
+                        mm_midi_note(MM_KEYS, s->note[kk].pitch, 1);
+                        mm_midi_note(MM_KEYS, s->note[kk].pitch, 0);
+                        pressed++;
+                    }
+            }
+            snprintf(msg3, sizeof msg3, "STYLE 49 KEYS, PLAY: a MIDI keyboard's notes judged as their own keys, all PERFECT (%u)",
+                     (unsigned)pressed);
+            check(msg3, pressed == 7u && pl_judge.count[J_PERFECT] == 7u && !pl_judge.count[J_MISS]);
+            player_stop();
+            mix_block(out, CTL);
+            pl.you = 0;
+        }
+        pl.style[MM_KEYS] = 0;
+        pl.mode = MM_GUITAR;
+        ok = 1;
+        for (k = 0; k < 3u; k++) {
+            static const uint32_t LN[3] = {6, 4, 2};
+            uint32_t last = 0, p2, top = 0;
+            pl.range = (uint8_t)k;
+            mm_lanes_fit();
+            ok &= mm_lanes() == LN[k] && COUNT_MINE() == 6u;
+            for (p2 = 0; p2 < 128u; p2++)
+                if (mm_str_lane[p2] != MM_LANE_NONE) {
+                    ok &= mm_str_lane[p2] >= last && mm_str_lane[p2] < LN[k];
+                    last = top = mm_str_lane[p2];
+                }
+            ok &= top == LN[k] - 1u && mm_str_lane[40] == 0u;
+        }
+        check("AUTO GUITAR STRINGS: 6, 4, 2 lanes, every note yours, low to high, from the first lane to the last", ok);
+        #undef COUNT_MINE
+        memset(pl.style, 0, sizeof pl.style);
+        pl.mode = (uint8_t)mode;
+        pl.range = (uint8_t)range;
+        pl.you = (uint8_t)you;
+        song.octave = 0;
         mm_song_base = 0;
         mm_song_scan();
     }

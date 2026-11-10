@@ -537,9 +537,9 @@ static int test_songs(void)
             ok_at(nt_sent_rows == 0u && !memcmp(inc + NT_TALL_Y * 240u, host_screen + NT_TALL_Y * 240u, NT_TALL_PX * 2u));
         }
         ok_at(nt_used() != 0u && (pl.mode == MM_DRUMS || (nt_used() & player_keys(pl.mode)) == player_keys(pl.mode)));
-        {   /* RANGE narrower: fewer columns used (the rest greyed out), none new */
+        {   /* AUTO narrower: fewer columns used (the rest greyed out), none new */
             uint32_t all = nt_used(), r = pl.range;
-            pl.range = MM_RANGES - 1u;
+            pl.range = (uint8_t)(mm_ranges() - 1u);
             ok_at((nt_used() & ~all) == 0u);
             pl.range = (uint8_t)r;
         }
@@ -582,18 +582,48 @@ static int test_songs(void)
         ok_at(sg.bpm_x10 == own / 2u);
         press(B_OCTDN);
         ok_at(sg.bpm_x10 == own && song.octave == 0);
-        turn(EN_K3, 1);                               /* KNOB 3: PLAY YOU, back to AUTO */
+        turn(EN_K1, 1);                               /* KNOB 1: PLAY (YOU), back to CPU (AUTO) */
         ok_at(pl.you == 1u);
-        turn(EN_K3, -1);
+        turn(EN_K1, -1);
         ok_at(pl.you == 0u);
-        turn(EN_K4, 2);                               /* KNOB 4: RANGE, held at its ends */
-        ok_at(pl.range == 2u);
-        turn(EN_K4, 9);
-        ok_at(pl.range == MM_RANGES - 1u);
-        ui.force = 1;
-        frame();
-        turn(EN_K4, -9);
-        ok_at(pl.range == 0u);
+        {   /* KNOB 3 STYLE, KNOB 4 AUTO, your part's: held at their ends; a STYLE turned, AUTO from its first */
+            uint8_t mode = pl.mode;
+            pl.mode = MM_KEYS;
+            ok_at(mm_style() == KS_27 && mm_view() == MM_VIEW_KEYS && mm_ranges() == 3u);
+            turn(EN_K3, -1);                          /* (K3's order: 49 KEYS, 27 KEYS, 1 OCTAVE) */
+            ok_at(mm_style() == KS_49 && mm_view() == MM_VIEW_KEYS49 && !mm_lanes());
+            turn(EN_K4, 9);
+            ok_at(mm_range() == 2u && str_eq(mm_range_name(mm_range()), "1 OCTAVE"));
+            turn(EN_K3, 5);
+            ok_at(mm_style() == KS_OCT && mm_view() == MM_VIEW_CHROMATIC && mm_lanes() == 12u && mm_range() == 0u);
+            ui.force = 1;
+            frame();
+            mm_shot("songs_keys_oct");
+            turn(EN_K3, -1);
+            ok_at(mm_style() == KS_27);
+            pl.mode = MM_DRUMS;
+            turn(EN_K3, 1);
+            ok_at(mm_style() == DS_QUARTER && str_eq(mm_style_name(MM_DRUMS, mm_style()), "QUARTER") && mm_ranges() == 4u);
+            turn(EN_K3, -1);
+            pl.mode = MM_GUITAR;
+            ok_at(mm_view() == MM_VIEW_STRINGS && mm_lanes() == 6u && mm_ranges() == 3u);
+            turn(EN_K4, 1);
+            ok_at(mm_lanes() == 4u && str_eq(mm_range_name(mm_range()), "4 LANES"));
+            turn(EN_K4, 9);
+            ok_at(mm_lanes() == 2u);
+            turn(EN_K3, 1);
+            ok_at(mm_view() == MM_VIEW_CHROMATIC && mm_lanes() == 12u && mm_ranges() == 1u && !pl.style[MM_BASS] &&
+                  str_eq(mm_range_name(mm_range()), "1 OCTAVE"));
+            turn(EN_K4, 5);                           /* (CHROMATIC: one AUTO, nothing to turn) */
+            ok_at(mm_range() == 0u);
+            turn(EN_K3, -1);
+            pl.mode = MM_BASS;
+            ok_at(mm_lanes() == 4u && mm_ranges() == 2u);
+            turn(EN_K4, 1);
+            ok_at(mm_lanes() == 2u && str_eq(mm_range_name(mm_range()), "2 LANES"));
+            pl.range = 0;
+            pl.mode = mode;
+        }
         SONGS_LEAVE();
     }
     {   /* GAME (FX): KNOB 1 SCROLL UP (the drums below drawn rising), KNOB 2 NOTE SPEED, KNOB 3 OFFSET, OCT- 0 */
@@ -639,6 +669,31 @@ static int test_songs(void)
         pl.speed[MM_KEYS] = 4;
         game_load();
         ok_at(pl.speed[MM_KEYS] == 4u);
+        {   /* STYLE (row 11 [11] .. [14]: GUITAR BASS KEYS DRUMS): kept per part; out of range: the first; a high score
+             * of its own each (KEYS, DRUMS: their default's as before STYLE) */
+            uint32_t a, b, k0;
+            k0 = hs_id(pl_song(), MM_KEYS, 0);
+            pl.style[MM_GUITAR] = 0; pl.style[MM_BASS] = 1; pl.style[MM_KEYS] = KS_49; pl.style[MM_DRUMS] = DS_HALF;
+            frame();
+            ok_at(favorites.factory[11][11] == 0u && favorites.factory[11][12] == 1u && favorites.factory[11][13] == KS_49 &&
+                  favorites.factory[11][14] == DS_HALF);
+            memset(pl.style, 0, sizeof pl.style);
+            game_load();
+            ok_at(pl.style[MM_BASS] == 1u && pl.style[MM_KEYS] == KS_49 && pl.style[MM_DRUMS] == DS_HALF);
+            ok_at(hs_id(pl_song(), MM_KEYS, 0) != k0);
+            pl.style[MM_GUITAR] = 1;
+            a = hs_id(pl_song(), MM_GUITAR, 0);
+            pl.style[MM_GUITAR] = 0;
+            b = hs_id(pl_song(), MM_GUITAR, 0);
+            pl.style[MM_KEYS] = KS_27;
+            ok_at(a != b && hs_id(pl_song(), MM_KEYS, 0) == k0);
+            favorites.factory[11][11] = 2;            /* (out of range: the first) */
+            favorites.factory[11][13] = 9;
+            game_load();
+            ok_at(pl.style[MM_GUITAR] == 0u && pl.style[MM_KEYS] == KS_27);
+            memset(pl.style, 0, sizeof pl.style);
+            frame();
+        }
         /* the high scores: a song's result kept, a lower one not, a higher one over it */
         ok_at(!hs_best(pl_song(), &best, &acc, &fl));
         pl_judge.score = 300; pl_judge.count[J_PERFECT] = 100; pl_judge.count[J_MISS] = 0;
@@ -653,7 +708,7 @@ static int test_songs(void)
         pl_judge.score = 400; pl_judge.count[J_MISS] = 2; pl_sc.done = 1; frame();
         ok_at(hs_best(pl_song(), &best, &acc, &fl) && best == 40000u && !(fl & HS_FULL_COMBO) && game_new_best(&prev) &&
               prev == 30000u);
-        pl.range = (uint8_t)((range + 1u) % MM_RANGES);   /* another RANGE: another best (none yet) */
+        pl.range = (uint8_t)((range + 1u) % 4u);      /* another AUTO: another best (none yet) */
         ok_at(!hs_best(pl_song(), &best, &acc, &fl));
         for (i = 0; i < HS_ENTRIES; i++) {                  /* every entry taken (scores 10 .. 33, the lowest first) */
             uint8_t *e = hs_at(i);
@@ -709,7 +764,7 @@ static int test_songs(void)
             frame();
             mm_shot("drums");
             ok_at(player_keys(MM_DRUMS) != 0u && (player_keys(MM_DRUMS) & ~0x2A52Au) == 0u);   /* (F#3 .. A#4) */
-            if ((MM_SONGS[d].parts >> MM_KEYS) & 1u) {   /* ALGORITHM while it plays: KEYS, its lanes; RIGHT HAND */
+            if ((MM_SONGS[d].parts >> MM_KEYS) & 1u) {   /* ALGORITHM while it plays: KEYS, its lanes; CURRENT RANGE */
                 turn(EN_PART, 1);
                 ok_at(pl.mode == MM_KEYS && song.sel == MM_KEYS);
                 pl.range = 1u;
@@ -741,17 +796,23 @@ static int test_songs(void)
  * SONGS' SOUND those only, no other engine loads. The power-on sounds: PIANO, DRUM kit, PLUCK, FM BASS */
 static int test_mm_engines(void)
 {
-    static const char *const WANT[NPART][8] = {
-        {"PIANO", "FLUTE", "TINE EP", "ORGAN", "HARP", "KALIMBA", "MARIMBA"}, {0},
-        {"PLUCK", "HARP", "KALIMBA", "DRONE STRING"}, {"FM BASS", "PLUCK", "SUB BASS", "SQR BASS"}};
+    static const char *const WANT[NPART][20] = {
+        {"PIANO", "FLUTE", "TINE EP", "ORGAN", "HARP", "KALIMBA", "MARIMBA", "FULL ORGAN", "JAZZ PERC", "GOSPEL", "BELL",
+         "BELL TREE", "PAD", "STRINGS", "BRASS", "CHOIR AAH", "SINE KEY"}, {0},
+        {"PLUCK", "HARP", "KALIMBA", "DRONE STRING", "BOWED METAL", "PWM STR", "SAW LEAD", "SYNC LEAD", "ARP LEAD",
+         "VOX LEAD", "PULSE LD", "WAVE LEAD"},
+        {"FM BASS", "PLUCK", "SUB BASS", "SQR BASS", "FAT BASS", "ACID", "RAVE", "WOW BASS", "WAVE BASS"}};
     static const uint8_t ON[NPART] = {ENGI_SAMPLE, ENGI_DRUM, ENGI_PHYS, ENGI_FM6};
     uint32_t i, all, k, e, pi, bad_name = 0;
     int ok = ENGINES[ENGI_ANALOG] == &ENG_ANALOG && ENGINES[ENGI_PHYS] == &ENG_PHYS && ENGINES[2] == &ENG_MISSING &&
+             ENGINES[ENGI_WHEEL] == &ENG_WHEEL && ENGINES[ENGI_TRIO] == &ENG_TRIO && ENGINES[ENGI_LOFI] == &ENG_LOFI &&
+             ENGINES[ENGI_FORMANT] == &ENG_FORMANT && ENGINES[8] == &ENG_MISSING &&
              SMP_SET_ORIG[2] == 2u;                   /* (ANALOG and FLUTE back; PHASE's number stays, missing) */
     ui_power_on();
     for (i = 0; i < NPART; i++) {
         song.sel = (uint8_t)i;
         ok &= trk[i].eng_req == ON[i] && trk[i].preset == TRK_DEF[i][1];
+        ok &= trk[i].p[P_REV] == 0;                    /* (REV 0 at power-on: the reverb asleep, fx.c) */
         preset_all_pos(&all);
         ok &= all == (i == MM_DRUMS ? ENGINES[ENGI_DRUM]->npresets : mm_sound_n(i));
         for (k = 0; k < all; k++) {
@@ -764,7 +825,7 @@ static int test_mm_engines(void)
     }
     ok &= !bad_name;
     set_engine_of(&trk[MM_DRUMS], ENGI_FM6);           /* refused: no FM6 sound on DRUMS */
-    set_engine_of(&trk[MM_GUITAR], ENGI_ANALOG);       /* refused: GUITAR has no ANALOG sound */
+    set_engine_of(&trk[MM_GUITAR], ENGI_WHEEL);        /* refused: GUITAR has no WHEEL sound */
     ok &= trk[MM_DRUMS].eng_req == ENGI_DRUM && trk[MM_GUITAR].eng_req == ENGI_PHYS;
     pl.mode = MM_KEYS;                                 /* SONGS' SOUND (PRESETS): KEYS from PIANO to FLUTE, to TINE EP */
     mm_sound_step(MM_KEYS, 1);
@@ -773,19 +834,58 @@ static int test_mm_engines(void)
     ok &= trk[MM_KEYS].eng_req == ENGI_FM6 && str_eq(mm_sound_name(MM_KEYS), "TINE EP");
     mm_sound_step(MM_KEYS, -2);
     ok &= trk[MM_KEYS].eng_req == ENGI_SAMPLE && str_eq(mm_sound_name(MM_KEYS), "PIANO");
+    ok &= trk[MM_KEYS].p[P_REV] == 0;                  /* (no sound brings a send of its own) */
+    trk[MM_KEYS].p[P_REV] = 50;                        /* the MIXER's REV: the part's, kept over a change of sound */
+    mm_sound_step(MM_KEYS, 2);
+    ok &= trk[MM_KEYS].p[P_REV] == 50 && str_eq(mm_sound_name(MM_KEYS), "TINE EP");
+    mm_sound_step(MM_KEYS, -2);
+    trk[MM_KEYS].p[P_REV] = 0;
     pl.mode = MM_BASS;
-    mm_sound_step(MM_BASS, -2);                        /* (wraps: FM BASS back to SUB BASS) */
-    ok &= trk[MM_BASS].eng_req == ENGI_ANALOG && str_eq(mm_sound_name(MM_BASS), "SUB BASS");
+    mm_sound_step(MM_BASS, -2);                        /* (wraps: FM BASS back to WOW BASS) */
+    ok &= trk[MM_BASS].eng_req == ENGI_FORMANT && str_eq(mm_sound_name(MM_BASS), "WOW BASS");
     song.sel = 0;
     pl.mode = 0;
-    return check("Midi-Mania: each part its own sounds (KEYS PIANO FLUTE .. MARIMBA, BASS .. SUB BASS SQR BASS); "
-                 "SONGS' SOUND", ok);
+    return check("Midi-Mania: each part its own sounds (KEYS PIANO FLUTE .. SINE KEY, BASS FM BASS .. WAVE BASS); "
+                 "SONGS' SOUND; REV 0 at power-on, the MIXER's kept over a change of sound", ok);
 }
 /* Midi-Mania without the sequencer (core.h MM_SEQ_FULL 0): the panel. HOME the songs, ARP the game, FX GAME, EDIT the
  * MIXER, SCL the CLOCK, SAVE PRESETS; ENV LFO GLO SEQ REC nothing; PLAY the selected song (no sequencer); their pages */
+/* SOUNDS' list (ENV, a knob turned quickly): turned again while it shows, only the list is drawn again, each row over
+ * itself (no flash); the screen is then what a full redraw gives */
+static int test_snd_pop(void)
+{
+    static uint16_t inc[240u * 240u];
+    uint32_t i, y;
+    int ok = 1;
+    ui_power_on();
+    songs_close();
+    snd_open();
+    frame();
+    mm_sound_step(MM_KEYS, 1);
+    snd.pop = 1u + MM_KEYS;
+    snd.pop_t = fm1_ms;
+    frame();                                           /* (it pops up: the page and the list) */
+    ok &= snd.drawn == 1u + MM_KEYS;
+    for (i = 0; i < 9u; i++) {                         /* on through the list, past where it scrolls */
+        mm_sound_step(MM_KEYS, 1);
+        snd.pop_t = fm1_ms;
+        frame();
+        ok &= snd.drawn == 1u + MM_KEYS;
+    }
+    memcpy(inc, host_screen, sizeof inc);
+    ui.force = 1;
+    snd.pop_t = fm1_ms;
+    frame();
+    for (y = 32; y < 222u; y++)                        /* the list's box, frame and all */
+        ok &= !memcmp(inc + y * 240u + 14u, host_screen + y * 240u + 14u, 212u * 2u);
+    mm_sound_step(MM_KEYS, -10);
+    snd_close();
+    return check("SOUNDS: its list turned again draws only itself (no flash), as a full redraw would", ok);
+}
+
 static int test_mm_panel(void)
 {
-    static const uint8_t NOTHING[4] = {B_ENV, B_LFO, B_GLO, B_REC};
+    static const uint8_t NOTHING[3] = {B_LFO, B_GLO, B_REC};
     uint32_t i, shown = 0;
     int ok;
     ui_power_on();
@@ -794,8 +894,9 @@ static int test_mm_panel(void)
     press(B_SEQ);
     ok = songs_on() && !game_on();
     press(B_SEQ);
-    ok &= !songs_on() && ui.home;                     /* (SEQ on SONGS: the game) */
+    ok &= !songs_on() && game_on();                   /* (SEQ on SONGS: GAME) */
     press(B_SEQ);
+    ok &= songs_on() && !game_on();                   /* (SEQ on GAME: SONGS again) */
     press(B_HOME);
     ok &= !songs_on() && ui.home && game_cards();     /* HOME: the game */
     press(B_EDIT);
@@ -823,9 +924,33 @@ static int test_mm_panel(void)
     ok &= game_on();
     press(B_FX);
     ok &= !game_on() && ui.home;
+    {   /* ENV: SOUNDS, a knob a part (KEYS DRUMS GUITAR BASS: CH 1 .. 4); a knob turned, the keys on its part; ENV
+         * again: back, the keys on your part again */
+        uint32_t k0 = trk[MM_KEYS].preset, e0 = trk[MM_KEYS].eng_req, b0 = trk[MM_BASS].preset, be = trk[MM_BASS].eng_req;
+        uint8_t mode = pl.mode;
+        press(B_ENV);
+        ok &= snd_on() && !songs_on() && !game_on();
+        turn(EN_K1, 1);
+        ok &= str_eq(mm_sound_name(MM_KEYS), "FLUTE") && song.sel == MM_KEYS;
+        turn(EN_K4, 1);
+        ok &= str_eq(mm_sound_name(MM_BASS), "PLUCK") && song.sel == MM_BASS && str_eq(mm_sound_name(MM_KEYS), "FLUTE");
+        ui.force = 1;
+        frame();
+        mm_shot("sounds");
+        turn(EN_K4, -1);
+        turn(EN_K1, -1);
+        ok &= trk[MM_KEYS].preset == k0 && trk[MM_KEYS].eng_req == e0 && trk[MM_BASS].preset == b0 && trk[MM_BASS].eng_req == be;
+        press(B_ENV);
+        ok &= !snd_on() && song.sel == pl.mode % NTRK && pl.mode == mode;
+        press(B_FX);
+        press(B_ENV);                                 /* (from GAME too) */
+        ok &= snd_on() && !game_on();
+        press(B_HOME);
+        ok &= !snd_on() && ui.home;
+    }
     press(B_SAVE);
     ok &= !ui.home && cur_page()->graph == GR_BROWSE;               /* PRESETS */
-    for (i = 0; i < 4u; i++) {
+    for (i = 0; i < 3u; i++) {
         uint32_t pg = ui.page, home = ui.home;
         press(NOTHING[i]);
         ok &= ui.page == pg && ui.home == home && !ui.layer && !songs_on() && !game_on() && !song.rec;
@@ -852,7 +977,7 @@ static int test_mm_panel(void)
         }
         ok &= ok2 && (!mm_free_now() || seen == MM_PLAYABLE) && MM_PLAYABLE == 0xFu;
     }
-    return check("Midi-Mania panel: HOME game, SEQ songs, FX GAME, EDIT MIXER, SCL METRONOME, SAVE PRESETS, ALGORITHM part, "
+    return check("Midi-Mania panel: HOME game, SEQ songs, FX GAME, ENV SOUNDS, EDIT MIXER, SCL METRONOME, SAVE PRESETS, ALGORITHM part, "
                  "PLAY the song",
                  ok);
 }
@@ -863,6 +988,7 @@ int main(void)
     int bad = 0;
     /* Midi-Mania: its own checks (Felucca's UI checks were of what it leaves out: the full list is in Felucca's tests/ui_test.c) */
     bad += test_mm_engines();
+    bad += test_snd_pop();
     bad += test_mm_panel();
     bad += test_songs();
     printf(bad ? "ui: %d FAILED\n" : "ui: all passed\n", bad);
