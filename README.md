@@ -353,7 +353,8 @@ See [BUILDING.md](BUILDING.md), and [docs/BUILDING_WINDOWS.md](docs/BUILDING_WIN
 Use [the installer](https://shan-sherif.github.io/fm-1-midi-mania/webapp/installer/) in Chrome or Edge, at your own
 risk. Updating from an earlier Midi-Mania keeps the songs you've loaded onto your FM-1. It works on FM-1s with the
 older flash chip (ID `0x856014`); the newer flash chip (`0xB36014`, [below](#the-newer-fm-1-flash-chip)) is not
-verified on a physical device yet: try at your own risk.
+verified on a physical device yet: try at your own risk. Coming from another custom firmware, accept only their own updates or the official one (the FM-1 shows "update failed", nothing is written); go back to the official V15 with
+that firmware's own tool (or M-VAVE's M-UPGRADE) first, then install Midi-Mania.
 **Return to official V15** (with the official `FM-1.fwsc` from M-VAVE) takes the FM-1 back to stock. If an install fails and the FM-1 does not start, recovery needs
 [FM-1-transporter](https://github.com/kurogedelic/FM-1-transporter).
 

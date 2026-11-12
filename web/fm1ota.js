@@ -13,7 +13,7 @@ const MAXDATA = 512;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const IS_OTA = (id) => /^ota-/i.test(id.model);
 
-// errors carry a code the pages translate: notfound, model, stopped, noloader, unknownchip, lost, noreturn,
+// errors carry a code the pages translate: notfound, model, stopped, foreign, noloader, unknownchip, lost, noreturn,
 // mismatch (detail: the identity the device reports), badreq
 function fail(code, msg, detail = "") { const e = new Error(msg); e.code = code; e.detail = detail; return e; }
 
@@ -210,6 +210,11 @@ export class Updater {
     await sleep(2000);
     const s1 = await this.serve(dev.link, image, 0xE0000000, 8000, (n) => step("verify", n));
     dev.link.close();
+    // another custom firmware (not the official one, not Midi-Mania) that stopped: it takes only its own update or the
+    // official one (SLOOP: its own loader or M-VAVE's), so it refused ours before staging anything
+    const ours = /^FM-1_(0\d\d|8\d\d|137\d*)$/.test(dev.id.text);
+    if (!s1.finished && !s1.lost && !ours)
+      throw fail("foreign", `the firmware on the FM-1 (${dev.id.text}) refused Midi-Mania's update: nothing was written`, dev.id.text);
     if (!s1.finished) throw fail(s1.lost ? "lost" : "stopped", `the device ${s1.lost ? "was disconnected" : "stopped"} after ${s1.served} requests: nothing was written`);
     step("loader");
     await sleep(3000);

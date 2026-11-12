@@ -41,12 +41,13 @@ const UPGRADE = [0xF0, 0x22, 0x24, 0x35, 0x7F, 0xF7];
 
 /* an FM-1 on WebMIDI: identity, then "device asks, host answers" reads of the image */
 class FakeFM1 {
-  constructor(image, { unplugAfter = Infinity, unknownChip = false, chip = 0x856014 } = {}) {
+  constructor(image, { unplugAfter = Infinity, unknownChip = false, chip = 0x856014, identity = "FM-1_015", refuse = false } = {}) {
     this.image = image; this.unplugAfter = unplugAfter; this.unknownChip = unknownChip; this.chip = chip;
+    this.home = identity; this.refuse = refuse;
     this.served = 0; this.bad = 0;
     this.written = 0;                                  // (the loader's reads of the image: what it would write)
     this.access = { inputs: new Map(), outputs: new Map() };
-    this.boot("FM-1_015", "FM-1");
+    this.boot(identity, "FM-1");
   }
   boot(identity, name) {
     this.identity = identity; this.waiting = null; this.queue = [];
@@ -75,6 +76,7 @@ class FakeFM1 {
     } else if (eq(d, UPGRADE)) {
       this.queue = this.identity.startsWith("ota-")
         ? [...Array.from({ length: 6 }, (_, k) => [k * 512, 512]), [0xF0000000, 8]]
+        : this.refuse ? [[0, 64], [0x40, 160]]               // (another firmware: reads the head, then refuses: stops)
         : [[0, 64], [0x40, 160], [0x1000, 512], [0xE0000000, 8]];
       this.next();
     } else if (this.waiting) {
@@ -155,6 +157,12 @@ async function updater() {
   const e8 = await new Updater(dev8.access).probe(image, "FM-1_800").then(() => null, (x) => x);
   ok(e8 && e8.code === "unknownchip" && dev8.written === 0 && !dev8.cancelled,
     "fm1ota.js: check only, an unknown chip: 'unknownchip', nothing written");
+
+  // another custom firmware that takes only its own or the official update (SLOOP): it refuses in step 1
+  const dev9 = new FakeFM1(image, { identity: "FM-1_928", refuse: true });
+  const e9 = await new Updater(dev9.access).install(image, "FM-1_137").then(() => null, (x) => x);
+  ok(e9 && e9.code === "foreign" && e9.detail === "FM-1_928" && dev9.written === 0 && dev9.identity === "FM-1_928",
+    "fm1ota.js: another custom firmware refusing the package -> 'foreign' (go back to V15 first), nothing written");
 }
 
 await packages();

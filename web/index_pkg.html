@@ -319,6 +319,7 @@ const TEXT = {
     notfound: "FM-1 が見つかりません。USB ケーブル（データ通信用か）を確かめ、MIDI を使う他のアプリを閉じてから、もう一度押してください。",
     model: "接続されている機器は FM-1 ではありません。",
     lost: "USB の接続が切れました。挿し直してもう一度押してください。",
+    foreign: "この FM-1 のファームウェアは Midi-Mania の書き込みを受け付けませんでした。何も書き込んでいません。SLOOP など一部のカスタムファームウェアは、自分自身か純正のアップデートしか受け付けません。まずそのファームウェアの方法（「公式ファームウェアに戻す」や M-VAVE の M-UPGRADE）で純正 V15 に戻してから、もう一度お試しください。FM-1 のファームウェア: ",
     unknownchip: "この FM-1 は書き込みモードに入らず、元のファームウェアに戻りました。Midi-Mania が知らないフラッシュチップです（旧型 0x856014・新型 0xB36014 以外）。何も書き込んでいないので、FM-1 はそのまま使えます。",
     probeHead: "インストールの前にフラッシュチップを確認:",
     probeWhat: "純正ファームウェアや 0.9.0 より前の Midi-Mania はフラッシュチップを答えないため、その FM-1 向けの確認です。FM-1 をつないで「確認する」を押してください。インストールの最初の手順だけを行います。FM-1 自身のファームウェアが Midi-Mania の小さな書き込みプログラムを読み込み、それがチップを読んでから取り消すので、Midi-Mania は何も書き込まれずに FM-1 は元のファームウェアで再起動します。約 20 秒かかり、FM-1 は 1 回再起動します。",
@@ -394,6 +395,7 @@ const TEXT = {
     notfound: "FM-1 not found. Check the USB cable (a data cable), close other apps that use MIDI, and press Install again.",
     model: "The connected device is not an FM-1.",
     lost: "The USB connection was lost. Replug it and press Install again.",
+    foreign: "The firmware on this FM-1 refused Midi-Mania's update. Nothing was written. Some custom firmware, such as SLOOP, accept only their own updates or the official one: go back to the official V15 firmware first, with that firmware's own way (its \"Return to the official firmware\", or M-VAVE's M-UPGRADE), then try again. Firmware on the FM-1: ",
     unknownchip: "This FM-1 went back to its own firmware instead of starting the update: its flash chip is not one Midi-Mania knows (neither the older 0x856014 nor the newer 0xB36014). Nothing was written, and your FM-1 is as it was.",
     probeHead: "Check the flash chip before installing:",
     probeWhat: "For an FM-1 on the official firmware or a Midi-Mania before 0.9.0, which don't report their flash chip. Connect your FM-1 and press Run the check. It runs only the first step of an install: your FM-1's own firmware loads Midi-Mania's small update program, which reads the chip and then cancels, so your FM-1 restarts into its own firmware with nothing of Midi-Mania written. It takes about 20 seconds, and the FM-1 restarts once.",
@@ -567,7 +569,6 @@ async function runInstall() {
 $("stock-file").addEventListener("change", async () => {
   const epoch = ++stockFileEpoch, file = $("stock-file").files[0]; stock = null; lockInstaller(false);
   if (!file) return;
-  toProgress();
   sayK("stockChecking");
   try {
     if (file.size !== STOCK_V15_SIZE) throw new Error("FM-1 V15 / FM-1.fwsc");
