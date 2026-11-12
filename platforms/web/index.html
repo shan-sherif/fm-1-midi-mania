@@ -1258,9 +1258,18 @@ function previewEvents(song, from = 0) {                         // chart notes 
   ev.sort((a, b) => a[0] - b[0] || a[3] - b[3]);                  // (at one time: the note-offs first)
   return { ev, end: Math.ceil(end + 400) };
 }
+// where one instrument's preview starts (ms, as previewEvents counts): at its first note that has another within
+// 3 s, so a lone note early on (a pickup, a hit in bar 1) and a long rest after it are skipped: you hear it play
+function busyStart(song) {
+  const n = song.notes, gap = 3 * 44100;
+  let i = 0;
+  while (i + 1 < n.length && n[i + 1][0] - n[i][0] > gap) i++;
+  return n.length ? (n[i][0] - n[0][0]) / 44.1 : 0;
+}
 function previewReset() {
   if (!preview) return;
   preview.btn.textContent = preview.text;
+  preview.btn.title = preview.title;
   preview.btn.classList.remove("on");
   preview = null;
 }
@@ -1271,16 +1280,20 @@ function previewStop() {
 }
 function previewStart(make, btn, from = 0, again = false) {
   const was = preview && preview.btn === btn, text = was ? preview.text : btn.textContent;
+  const title = was ? preview.title : btn.title;
   previewStop();
   if (was && !again) return;                                     // (its own button again: stopped)
   const song = make();
-  if (!song.notes.length) return;
+  if (!song.notes.length) return false;
+  if (!again && from === 0 && btn.dataset.compact) from = busyStart(song);   // (one instrument: where it plays)
   const { ev, end } = previewEvents(song, from), id = ++previewSeq;
-  if (!ev.length) return;                                        // (changed past its last note: done)
-  preview = { id, btn, text, base: from, at: 0, make };
+  if (!ev.length) return false;                                  // (changed past its last note: done)
+  preview = { id, btn, text, title, base: from, at: 0, make };
   btn.textContent = btn.dataset.compact ? "■" : "■ Stop";        // (Advanced's row buttons: the symbol alone)
   btn.classList.add("on");
   send({ type: "preview", id, events: ev, end });
+  if (btn.dataset.compact) btn.title = `Playing from ${mmssMs(from)}: press again to stop`;
+  return true;
 }
 function previewAt(p) {                                          // (the worklet's frame: how far it is)
   if (!preview || preview.id !== p.id) return;
@@ -1428,8 +1441,15 @@ function pickCard(name, bytes, inst) {
         return convertMidi(bytes, name, { ...opts(), roles: only });
       };
       const td = document.createElement("td"), hear = songButton("▶", () => {
-        try { previewStart(alone, hear); }
-        catch (e) { tell([`${name}: could not play it (${e.message})`], true); }
+        const was = preview && preview.btn === hear;
+        try {
+          if (!previewStart(alone, hear) && !was) {                // (nothing to hear: say why)
+            const part = ROLE_NAME[roles[i.key] ?? (i.channel === 9 ? 1 : 0)];
+            tell([`${i.name}: nothing to hear on ${part}: ${trim.from > 0 || trim.to < whole
+              ? "none of its notes are between Start and End, or they are outside the part's range"
+              : `its notes are outside the ${part} range (KEYS C2–C7, GUITAR E2–E6, BASS E1–G4). Try another part.`}`], true);
+          }
+        } catch (e) { tell([`${name}: could not play it (${e.message})`], true); }
       });
       hear.className = "hear";
       hear.dataset.compact = "1";
