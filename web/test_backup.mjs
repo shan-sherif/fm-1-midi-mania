@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments
 // fm1backup.js against a simulated device: 7-bit packing, CRC, manifest checks, a full capture,
 // validation before the first write, restore order (live music last) and abort on a failed chunk.
-import { BACKUP_IDS, BACKUP_CMD, bkU32, bkR32, bkPack, bkUnpack, bkCrc, bkManifest, readBackup, captureBackup, restoreBackup } from "./fm1backup.js";
+import { BACKUP_IDS, BACKUP_CMD, bkU32, bkR32, bkPack, bkUnpack, bkCrc, bkManifest, readBackup, captureBackup, restoreBackup, BackupConnection } from "./fm1backup.js";
 
 let fails = 0;
 const ok = (c, what) => { console.log(`${what.padEnd(72)} ${c ? "ok" : "FAIL"}`); if (!c) fails++; };
@@ -129,6 +129,49 @@ ok([0, 1, 2, 6].every((id) => target.objs.get(id).every((v, i) => v === objs.fin
 }
 const failing = device([], { failChunk: 2 });
 ok(await athrows(() => restoreBackup(failing.request, file)) && failing.log.includes("abort 2") && !failing.log.includes(0), "backup: a refused chunk aborts that object and stops before the live music");
+
+/* Midi-Mania: no sample slots (its songs are there), so its firmware never answers the sample commands (11..14):
+ * restoring with samples: false skips them, and finishes; with them asked for, it would wait for a reply */
+{
+  const mm = device([]);
+  const plain = mm.request;
+  mm.request = async (r, o) => {
+    if (r[0] >= 11 && r[0] <= 14) throw Object.assign(new Error("Backup timed out (cmd " + r[0] + ")"), { timedOut: true });
+    return plain(r, o);
+  };
+  const file2 = await captureBackup(device([[0, rnd(900, 7)], [1, rnd(300, 8)]]).request, "FM-1 MIDI-MANIA v0.8.0");
+  let res = null, err = null;
+  try { res = await restoreBackup(mm.request, file2, () => {}, { samples: false }); } catch (e) { err = e; }
+  ok(res && !err && res.skipped === 0 && mm.log.includes(0) && mm.log.includes(1),
+    "backup: restore on Midi-Mania (samples: false): the sample slots skipped, the rest restored");
+  ok(await athrows(() => restoreBackup(mm.request, file2)), "backup: (the sample commands asked of Midi-Mania: no reply, as on the FM-1)");
+}
+
+/* the connection over (simulated) MIDI: a slow reply is asked for again, and the late one does not answer the next
+ * request; a write (no retries) still fails at once */
+{
+  const objs = [[0, rnd(1500, 2)], [1, rnd(700, 3)]];
+  const dev = device(objs);
+  let sent = 0;
+  const input = { state: "connected", onmidimessage: null };
+  const output = { state: "connected", send: async (m) => {
+    const cmd = m[4], args = m.slice(5, -1), n = ++sent;
+    const reply = await dev.request([cmd, args]);
+    const late = cmd === BACKUP_CMD.GET && n % 3 === 0;           // (every third chunk: slower than its timeout)
+    setTimeout(() => input.onmidimessage && input.onmidimessage({ data: Uint8Array.from([240, 125, 70, 76, cmd, ...reply, 247]) }),
+               late ? 2300 : 5);
+  } };
+  const link = new BackupConnection(input, output);
+  const t0 = Date.now();
+  let file = null, err = null;
+  try { file = await captureBackup((r, o) => link.request(r, o), "FM-1 MIDI-MANIA v0.9.0"); } catch (e) { err = e; }
+  ok(file && file.objects.length === BACKUP_IDS.length && !err,
+    `backup: slow replies asked again, late ones ignored: the capture completes (${sent} requests, ${((Date.now() - t0) / 1000).toFixed(0)} s)`);
+  const quiet = new BackupConnection({ state: "connected", onmidimessage: null }, { state: "connected", send: () => {} });
+  const t1 = Date.now();
+  ok(await athrows(() => quiet.request([BACKUP_CMD.PUT, [0]], { timeout: 300 })) && Date.now() - t1 < 1000,
+    "backup: a write that gets no reply is not sent again (fails after its timeout)");
+}
 
 console.log(fails ? `BACKUP WEB TESTS FAILED (${fails})` : "backup web tests passed");
 process.exit(fails ? 1 : 0);

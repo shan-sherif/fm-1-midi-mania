@@ -68,7 +68,9 @@ Your own songs: drop a MIDI file on Studio (below). The full controls are in [Pl
 > line shows which chip your FM-1 has. An FM-1 on the official firmware (or Midi-Mania before 0.9.0) doesn't report
 > it, so the installer offers a **check only**: the first step of an install, where the FM-1's own firmware loads
 > Midi-Mania's update loader, which reads the chip and cancels, so the FM-1 restarts into its own firmware with
-> nothing of Midi-Mania written (about 20 seconds; keep it connected until it's done).
+> nothing of Midi-Mania written (about 20 seconds; keep it connected until it's done). The check has been tested on an
+> FM-1 with the older chip, running the official V15 firmware and running custom firmware: it reported the chip, and
+> the FM-1 came back on its own firmware, unchanged; it does not break the device.
 >
 > Why one small change makes the newer chip work: [The newer FM-1 flash chip](#the-newer-fm-1-flash-chip).
 

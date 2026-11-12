@@ -66,7 +66,7 @@ export function roomText(l) {
   return `${n} song${n === 1 ? "" : "s"} · ${used * 4} KB of ${l.sectors * 4} KB used · ${more}`;
 }
 export async function listSongs(request) {
-  return parseList(await request([SONG_CMD.LIST, []], { timeout: 2000 }));
+  return parseList(await request([SONG_CMD.LIST, []], { timeout: 2000, retries: 2 }));
 }
 // a chart (Uint8Array, web/mm_songs.js chartBytes) onto the FM-1: the sector it went to. onProgress(done, total)
 export async function uploadChart(request, chart, onProgress = () => {}) {
@@ -113,7 +113,8 @@ function songUnpack7(a, n) {
 // the chart stored at a sector, byte for byte (SONG_READ), its size from its header
 export async function readChart(request, sector, onChunk = () => {}) {
   const chunk = async (off, n) => {
-    const r = await request([SONG_CMD.READ, [sector & 127, ...u21(off)]], { timeout: 2000 });
+    const r = await request([SONG_CMD.READ, [sector & 127, ...u21(off)]], { timeout: 2500, retries: 3,   // (a read: safe again)
+      match: (x) => x.length < 5 || (x[0] === sector && (x[1] | x[2] << 7 | x[3] << 14) === off) });
     if (r.length < 5) throw new Error("this FM-1 cannot read its songs back (update it)");
     if (r[0] !== sector || (r[1] | r[2] << 7 | r[3] << 14) !== off) throw new Error("the FM-1 answered out of turn");
     if (r[4]) throw new Error(r[4] === 1 ? "that song is no longer on the FM-1" : "a bad song read");

@@ -174,12 +174,11 @@
     <div class="meter"><progress id="bar" max="100" value="0"></progress><span class="pct" id="pct">0%</span></div>
     <p id="status"></p>
     <p class="chip"><span class="k" data-t="chipLabel"></span> <span id="chipval"></span>
-      <button type="button" id="chipcheck" data-t="chipCheck"></button></p>
-    <div class="probe" id="probe" hidden>
+</p>
+    <div class="probe" id="probe">
       <p><b data-t="probeHead"></b> <span data-t="probeWhat"></span></p>
       <p class="risk" data-t="probeRisk"></p>
-      <p class="acts"><button type="button" class="go" id="probe-go" data-t="probeGo"></button>
-        <button type="button" id="probe-no" data-t="probeNo"></button></p>
+      <p class="acts"><button type="button" class="go" id="probe-go" disabled data-t="probeGo"></button></p>
     </div>
     <p class="hold" id="hold" hidden data-t="leave"></p>
   </section>
@@ -230,6 +229,8 @@
         <p data-t="stuck"></p>
         <p><span data-t="brick"></span>
           <a href="https://github.com/kurogedelic/FM-1-transporter" target="_blank" rel="noopener">FM-1-transporter</a></p>
+        <p><span data-t="rescue"></span>
+          <a href="https://thefirmwarehub.com/tools/rescue/" target="_blank" rel="noopener">The Firmware Hub: FM-1 rescue</a></p>
       </div>
     </details>
     <details>
@@ -292,6 +293,7 @@ const TEXT = {
     install: "インストール", other: "English",
     direct: "USB ケーブルはパソコンに直接つないでください。Probe や Transporter などの機材は不要です。",
     brick: "万一インストールに失敗して起動しなくなった場合は、復旧に Transporter が必要です:",
+    rescue: "起動しない FM-1 の症状ごとの対処法と復旧の手順（英語）:",
     beta: "Midi-Mania は実地テスト版です。不具合は GitHub で知らせてください。このカスタムファームウェアを使ったことで FM-1 が壊れたり不具合が起きたりしても、作者は一切の責任を負いません。自己責任でお使いください。",
     back: "M-VAVEから公式FM-1 V15を取得し、未変更のFM-1.fwscを選んでください。ファイルはこのブラウザ内で検証し、サーバーへ送りません。",
     stockTitle: "公式V15に戻す", stockFile: "公式FM-1.fwsc", stockGo: "バックアップして公式V15へ戻す",
@@ -305,7 +307,7 @@ const TEXT = {
     restoring: "復元中 ", restoringSongs: "曲を復元中 ", restored: "戻しました。",
     songsAdded: "曲の追加 ", songsHad: "・すでにある曲 ", songsFailed: "・入らなかった曲 ",
     stockRecovery: "更新中断の再開：全体バックアップはすでにパソコンへ保存済み",
-    stockValid: "公式V15を確認しました", stockConfirm: "全体バックアップファイルをパソコンに保存できましたか？ 続けると公式V15へ戻します。Midi-Maniaの曲は公式V15では開けません。",
+    stockChecking: "公式V15のファイルを確認中…", stockValid: "公式V15を確認しました", stockConfirm: "全体バックアップファイルをパソコンに保存できましたか？ 続けると公式V15へ戻します。Midi-Maniaの曲は公式V15では開けません。",
     stockNeedBackup: "書き込みモードからはバックアップできません。保存済みバックアップがある場合だけ、更新中断の再開にチェックしてください。",
     stockUnsupported: "このMidi-Maniaは全体バックアップに未対応です。先に最新版をインストールしてください。",
     backup: "全体バックアップ保存中 ", stockError: "公式ファイルを確認できません: ",
@@ -318,14 +320,14 @@ const TEXT = {
     model: "接続されている機器は FM-1 ではありません。",
     lost: "USB の接続が切れました。挿し直してもう一度押してください。",
     unknownchip: "この FM-1 は書き込みモードに入らず、元のファームウェアに戻りました。Midi-Mania が知らないフラッシュチップです（旧型 0x856014・新型 0xB36014 以外）。何も書き込んでいないので、FM-1 はそのまま使えます。",
-    probeHead: "インストールの前にチップを確認しますか？",
-    probeWhat: "この FM-1 のファームウェアはフラッシュチップを答えません。確認では、インストールの最初の手順だけを行います。FM-1 自身のファームウェアが Midi-Mania の小さな書き込みプログラムを読み込み、それがチップを読んでから取り消すので、Midi-Mania は何も書き込まれずに FM-1 は元のファームウェアで再起動します。約 20 秒かかり、FM-1 は 1 回再起動します。",
+    probeHead: "インストールの前にフラッシュチップを確認:",
+    probeWhat: "純正ファームウェアや 0.9.0 より前の Midi-Mania はフラッシュチップを答えないため、その FM-1 向けの確認です。FM-1 をつないで「確認する」を押してください。インストールの最初の手順だけを行います。FM-1 自身のファームウェアが Midi-Mania の小さな書き込みプログラムを読み込み、それがチップを読んでから取り消すので、Midi-Mania は何も書き込まれずに FM-1 は元のファームウェアで再起動します。約 20 秒かかり、FM-1 は 1 回再起動します。",
     probeRisk: "リスク: どのインストールでも最初に行う手順と同じです。終わるまで USB を抜かず、電源を切らないでください。途中で切れると、次に FM-1 が書き込みモードで起動することがあります（インストールを押して完了するか、純正 V15 に戻すを使います）。不明なチップでは何も消去せず元のファームウェアに戻りますが、次にアップデートするまで起動に少し時間がかかることがあります。自己責任でお使いください。",
-    probeGo: "確認する", probeNo: "今はしない",
+    probeGo: "確認する",
     probing: "フラッシュチップを確認中（約 20 秒）。FM-1 をつないだままにしてください…",
     probeDone: "確認しました。FM-1 は元のファームウェアに戻りました（Midi-Mania は書き込んでいません）。",
-    chipLabel: "フラッシュチップ:", chipCheck: "確認", chipAsking: "確認中…", chipNotFound: "FM-1 が見つかりません（USB を確認）",
-    chipUnchecked: "未確認（「確認」を押すか、インストール中に確認します）",
+    chipLabel: "フラッシュチップ:", chipAsking: "確認中…", chipNotFound: "FM-1 が見つかりません（USB を確認）",
+    chipUnchecked: "未確認（下の確認を使うか、インストール中に確認します）",
     chipOld: "旧型（Puya P25Q80）: 対応", chipNew: "新型（UC25HQ80）: 実機ではまだ未検証。自己責任でお試しください",
     chipUnknown: "不明なチップ: Midi-Mania はインストールしません",
     chipNone: "このファームウェアは答えません。書き込みの前に Midi-Mania の書き込みモードが確認します",
@@ -366,6 +368,7 @@ const TEXT = {
     install: "Install", other: "日本語",
     direct: "Connect the USB cable directly to the computer. No probe or Transporter is needed.",
     brick: "If an install fails and the FM-1 no longer starts, recovering it needs a Transporter:",
+    rescue: "Advice for an FM-1 that won't start, by symptom, and the ways to recover it:",
     beta: "Midi-Mania is a field-testing release; please report problems on GitHub. The author accepts no responsibility if your FM-1 is damaged or misbehaves because of this custom firmware. Use it at your own risk.",
     back: "Get official FM-1 V15 from M-VAVE and select the unmodified FM-1.fwsc. The browser validates it locally; it is not sent to a server.",
     stockTitle: "Return to official V15", stockFile: "Official FM-1.fwsc", stockGo: "Back up and return to official V15",
@@ -379,7 +382,7 @@ const TEXT = {
     restoring: "Restoring ", restoringSongs: "Restoring songs ", restored: "Restored. ",
     songsAdded: "Songs added: ", songsHad: ", already there: ", songsFailed: ", did not fit: ",
     stockRecovery: "Resume an interrupted update: I already saved a complete backup to this computer",
-    stockValid: "Official V15 verified", stockConfirm: "Has the complete backup file been saved to this computer? Continue to return to official V15. Official V15 cannot open Midi-Mania music.",
+    stockChecking: "Checking the official V15 file…", stockValid: "Official V15 verified", stockConfirm: "Has the complete backup file been saved to this computer? Continue to return to official V15. Official V15 cannot open Midi-Mania music.",
     stockNeedBackup: "An update loader cannot export a backup. Only select resume if you already saved a complete backup.",
     stockUnsupported: "This Midi-Mania does not support complete backups. Install the current Midi-Mania first.",
     backup: "Saving complete backup ", stockError: "Cannot validate official firmware: ",
@@ -392,14 +395,14 @@ const TEXT = {
     model: "The connected device is not an FM-1.",
     lost: "The USB connection was lost. Replug it and press Install again.",
     unknownchip: "This FM-1 went back to its own firmware instead of starting the update: its flash chip is not one Midi-Mania knows (neither the older 0x856014 nor the newer 0xB36014). Nothing was written, and your FM-1 is as it was.",
-    probeHead: "Check the chip before installing?",
-    probeWhat: "This FM-1's firmware doesn't report its flash chip. The check runs only the first step of an install: your FM-1's own firmware loads Midi-Mania's small update program, which reads the chip and then cancels, so your FM-1 restarts into its own firmware with nothing of Midi-Mania written. It takes about 20 seconds, and the FM-1 restarts once.",
+    probeHead: "Check the flash chip before installing:",
+    probeWhat: "For an FM-1 on the official firmware or a Midi-Mania before 0.9.0, which don't report their flash chip. Connect your FM-1 and press Run the check. It runs only the first step of an install: your FM-1's own firmware loads Midi-Mania's small update program, which reads the chip and then cancels, so your FM-1 restarts into its own firmware with nothing of Midi-Mania written. It takes about 20 seconds, and the FM-1 restarts once.",
     probeRisk: "Risks: this is the same first step every install starts with. Keep the USB cable in and the FM-1 powered until it says it's done: if it's cut off midway, the FM-1 may start in update mode next time (press Install to finish, or use Return to official V15). On an unknown chip nothing is erased and the FM-1 goes back to its own firmware, though it may take a moment longer to start until it's next updated. Use at your own risk.",
-    probeGo: "Run the check", probeNo: "Not now",
+    probeGo: "Run the check",
     probing: "Checking the flash chip (about 20 seconds): keep the FM-1 connected…",
     probeDone: "Checked: your FM-1 is back on its own firmware (nothing of Midi-Mania written).",
-    chipLabel: "Flash chip:", chipCheck: "Check", chipAsking: "checking…", chipNotFound: "FM-1 not found (check the USB cable)",
-    chipUnchecked: "not checked yet (press Check, or it is checked during the install)",
+    chipLabel: "Flash chip:", chipAsking: "checking…", chipNotFound: "FM-1 not found (check the USB cable)",
+    chipUnchecked: "not checked yet (run the check below, or it is checked during the install)",
     chipOld: "older (Puya P25Q80): supported", chipNew: "newer (UC25HQ80): not verified on a physical device yet, try at your own risk",
     chipUnknown: "unknown chip: Midi-Mania will not install",
     chipNone: "not reported by this firmware: Midi-Mania's update loader checks it before writing",
@@ -439,44 +442,31 @@ function showChip(key, id) {
 }
 const chipKeyOf = (id) => id == null ? "chipNone" : FLASH_CHIPS[id] === "older" ? "chipOld" : FLASH_CHIPS[id] === "newer" ? "chipNew" : "chipUnknown";
 showChip("chipUnchecked");
-$("probe-no").addEventListener("click", () => { $("probe").hidden = true; });
+/* Run the check (for the official firmware or a Midi-Mania before 0.9.0, which do not say their chip): the check only,
+ * Updater.probe: step 1, the loader asked, then cancelled: back to the firmware that was there, Midi-Mania never
+ * written */
+/* the status and the bar in view (a long task started further down the page: the check, back to V15, a restore) */
+const toProgress = () => document.querySelector(".progress").scrollIntoView({
+  behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
 $("probe-go").addEventListener("click", async () => {
-  if (writing || !image) return;
-  $("probe").hidden = true;
-  lockInstaller(true);
-  $("chipcheck").disabled = true;
+  if (writing || !image || !navigator.requestMIDIAccess) return;
+  $("probe-go").disabled = true;
   showChip("chipAsking");
-  say(t("probing"));
   try {
     const midi = await navigator.requestMIDIAccess({ sysex: true });
+    lockInstaller(true);
+    toProgress();
+    say(t("probing"));
     const chip = await new Updater(midi, log).probe(image, meta.product, (k, a) => log(`check ${k} ${a ?? ""}`));
     showChip(chipKeyOf(chip), chip ?? undefined);
     sayK("probeDone");
   } catch (e) {
-    if (e && e.code === "unknownchip") showChip("chipUnknown");
-    else showChip("chipUnchecked");
+    showChip(e && e.code === "unknownchip" ? "chipUnknown" : "chipUnchecked");
     if (e && e.code && TEXT[lang][e.code]) sayK(e.code, e.detail || ""); else sayK("error", e && e.message);
     log(String(e && e.stack || e));
   }
-  $("chipcheck").disabled = false;
   lockInstaller(false);
-});
-$("chipcheck").addEventListener("click", async () => {
-  if (writing || !navigator.requestMIDIAccess) return;
-  $("chipcheck").disabled = true;
-  showChip("chipAsking");
-  try {
-    const midi = await navigator.requestMIDIAccess({ sysex: true });
-    const r = await new Updater(midi, log).chip();
-    if (!r) showChip("chipNotFound");
-    else if (r.chip != null) showChip(chipKeyOf(r.chip), r.chip);
-    else {
-      showChip(/^FM-1_8\d\d$/.test(r.text) ? "chipNoneOld" : /^FM-1_0\d\d$/.test(r.text) ? "chipNoneStock" : "chipNone");
-      $("probe").hidden = !image || !/^FM-1_/.test(r.text);           /* (offered: the check only, with its risks) */
-    }
-    log(`chip check: ${r ? r.text : "no FM-1"} -> ${r && r.chip != null ? "0x" + r.chip.toString(16) : "not reported"}`);
-  } catch (e) { showChip("chipNotFound"); log(String(e)); }
-  $("chipcheck").disabled = false;
+  $("probe-go").disabled = !image;
 });
 applyLang();
 /* the progress card: the stage a step key is in (the ones before it done), the bar and its percentage; the steps'
@@ -500,7 +490,7 @@ let image = null;
 const meta = /*META*/;
 
 let writing = false, stock = null, stockFileEpoch = 0, restore = null;   /* restore: {raw, parsed}, the chosen backup */
-const lockInstaller = (on) => { writing = on; $("go").disabled = on || !image; $("stock-go").disabled = on || !stock; $("stock-file").disabled = on; $("stock-recovery").disabled = on;
+const lockInstaller = (on) => { writing = on; $("go").disabled = on || !image; $("probe-go").disabled = on || !image; $("stock-go").disabled = on || !stock; $("stock-file").disabled = on; $("stock-recovery").disabled = on;
   $("restore-go").disabled = on || !restore; $("restore-file").disabled = on; $("hold").hidden = !on; };
 const pct = (done, total) => `${Math.round(done / Math.max(1, total) * 100)}%`;
 window.addEventListener("beforeunload", (e) => { if (writing) { e.preventDefault(); e.returnValue = t("leave"); } });
@@ -516,6 +506,7 @@ window.addEventListener("beforeunload", (e) => { if (writing) { e.preventDefault
     $("ver").textContent = meta.version;
     sayK("ready", ` · Midi-Mania ${meta.version}`);
     $("go").disabled = false;
+    $("probe-go").disabled = false;
   } catch (e) { sayK("loadfail", e.message); }
 })();
 
@@ -533,7 +524,7 @@ $("preflight").addEventListener("close", () => { if ($("preflight").returnValue 
 async function runInstall() {
   if (writing) return;
   lockInstaller(true);
-  resetStages(); setBar(0); steps("done", "active", "");
+  resetStages(); setBar(0); steps("done", "active", ""); toProgress();
   let midi, ok = false;
   try { midi = await navigator.requestMIDIAccess({ sysex: true }); }
   catch (e) { sayK("denied"); lockInstaller(false); return; }
@@ -572,6 +563,8 @@ async function runInstall() {
 $("stock-file").addEventListener("change", async () => {
   const epoch = ++stockFileEpoch, file = $("stock-file").files[0]; stock = null; lockInstaller(false);
   if (!file) return;
+  toProgress();
+  sayK("stockChecking");
   try {
     if (file.size !== STOCK_V15_SIZE) throw new Error("FM-1 V15 / FM-1.fwsc");
     const verified = await validateStockPackage(new Uint8Array(await file.arrayBuffer()));
@@ -597,7 +590,7 @@ function archiveInfo(a) {
 $("stock-go").addEventListener("click", async () => {
   if (!stock || writing) return;
   const selected = stock; lockInstaller(true);
-  resetStages(); setBar(0);
+  resetStages(); setBar(0); toProgress();
   let link = null;
   try {
     let midi;
@@ -615,7 +608,7 @@ $("stock-go").addEventListener("click", async () => {
       if (!device) { sayK("notfound"); return; }
       const input = device.link.input, output = device.link.output; device.link.close();
       link = new BackupConnection(input, output);
-      const info = archiveInfo(await link.request([1,[]]));
+      const info = archiveInfo(await link.request([1,[]], { timeout: 2000, retries: 2 }));
       if (!info.supported) { sayK("stockUnsupported"); return; }
       const req = (r,o) => link.request(r,o);
       const songs = await captureSongs(req, (done,total) => sayK("backup", pct(done, total) + " (songs)"));   /* (0.1.0: none) */
@@ -648,7 +641,7 @@ $("restore-file").addEventListener("change", async () => {
 $("restore-go").addEventListener("click", async () => {
   if (!restore || writing) return;
   const { raw, parsed } = restore; lockInstaller(true);
-  resetStages(); setBar(0);
+  resetStages(); setBar(0); toProgress();
   let link = null;
   try {
     let midi;
@@ -658,11 +651,11 @@ $("restore-go").addEventListener("click", async () => {
     const input = device.link.input, output = device.link.output; device.link.close();
     link = new BackupConnection(input, output);
     const req = (r,o) => link.request(r,o);
-    const info = archiveInfo(await link.request([1,[]]));
+    const info = archiveInfo(await link.request([1,[]], { timeout: 2000, retries: 2 }));
     if (!info.supported || (parsed.songs.length && !(await listSongs(req)))) { sayK("restoreUnsupported"); return; }
     if (!confirm(t("restoreConfirm"))) return;
-    await restoreBackup(req, raw, (done,total) => sayK("restoring", pct(done, total)));
-    log(`restore: ${parsed.objects.length} objects`);
+    const back = await restoreBackup(req, raw, (done,total) => sayK("restoring", pct(done, total)), { samples: false });   /* (no sample slots: songs there) */
+    log(`restore: ${parsed.objects.length} objects${back.skipped ? `, ${back.skipped} Felucca sample sets not restored (Midi-Mania has no sample slots)` : ""}`);
     let res = { sent: 0, skipped: 0, failed: [] };
     if (parsed.songs.length) res = await restoreSongs(req, parsed.songs, (done,total) => sayK("restoringSongs", pct(done, total)));
     for (const f of res.failed) log(`song not restored: ${f.title}: ${f.error}`);

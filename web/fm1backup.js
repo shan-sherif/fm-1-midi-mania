@@ -115,13 +115,14 @@ export function readBackup(file) {
 }
 // songs: [{title, bytes}] (web/fm1songs.js captureSongs), kept in the file with the rest; null or none: no "songs"
 export async function captureBackup(request, firmware, onProgress = () => {}, songs = null) {
-  const manifest = bkManifest(await request([BACKUP_CMD.LIST, []], { timeout: 3000, retries: 0 }));
+  const manifest = bkManifest(await request([BACKUP_CMD.LIST, []], { timeout: 3000, retries: 2 }));
   const objects = [], total = manifest.reduce((n, o) => n + o.size, 0); let done = 0;
   for (const o of manifest) {
     const bytes = new Uint8Array(o.size);
     for (let off = 0; off < o.size; off += BACKUP_CHUNK) {
       const size = Math.min(BACKUP_CHUNK, o.size - off);
-      const a = await request([BACKUP_CMD.GET, [o.id, ...bkU32(off), size & 127, size >>> 7]], { timeout: 1000, retries: 1 });
+      const a = await request([BACKUP_CMD.GET, [o.id, ...bkU32(off), size & 127, size >>> 7]],
+        { timeout: 2000, retries: 3, match: (r) => r[0] === o.id && bkR32(r, 2) === off });
       bkCheck(a[1]);
       if (a[0] !== o.id || bkR32(a, 2) !== off || (a[7] | a[8] << 7) !== size) throw new Error("Unexpected backup reply");
       bytes.set(bkUnpack(a.slice(9), size), off);
@@ -134,13 +135,19 @@ export async function captureBackup(request, firmware, onProgress = () => {}, so
   if (songs) file.songs = songs.map((s) => ({ title: s.title, size: s.bytes.length, crc: bkCrc(s.bytes), data: bkBase64(s.bytes) }));
   readBackup(file); return file;
 }
-export async function restoreBackup(request, file, onProgress = () => {}) {
+// opt.samples false (Midi-Mania): the user sample slots (objects 32..34) are skipped. Midi-Mania keeps its songs where
+// Felucca kept those samples, so its firmware never answers the sample commands (11..14: MM_NO_USER_SAMPLES): asking
+// would only time out. archive.skipped: how many sample objects with data were left out
+export async function restoreBackup(request, file, onProgress = () => {}, opt = {}) {
   const archive = readBackup(file); // Validate every byte before the first destructive request.
-  const total = archive.objects.reduce((n, o) => n + o.size, 0); let done = 0;
+  const samples = opt.samples !== false;
+  archive.skipped = samples ? 0 : archive.objects.filter((o) => o.id >= 32 && o.size).length;
+  const total = archive.objects.reduce((n, o) => n + (!samples && o.id >= 32 ? 0 : o.size), 0); let done = 0;
   const ask = async (r, o = {}) => request(r, { timeout: 4000, retries: 0, ...o });
   const put = async (args) => { const a = await ask([BACKUP_CMD.PUT, args]); bkCheck(a[2]); return a; };
   // Restore live music last. Other objects commit individually; a disconnect can leave a partial restore.
   for (const o of [...archive.objects.slice(2), archive.objects[1], archive.objects[0]]) {
+    if (o.id >= 32 && !samples) continue;
     if (o.id >= 32) {
       const slot = o.id - 32;
       const check = (a) => { if (a[0] !== slot) throw new Error("Unexpected sample reply"); bkCheck(a.at(-1)); };
@@ -182,14 +189,34 @@ export class BackupConnection {
     input.onmidimessage = (e) => {
       const d = e.data;
       if (d.length < 6 || d[0] !== 240 || d[1] !== 125 || d[2] !== 70 || d[3] !== 76 || d.at(-1) !== 247) return;
-      if (this.pending?.cmd === d[4]) { const p = this.pending; this.pending = null; clearTimeout(p.timer); p.resolve(Array.from(d.slice(5, -1))); }
+      if (this.pending?.cmd !== d[4]) return;
+      const a = Array.from(d.slice(5, -1));
+      if (this.pending.match && !this.pending.match(a)) return;   // (a late reply to an earlier try: not this one's)
+      const p = this.pending; this.pending = null; clearTimeout(p.timer); p.resolve(a);
     };
   }
+  // opt.timeout: ms a reply may take; opt.retries: times the request is sent again after a timeout (only for requests
+  // that change nothing on the FM-1: reads, lists; a write's caller leaves it 0). One slow reply (the FM-1 busy
+  // drawing or playing) no longer ends a backup of hundreds of requests
   async request([cmd, args], opt = {}) {
+    const tries = 1 + Math.max(0, opt.retries || 0);
+    for (let t = 1; ; t++) {
+      try { return await this.once(cmd, args, opt.timeout || 1200, opt.match); }
+      catch (e) { if (!e.timedOut || t >= tries || this.closed) throw e; }
+    }
+  }
+  once(cmd, args, ms, match) {
     if (this.pending || this.closed || this.input.state === "disconnected" || this.output.state === "disconnected") throw new Error("Backup connection closed or busy");
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => { this.pending = null; reject(new Error("Backup timed out. Keep the FM-1 connected and stopped.")); }, opt.timeout || 1200);
-      this.pending = { cmd, timer, resolve, reject };
+      const timer = setTimeout(() => {
+        this.pending = null;
+        const what = { 1: "INFO", 88: "song list", 93: "song read" }[cmd] ||
+          (cmd === BACKUP_CMD.LIST ? "backup list" : cmd === BACKUP_CMD.GET ? "backup read" : `cmd ${cmd}`);
+        const e = new Error(`Backup timed out (${what}). Keep the FM-1 connected and stopped (no song playing), and try again.`);
+        e.timedOut = true;
+        reject(e);
+      }, ms);
+      this.pending = { cmd, timer, resolve, reject, match };
       try { this.output.send([240, 125, 70, 76, cmd, ...args, 247]); }
       catch (e) { clearTimeout(timer); this.pending = null; reject(e); }
     });
