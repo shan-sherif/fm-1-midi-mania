@@ -14,7 +14,7 @@
   web/make_site.py build/midi-mania-X.Y.fwsc X.Y OUT_DIR
 
 The package must be one made by tools/fm1pkg_make.py (Midi-Mania's own loader, no vendor files).
-Its identity (FM-1_8xx) is read from the package; the device must report it after
+Its identity (FM-1_137, a release FM-1_137XYZ; before 0.9.0 FM-1_8xx) is read from the package; the device must report it after
 the install.
 """
 import json
@@ -41,8 +41,8 @@ def main(pkg, version, out):
     pkg, out = Path(pkg), Path(out)
     raw = pkg.read_bytes()
     product = product_of(raw)
-    if not re.fullmatch(r"FM-1_8\d\d", product):
-        raise SystemExit(f"{pkg}: identity {product!r} is not a Midi-Mania package (FM-1_8xx)")
+    if not re.fullmatch(r"FM-1_(137(\d{3})?|8\d\d)", product):
+        raise SystemExit(f"{pkg}: identity {product!r} is not a Midi-Mania package (FM-1_137 or FM-1_137XYZ)")
     if b"MIDIMANIA-LOADER-1" not in raw:              # Felucca loader marker: never publish a package with vendor files
         raise SystemExit(f"{pkg}: no Midi-Mania loader in it; the site ships only fm1pkg_make.py packages "
                          "(a package patched from an official one carries vendor files)")

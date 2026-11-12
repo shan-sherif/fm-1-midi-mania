@@ -3,7 +3,7 @@
 /* Midi-Mania update loader (Felucca's) (device side). Runs from RAM, started by the SPL from
  * an update record, with interrupts off: USB is polled from the main loop.
  * It is a USB-MIDI device "FM-1 Midi-Mania Update" (1209:0002) that answers the
- * M-UPGRADE update protocol as "ota-FM-1_800" (hosts look for "ota-"), and
+ * M-UPGRADE update protocol as "ota-FM-1_137" (hosts look for "ota-"), and
  * writes the app area only (ldr_core.c). The UBOOT soft key works here too.
  * Single compilation unit. */
 #include <stdint.h>
@@ -12,7 +12,7 @@
 #define MM_OTA 1
 #define MM_OTA_DRYRUN 0
 #define MM_USB_PID 0x0002
-#define MM_ID "ota-FM-1_800"
+#define MM_ID "ota-FM-1_137"
 #define OTA_CHIP_ID 1                               /* (ota.c: answers the installer's "which flash chip") */
 #define RING_PUBLISH() __asm__ volatile("" ::: "memory")
 #include "fm1_time.h"

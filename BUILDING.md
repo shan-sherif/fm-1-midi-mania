@@ -92,12 +92,13 @@ For the host platforms and the tests (each optional):
 `JIELI_TOOLCHAIN` and `AC79_SDK` override the default locations
 (`~/.jieli/toolchain`, `~/fw-AC79_AIoT_SDK`).
 
-`./build.sh --release 0.1.0` makes a release build: the package identity becomes `FM-1_801`
-and the version string `v0.1.0`; the package is `build/midi-mania-0.1.0.fwsc`, and
-`build/release-0.1.0/` holds what a release ships: the package, the app
-(`midi-mania-0.1.0-app.bin`), `SHA256SUMS`, the sample attribution, `LICENSE`, `LICENSING.md` and
-`LICENSES/` (the package contains Apache-2.0 SDK files, so the licence texts travel with it). The identity changes with
-the first two numbers only: 0.1.0 and 0.1.1 are both `FM-1_801` (Felucca's are `FM-1_9XY`).
+`./build.sh --release 0.9.0` makes a release build: the package identity becomes `FM-1_137090`
+and the version string `v0.9.0`; the package is `build/midi-mania-0.9.0.fwsc`, and
+`build/release-0.9.0/` holds what a release ships: the package, the app
+(`midi-mania-0.9.0-app.bin`), `SHA256SUMS`, the sample attribution, `LICENSE`, `LICENSING.md` and
+`LICENSES/` (the package contains Apache-2.0 SDK files, so the licence texts travel with it). The identity is
+`FM-1_137` and the three numbers, one digit each: 0.9.0 is `FM-1_137090`, 1.0.0 `FM-1_137100`. A build without
+`--release` (a local one) is `FM-1_137`. Midi-Mania before 0.9.0 used `FM-1_8XY`; Felucca's are `FM-1_9XY`.
 
 The build checks the image before it writes the package: the entry, the code in RAM, the sizes against the memory map
 (`firmware/app.ld`), and that no file outside `firmware/hal` (and felucca-bsp) touches a hardware register.

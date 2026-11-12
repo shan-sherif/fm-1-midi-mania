@@ -49,7 +49,8 @@ SDK_SHA256 = {
     "cfg/eq_cfg_hw.bin": "41167491bffed4651750719c973d2758adeb9021a5670d02d6a53c85ed80ea7d",
 }
 
-PRODUCT = "FM-1_800"                # package identity; release builds are FM-1_8XY (Felucca: FM-1_9XY)
+PRODUCT = "FM-1_137"                # package identity: FM-1_137 (local builds); a release X.Y.Z: FM-1_137XYZ
+                                    # (0.9.0: FM-1_137090). Felucca: FM-1_9XY; Midi-Mania before 0.9.0: FM-1_8XY
 VERSION = None                      # MM_VERSION for release builds (default: firmware/src/midimania.c)
 # MM_CPU2 (firmware/src/midimania.c), unset or 1, the default (1.6.1): the second core is built in, its entry and
 # stacks (firmware/bsp/chip/fm1_cpu1.S) linked and its waiting loop (.c1_text) checked; MENU > SYSTEM > 2ND CORE starts it
@@ -399,7 +400,7 @@ def mmio_check():
 def main():
     global PRODUCT, VERSION
     ap = argparse.ArgumentParser()
-    ap.add_argument("--release", metavar="X.Y", help="release build: identity FM-1_8XY, version string vX.Y")
+    ap.add_argument("--release", metavar="X.Y.Z", help="release build: identity FM-1_137XYZ, version string vX.Y.Z")
     ap.add_argument("--sdk", type=Path, help="JieLi AC79 SDK checkout (default: $AC79_SDK)")
     ap.add_argument("--gen", action="store_true",
                     help="the generated headers only (build/gen: what the host platforms and tests need; no toolchain)")
@@ -412,11 +413,11 @@ def main():
         print(f"gen      {GEN}")
         return
     name = "midi-mania.fwsc"
-    if a.release:                   # one digit each: the identity has room for two (X.Y.Z and X.Y.Z.W keep X.Y's)
-        m = re.fullmatch(r"(\d)\.(\d)(?:\.\d){0,2}(-[A-Za-z0-9]+)?", a.release)
+    if a.release:                   # one digit each: X.Y.Z in the identity (FM-1_137XYZ; a .W or a -suffix: not in it)
+        m = re.fullmatch(r"(\d)\.(\d)(?:\.(\d)(?:\.\d)?)?(-[A-Za-z0-9]+)?", a.release)
         if not m:
             raise SystemExit(f"--release {a.release}: use X.Y, X.Y.Z, X.Y.Z.W or X.Y-suffix, one digit each")
-        PRODUCT = "FM-1_8" + m[1] + m[2]
+        PRODUCT = "FM-1_137" + m[1] + m[2] + (m[3] or "0")
         VERSION = "v" + a.release.lower()      # e.g. v1.0, v1.1-rc1
         name = f"midi-mania-{a.release}.fwsc"
     if not (FW / "engines" / "src" / "felucca_engine.h").exists():
