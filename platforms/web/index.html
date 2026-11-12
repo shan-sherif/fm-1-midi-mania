@@ -154,6 +154,18 @@ footer { margin-top: 12px; font-size: 12px; }
 .songs .pick .trim label { color: var(--mute); }
 .songs .pick .trim input[type=range] { width: 100%; accent-color: var(--pink); }
 .songs .pick .trim output { font-variant-numeric: tabular-nums; min-width: 3.2em; text-align: right; }
+.songs .pick .roll { display: block; width: 100%; height: 104px; margin: 8px 0 0; border-radius: 8px; cursor: ew-resize;
+                     touch-action: none; background: var(--ink); }
+.songs .pick h3 { display: flex; align-items: center; gap: 8px; }
+.songs .pick input.title { flex: 1; min-width: 0; font: inherit; font-size: 15px; font-weight: 600; color: var(--cream);
+                           background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 2px 6px;
+                           margin-left: -7px; text-align: left; }
+.songs .pick input.title:hover { border-color: var(--line); }
+.songs .pick input.title:focus { outline: none; border-color: var(--pink); background: var(--ink); }
+.songs .pick .tcount { font-size: 11px; font-weight: normal; color: var(--mute); font-variant-numeric: tabular-nums; }
+.songs .pick .restored { margin: 4px 0 0; font-size: 12px; color: #c8f5ef; }
+.songs .pick .restored button, .songs .note button.fit { margin-left: 8px; padding: 2px 10px; font-size: 12px; }
+.songs .pick .rollhint { margin: 2px 0 0; font-size: 11px; color: var(--mute); }
 .songs .pick .trimline { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin: 4px 0 0;
                          color: var(--mute); font-size: 12px; }
 .songs .browser { margin-top: 10px; padding: 10px; border-radius: 12px; background: var(--panel); }
@@ -420,7 +432,7 @@ footer small { font-size: 11px; opacity: .8; }
 
 <script type="module">
 import { midiKnob, KNOB_MODES } from "./worklet.js";
-import { convertMidi, chartBytes, summary, ROLE_NAME, midiInstruments, noteName } from "./mm_songs.js";
+import { convertMidi, chartBytes, summary, ROLE_NAME, midiInstruments, midiRoll, noteName, crc32 } from "./mm_songs.js";
 import { Updater } from "./fm1ota.js";
 import { BackupConnection } from "./fm1backup.js";
 import { listSongs, uploadChart, deleteSong, roomText, SONG_AREA } from "./fm1songs.js";
@@ -1271,14 +1283,18 @@ function previewReset() {
   preview.btn.textContent = preview.text;
   preview.btn.title = preview.title;
   preview.btn.classList.remove("on");
+  const card = preview.btn.closest(".pick");
   preview = null;
+  if (card && card._roll) card._roll();                          // (its playhead gone)
 }
+addEventListener("resize", () => { for (const c of document.querySelectorAll(".pick")) if (c._roll) c._roll(); });
 function previewStop() {
   if (!preview) return;
   send({ type: "preview-stop" });
   previewReset();
 }
-function previewStart(make, btn, from = 0, again = false) {
+// fromFile: where in the file to start, ms (the roll clicked), instead of from
+function previewStart(make, btn, from = 0, again = false, fromFile = null) {
   const was = preview && preview.btn === btn, text = was ? preview.text : btn.textContent;
   const title = was ? preview.title : btn.title;
   previewStop();
@@ -1286,9 +1302,10 @@ function previewStart(make, btn, from = 0, again = false) {
   const song = make();
   if (!song.notes.length) return false;
   if (!again && from === 0 && btn.dataset.compact) from = busyStart(song);   // (one instrument: where it plays)
+  if (fromFile != null) from = Math.max(0, fromFile - (song.notes[0][0] + song.lead) / 44.1 + 300);
   const { ev, end } = previewEvents(song, from), id = ++previewSeq;
   if (!ev.length) return false;                                  // (changed past its last note: done)
-  preview = { id, btn, text, title, base: from, at: 0, make };
+  preview = { id, btn, text, title, base: from, at: 0, make, file0: (song.notes[0][0] + song.lead) / 44.1 };
   btn.textContent = btn.dataset.compact ? "■" : "■ Stop";        // (Advanced's row buttons: the symbol alone)
   btn.classList.add("on");
   send({ type: "preview", id, events: ev, end });
@@ -1298,6 +1315,10 @@ function previewStart(make, btn, from = 0, again = false) {
 function previewAt(p) {                                          // (the worklet's frame: how far it is)
   if (!preview || preview.id !== p.id) return;
   preview.at = p.at;
+  {   // the roll's playhead (the card it plays from): where in the file, ms
+    const card = preview.btn.closest(".pick");
+    if (card && card._roll) card._roll(preview.file0 + preview.base + p.at - 300);
+  }
   if (!preview.btn.dataset.compact)
     preview.btn.textContent = `■ Stop ${mmssMs(preview.base + p.at - 300)} / ${mmssMs(preview.base + p.end - 700)}`;
 }
@@ -1316,8 +1337,34 @@ function previewEnded(id) { if (preview && preview.id === id) previewReset(); }
 function pickCard(name, bytes, inst) {
   const card = document.createElement("div"), roles = {};
   card.className = "pick";
-  const h = document.createElement("h3");
-  h.textContent = name.replace(/\.midi?$/i, "");
+  // the title as SONGS will show it: the file's name made tidy (convertMidi), yours to change (24 characters, the FM-1's
+  // letters: plain ASCII, others become ?)
+  const h = document.createElement("h3"), titleIn = document.createElement("input"), titleCount = mk("span", "tcount");
+  let defTitle = name.replace(/\.midi?$/i, "");
+  try { defTitle = convertMidi(bytes, name).title; } catch { /* (the file's name) */ }
+  defTitle = defTitle.replace(/[^\x20-\x7e]/g, "").slice(0, 24) || "Untitled";
+  titleIn.type = "text"; titleIn.className = "title"; titleIn.maxLength = 24; titleIn.spellcheck = false;
+  titleIn.setAttribute("aria-label", "Song title, as SONGS shows it (24 characters at most)");
+  titleIn.title = "The title SONGS shows: click to change it";
+  const songTitle = () => titleIn.value.trim() || defTitle;
+  const countTitle = () => { titleCount.textContent = `${titleIn.value.length}/24`; };
+  titleIn.addEventListener("input", () => {
+    const v = titleIn.value.replace(/[^\x20-\x7e]/g, "");
+    if (v !== titleIn.value) titleIn.value = v;
+    countTitle();
+    remember();
+    if (meterCard && meterCard.card === card) { meterCard.title = songTitle(); drawMeter(); }
+  });
+  h.append(titleIn, titleCount);
+  // your choices for this file (its parts, Start and End, its title), kept in this browser: the same file dropped again
+  // comes back as you left it (key: its name, size and CRC; the 40 latest files)
+  const CHOICES = "mm-song-choices", fileKey = `${name}|${bytes.length}|${crc32(bytes).toString(16)}`;
+  const readChoices = () => { try { return JSON.parse(localStorage.getItem(CHOICES) || "{}"); } catch { return {}; } };
+  const saved = readChoices()[fileKey] || null;
+  const choiceOk = (i, v) => v === null || (i.channel === 9 ? v === 1 : v === 0 || v === 2 || v === 3);
+  const startRole = (i) => saved && saved.roles && i.key in saved.roles && choiceOk(i, saved.roles[i.key]) ? saved.roles[i.key] : i.role;
+  titleIn.value = saved && typeof saved.title === "string" && saved.title ? saved.title.slice(0, 24) : defTitle;
+  countTitle();
   // the simple view: who plays each part (the converter's choice, or yours from Advanced), what is left out, what the
   // song holds; Advanced (a <details>, closed): the table, an instrument a row, its part to choose
   const auto = document.createElement("p");
@@ -1349,12 +1396,16 @@ function pickCard(name, bytes, inst) {
   let whole = 0;                                                  // the file's length, s (its last note's end)
   try { const w = convertMidi(bytes, name); whole = Math.ceil((w.length + w.lead) / 44100); } catch { /* none */ }
   const trim = { from: 0, to: whole };
+  if (saved && saved.to > saved.from && saved.to - saved.from >= 5) {
+    trim.from = Math.max(0, Math.min(whole - 5, Number(saved.from) || 0));
+    trim.to = Math.min(whole, Math.max(trim.from + 5, Number(saved.to) || whole));
+  }
   const opts = () => ({ roles, ...(trim.from > 0 || trim.to < whole ? { from: trim.from, to: trim.to } : {}) });
   const trimBox = mk("div", "trim"), trimLine = mk("p", "trimline"), sizeNote = mk("p", "note");
   sizeNote.hidden = true;
   const slider = (label, key) => {
     const l = mk("label", "", label), r = document.createElement("input"), o = mk("output");
-    r.type = "range"; r.min = "0"; r.max = String(whole); r.step = "1"; r.value = String(trim[key]);
+    r.type = "range"; r.min = "0"; r.max = String(whole); r.step = "1"; r.value = String(Math.round(trim[key]));
     r.id = `trim-${key}-${Math.random().toString(36).slice(2, 8)}`;
     l.htmlFor = r.id;
     o.textContent = mmssF(trim[key]);
@@ -1372,19 +1423,154 @@ function pickCard(name, bytes, inst) {
     return { r, o };
   };
   const sFrom = slider("Start", "from"), sTo = slider("End", "to");
+  // the roll (as muse-midi-dx's): the whole file, time across and pitch up, each instrument in its part's colour (left
+  // out: grey), bar lines; Start and End as two handles, snapped to beats, outside them dimmed; a preview's playhead
+  let R = null;
+  try { R = midiRoll(bytes); } catch { /* (no roll: the sliders alone) */ }
+  const roll = document.createElement("canvas"), rollHint = mk("p", "rollhint",
+    "Drag the pink handles to choose where the song starts and ends (they snap to beats). Click anywhere else to hear it from there.");
+  roll.className = "roll";
+  roll.setAttribute("role", "img");
+  const PCOL = ["#ffb84f", "#ff4f8b", "#5fe08a", "#a88bff"];
+  const syncSliders = () => {
+    for (const [x, k] of [[sFrom, "from"], [sTo, "to"]]) { x.r.value = String(Math.round(trim[k])); x.o.textContent = mmssF(trim[k]); }
+  };
+  const drawRoll = (playMs = null) => {
+    const rect = roll.getBoundingClientRect();
+    if (!R || !rect.width) return;
+    const dpr = devicePixelRatio || 1, W = roll.width = Math.round(rect.width * dpr), H = roll.height = Math.round(rect.height * dpr);
+    const ctx = roll.getContext("2d"), total = Math.max(R.end, whole * 44100);
+    let lo = 127, hi = 0;
+    for (const n of R.notes) { lo = Math.min(lo, n[3]); hi = Math.max(hi, n[3]); }
+    lo -= 1; hi += 1;
+    const x = (t) => t / total * W, y = (pch) => H - 4 * dpr - (pch - lo) / (hi - lo) * (H - 8 * dpr);
+    ctx.fillStyle = "#17151f"; ctx.fillRect(0, 0, W, H);
+    for (let b = 0; b < R.beats.length; b += R.bpb) {             // bar lines (every 4th brighter)
+      ctx.fillStyle = (b / R.bpb) % 4 === 0 ? "rgba(244,241,232,.14)" : "rgba(244,241,232,.05)";
+      ctx.fillRect(Math.round(x(R.beats[b])), 0, Math.max(1, dpr), H);
+    }
+    const h = Math.max(1.5 * dpr, H / (hi - lo) * 0.8);
+    for (const pass of [0, 1])                                     // (the left-out ones under the rest)
+      for (const n of R.notes) {
+        const role = roles[n[2]];
+        if ((role == null) !== (pass === 0)) continue;
+        ctx.fillStyle = role == null ? "rgba(168,162,184,.35)" : PCOL[role];
+        ctx.fillRect(x(n[0]), y(n[3]) - h / 2, Math.max(dpr, x(n[1] - n[0])), h);
+      }
+    const sx = x(trim.from * 44100), ex = x(trim.to * 44100);
+    ctx.fillStyle = "rgba(23,21,31,.72)";                           // outside Start..End: dimmed
+    ctx.fillRect(0, 0, sx, H); ctx.fillRect(ex, 0, W - ex, H);
+    if (playMs != null) {                                          // the preview playing: where
+      ctx.fillStyle = "#f4f1e8";
+      ctx.fillRect(Math.round(x(playMs * 44.1)) - dpr / 2, 0, Math.max(1, dpr), H);
+    }
+    for (const hx of [sx, ex]) {                                   // the handles
+      ctx.fillStyle = "#ff4f8b";
+      ctx.fillRect(hx - dpr, 0, 2 * dpr, H);
+      ctx.beginPath();
+      ctx.roundRect ? ctx.roundRect(hx - 6 * dpr, H / 2 - 16 * dpr, 12 * dpr, 32 * dpr, 4 * dpr)
+                    : ctx.rect(hx - 6 * dpr, H / 2 - 16 * dpr, 12 * dpr, 32 * dpr);
+      ctx.fill();
+      ctx.fillStyle = "rgba(42,10,14,.8)";
+      for (const dy of [-6, 0, 6]) ctx.fillRect(hx - 3 * dpr, H / 2 + (dy - 0.5) * dpr, 6 * dpr, dpr);
+    }
+    const b0 = R.beats.findIndex((t) => t >= trim.from * 44100 - 1), b1 = R.beats.findIndex((t) => t >= trim.to * 44100 - 1);
+    roll.setAttribute("aria-label", `The song's notes; Start ${mmssF(trim.from)}, End ${mmssF(trim.to)}`);
+    roll.title = `${mmssF(trim.from)} → ${mmssF(trim.to)} · bars ${Math.floor(Math.max(0, b0) / R.bpb) + 1}–${Math.ceil((b1 < 0 ? R.beats.length - 1 : b1) / R.bpb)}`;
+  };
+  card._roll = drawRoll;
+  {   // dragging a handle (or pressing near one), snapped to the nearest beat; the song made again on letting go
+    let which = null;
+    const secOf = (e) => {
+      const r = roll.getBoundingClientRect(), total = Math.max(R.end, whole * 44100);
+      const t = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * total;
+      let best = R.beats[0];
+      for (const b of R.beats) if (Math.abs(b - t) < Math.abs(best - t)) best = b;
+      return Math.min(whole, Math.max(0, best / 44100));
+    };
+    const apply = (e) => {
+      const t = secOf(e);
+      if (which === "from") trim.from = Math.max(0, Math.min(t, trim.to - 5));
+      else trim.to = Math.min(whole, Math.max(t, trim.from + 5));
+      syncSliders();
+      drawRoll();
+    };
+    const nearHandle = (e) => {                                  // the handle within 10 px of the pointer, or null
+      const r = roll.getBoundingClientRect(), total = Math.max(R.end, whole * 44100), px = e.clientX - r.left;
+      const d = (sec) => Math.abs(sec * 44100 / total * r.width - px);
+      const k = d(trim.from) <= d(trim.to) ? "from" : "to";
+      return d(trim[k]) <= 10 ? k : null;
+    };
+    roll.addEventListener("pointerdown", (e) => {
+      if (!R) return;
+      which = nearHandle(e);
+      if (!which) {                                              // elsewhere: the song heard from there (within Start..End)
+        const r = roll.getBoundingClientRect(), total = Math.max(R.end, whole * 44100);
+        const sec = Math.max(trim.from, Math.min(trim.to, (e.clientX - r.left) / r.width * total / 44100));
+        try { previewStart(() => convertMidi(bytes, name, opts()), hearAll, 0, true, sec * 1000); }
+        catch (err) { tell([`${name}: could not play it (${err.message})`], true); }
+        return;
+      }
+      roll.setPointerCapture(e.pointerId);
+      apply(e);
+    });
+    roll.addEventListener("pointermove", (e) => {
+      if (which) { apply(e); return; }
+      if (R) roll.style.cursor = nearHandle(e) ? "ew-resize" : "pointer";
+    });
+    const up = () => { if (!which) return; which = null; update(); previewRefresh(card); };
+    roll.addEventListener("pointerup", up);
+    roll.addEventListener("pointercancel", up);
+  }
   const trimReset = songButton("Whole song", () => {
     trim.from = 0; trim.to = whole;
-    for (const [x, k] of [[sFrom, "from"], [sTo, "to"]]) { x.r.value = String(trim[k]); x.o.textContent = mmssF(trim[k]); }
+    syncSliders();
     update();
     previewRefresh(card);
   });
   trimReset.className = "quiet";
+  // Fit to FM-1: Start kept, End moved back to the latest beat where the song fits (connected: the largest free space
+  // on your FM-1; else an empty FM-1's 240 KB), by halving
+  const sizeAt = (to) => { try { return Math.ceil(chartBytes(convertMidi(bytes, name, { roles, from: trim.from, to })).length / 4096) * 4096; } catch { return Infinity; } };
+  const fitEnd = () => {
+    const target = fm1.list ? fm1.list.gap * 4096 : SONG_AREA;
+    const ends = (R ? R.beats.map((b) => b / 44100) : []).filter((t) => t >= trim.from + 5 && t <= trim.to);
+    if (!ends.length || sizeAt(ends[0]) > target) {
+      tell([`${songTitle()}: even 5 seconds from Start is too big for ${fm1.list ? "the room on your FM-1" : "an FM-1"}. ` +
+            "Move Start, or leave an instrument out."], true);
+      return;
+    }
+    let lo = 0, hi = ends.length - 1;                            // ends[lo] fits; the last that does
+    while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (sizeAt(ends[mid]) <= target) lo = mid; else hi = mid - 1; }
+    trim.to = ends[lo];
+    syncSliders();
+    update();
+    previewRefresh(card);
+  };
   const fits = (bytesN, secs, over) => {                          // about how long a song this busy fits in over bytes
     const sec = Math.floor(secs * over / bytesN / 5) * 5;
     return mmssF(Math.max(5, sec));
   };
+  const fitButton = () => {
+    const b = songButton("Fit to FM-1", fitEnd);
+    b.className = "primary fit";
+    b.title = "Keep Start, and move End back to where the song fits";
+    return b;
+  };
+  // your choices, kept for this file while they differ from Studio's own (the same as its own: none kept)
+  const remember = () => {
+    const c = readChoices(), own = inst.every((i) => roles[i.key] === i.role) && trim.from === 0 && trim.to === whole &&
+      songTitle() === defTitle;
+    if (own) delete c[fileKey];
+    else c[fileKey] = { roles: { ...roles }, from: trim.from, to: trim.to, title: titleIn.value, at: Date.now() };
+    const keys = Object.keys(c).sort((a, b) => (c[b].at || 0) - (c[a].at || 0));
+    for (const k of keys.slice(40)) delete c[k];
+    try { localStorage.setItem(CHOICES, JSON.stringify(c)); } catch { /* (not kept: this visit only) */ }
+  };
   const update = () => {
     autoLine();
+    drawRoll();
+    remember();
     let song = null;
     try { song = convertMidi(bytes, name, opts()); sum.textContent = partsLine(song); }
     catch (e) { sum.textContent = `Could not convert it (${e.message})`; }
@@ -1396,7 +1582,7 @@ function pickCard(name, bytes, inst) {
     sizeNote.hidden = true;
     if (!song || !song.notes.length) return;
     const n = chartBytes(song).length, kb = Math.ceil(n / 4096) * 4, room = fm1.list ? fm1.list.gap * 4096 : 0;
-    meterCard = { card, title: h.textContent, bytes: n };
+    meterCard = { card, title: songTitle(), bytes: n };
     drawMeter();
     trimLine.append(` · ${kb} KB`);
     sizeNote.textContent = "";
@@ -1404,17 +1590,23 @@ function pickCard(name, bytes, inst) {
       sizeNote.className = "note warn";
       sizeNote.append(mk("b", "", "Too big for an FM-1. "), `It takes ${kb} KB, and an FM-1 keeps 240 KB of songs in all. ` +
         `It still loads and plays here; to send it to an FM-1, move Start or End to keep about ${fits(n, kept, SONG_AREA * 0.95)} or less.`);
+      sizeNote.append(fitButton());
     } else if (fm1.list && n > room) {
       sizeNote.className = "note warn";
       sizeNote.append(mk("b", "", "Not enough room on your FM-1. "), `It takes ${kb} KB, and the most your FM-1 can take now ` +
         `is ${fm1.list.gap * 4} KB. Delete a song there, or keep about ${fits(n, kept, room * 0.95)} or less of this one.`);
+      sizeNote.append(fitButton());
     } else if (n > SONG_AREA / 4) {
       sizeNote.className = "note tip";
-      sizeNote.append(mk("b", "", "Tip: "), `this song takes ${kb} KB, over a quarter of an FM-1's 240 KB for songs. ` +
-        `A shorter part of it (Start, End) leaves room for more songs.`);
+      sizeNote.append(mk("b", "", "Tip: "), n > SONG_AREA * 0.75
+        ? `this song takes ${kb} KB, most of an FM-1's 240 KB for songs: few others will fit beside it. ` +
+          "A shorter part of it (Start, End) leaves room for more."
+        : `this song takes ${kb} KB, over a quarter of an FM-1's 240 KB for songs. ` +
+          "A shorter part of it (Start, End) leaves room for more songs.");
     } else return;
     sizeNote.hidden = false;
   };
+  const rowSels = [];
   for (const i of inst) {
     const tr = document.createElement("tr"), sel = document.createElement("select");
     sel.setAttribute("aria-label", `Part for ${i.name}, channel ${i.channel + 1}`);
@@ -1422,17 +1614,18 @@ function pickCard(name, bytes, inst) {
       const o = document.createElement("option");
       o.value = v === null ? "" : String(v);
       o.textContent = label;
-      o.selected = v === i.role;
+      o.selected = v === startRole(i);
       sel.append(o);
     }
-    roles[i.key] = i.role;
+    roles[i.key] = startRole(i);
+    rowSels.push({ i, sel, tr });
     sel.addEventListener("change", () => {
       roles[i.key] = sel.value === "" ? null : Number(sel.value);
       rowPart(tr, roles[i.key]);
       update();
       previewRefresh(card);                         // (playing: heard with the change, from where it was)
     });
-    rowPart(tr, i.role);
+    rowPart(tr, roles[i.key]);
     {   // ▶: this instrument alone, on its part (left out: KEYS, or DRUMS for the drum channel, to hear what it is)
       const alone = () => {                         // (its part now, as it is changed)
         const only = {};
@@ -1479,6 +1672,7 @@ function pickCard(name, bytes, inst) {
       const song = convertMidi(bytes, name, opts());
       if (!song.notes.length) { tell([`${name}: no notes to play: give an instrument a part`], true); return; }
       cardPreview();
+      song.title = songTitle();
       loadSong(song);
       card.remove();
       drawMeter();
@@ -1500,9 +1694,25 @@ function pickCard(name, bytes, inst) {
   advSum.textContent = "Advanced: choose which instrument plays what";
   adv.append(advSum, hint, tbl);
   const trimDet = document.createElement("details"), trimSum = document.createElement("summary");
-  trimSum.textContent = "Shorten it: choose where it starts and ends";
+  trimSum.textContent = "Start and End by the second";
   trimDet.append(trimSum, trimBox);
-  card.append(h, auto, sum, trimLine, sizeNote, trimDet, adv, btns);
+  const restored = mk("p", "restored");                           // (your choices from last time: back, or Start over)
+  restored.hidden = !saved;
+  if (saved) {
+    const over = songButton("Start over", () => {
+      for (const { i, sel, tr } of rowSels) { roles[i.key] = i.role; sel.value = i.role === null ? "" : String(i.role); rowPart(tr, i.role); }
+      trim.from = 0; trim.to = whole;
+      titleIn.value = defTitle;
+      countTitle();
+      syncSliders();
+      restored.hidden = true;
+      update();
+      previewRefresh(card);
+    });
+    over.className = "quiet";
+    restored.append("Your choices for this file from last time are back.", over);
+  }
+  card.append(h, restored, auto, sum, ...(R ? [roll, rollHint] : []), trimLine, sizeNote, trimDet, adv, btns);
   songCards.append(card);
   update();
 }

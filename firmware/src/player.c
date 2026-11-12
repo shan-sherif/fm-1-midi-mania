@@ -383,7 +383,7 @@ static const mm_song_t *pl_song(void) { return mm_song(pl.song % (mm_nsongs() ? 
  *   KEYS49     49 KEYS: C2 .. C6, a note on its pitch folded in (mm_fold49); a panel key k plays 53 + k, OCT- and OCT+
  *              an octave down or up (song.octave), a MIDI note its own (folded); lights on the panel keys under them
  * Two of your notes on one key within MM_LANE_MERGE are one to play (a chord on a string, an octave folded onto the
- * same key): the later one is the device's (mm_lane_dup), not judged */
+ * same key, two drums on one pad): the later one is the device's (mm_lane_dup), not judged */
 enum { MM_VIEW_STRINGS, MM_VIEW_CHROMATIC, MM_NVIEWS, MM_VIEW_KEYS = MM_NVIEWS, MM_VIEW_KEYS49 };
 #define MM_LANES_MAX 12u
 static const uint8_t MM_STRING_KEY[6] = {0, 2, 4, 6, 7, 9};   /* lane l's key: the white keys F3 G3 A3 B3 C4 D4 */
@@ -482,17 +482,20 @@ static uint32_t mm_led_key(const chart_note_t *c)
         return k >= mm_key0() && k - mm_key0() < CHART_NKEYS ? k - mm_key0() : 0xFFu;
     return k;
 }
-/* c the later of two of your notes on one key within MM_LANE_MERGE (one to play, the first) */
+/* c the later of two of your notes on one key within MM_LANE_MERGE (one to play, the first): a chord on a string,
+ * an octave folded onto one key, and DRUMS' two hits on one pad (two GM drums of one lane at once: kick 35 + 36, hats
+ * 42 + 44, two toms; a flam). One press can only be one key-down, so the twin would be a MISS under its PERFECT; it
+ * is the device's instead (played for you) */
 static int mm_lane_dup(const chart_note_t *c)
 {
     const mm_song_t *s = pl_song();
     const chart_note_t *b;
     uint32_t k;
-    if (c < s->note || c >= s->note + s->nnote || (c->flags & CN_DRUM))
+    if (c < s->note || c >= s->note + s->nnote)
         return 0;
     k = mm_note_key(c);
     for (b = c; b-- > s->note && c->time - b->time <= MM_LANE_MERGE;)
-        if (mm_mine(b) && !(b->flags & CN_DRUM) && mm_note_key(b) == k)
+        if (mm_mine(b) && !((b->flags ^ c->flags) & CN_DRUM) && mm_note_key(b) == k)
             return 1;
     return 0;
 }

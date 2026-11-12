@@ -244,6 +244,19 @@ export function midiInstruments(u8) {
   }).sort((a, b) => a.first - b.first || a.channel - b.channel).map(({ first, ...i }) => i);
 }
 
+// The whole file for Studio's piano roll (its Start and End handles): every note in the file's own time, samples,
+// [on, off, instrument key (midiInstruments'), pitch]; its beats (samples, from the file's start, past its end) and
+// beats to a bar; end: the last note's end. Nothing here changes a chart
+export function midiRoll(u8) {
+  const { div, tempos, notes: raw, bpb } = parse(u8);
+  const toS = tickToSample(div, tempos), notes = raw.map((n) => [toS(n[0]), toS(n[1]), key2(n[2], n[3]), n[4]]);
+  let end = 0;
+  for (const n of notes) end = Math.max(end, n[1]);
+  const beats = [];
+  for (let k = 0; ; k++) { const t = toS(k * div); beats.push(t); if (t > end || k > 100000) break; }
+  return { notes, beats, bpb: bpb || 4, end };
+}
+
 // opt.roles: {"track,channel": part or null} (midiInstruments' keys): your choice for those instruments, over the
 // converter's own (a part an instrument cannot take is ignored). Without it, the chart is tools/gen_songs.py's, byte
 // for byte (web/test_songs.mjs)

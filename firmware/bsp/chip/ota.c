@@ -128,6 +128,10 @@ static int ota_send_msg(uint32_t cmd, const uint8_t *body, uint32_t n)   /* n <=
     return ota_wire_send(ota_wire, w);
 }
 
+#ifdef OTA_CHIP_ID
+static uint32_t ota_chip_id(void);              /* the platform's: the flash chip's JEDEC id (0: not known) */
+#endif
+
 static void ota_reply_identity(void)
 {
     static const char ID[] = MM_ID;         /* == the package marker string */
@@ -163,6 +167,18 @@ static uint32_t ota_service(void)
     uint32_t d = ota_take();
     if (d == 7u && ota_dec[2] == 0x11)
         ota_reply_identity();
+#ifdef OTA_CHIP_ID
+    else if (d == 7u && ota_dec[2] == 0x4A) {      /* cmd 0x4A ("J"): which flash chip -> 'J' and its JEDEC id (the
+                                                     * installer's Flash chip; other firmware ignores the question) */
+        uint32_t c = ota_chip_id();
+        uint8_t r[4];
+        r[0] = 'J';
+        r[1] = (uint8_t)(c >> 16);
+        r[2] = (uint8_t)(c >> 8);
+        r[3] = (uint8_t)c;
+        ota_send_msg(0x4A, r, 4);
+    }
+#endif
     return d;
 }
 

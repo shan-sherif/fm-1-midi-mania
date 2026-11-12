@@ -13,6 +13,7 @@
 #define MM_OTA_DRYRUN 0
 #define MM_USB_PID 0x0002
 #define MM_ID "ota-FM-1_800"
+#define OTA_CHIP_ID 1                               /* (ota.c: answers the installer's "which flash chip") */
 #define RING_PUBLISH() __asm__ volatile("" ::: "memory")
 #include "fm1_time.h"
 #include "fm1_sys.h"
@@ -54,6 +55,7 @@ static int ota_prog(uint32_t off, const void *p, uint32_t n) { (void)off; (void)
 static int ota_fread(uint32_t off, void *p, uint32_t n) { return fl_read_ram(off, p, n); }
 static void ota_show(uint32_t step, int32_t code) { (void)step; (void)code; }
 static void ota_commit(const uint8_t *parm) { (void)parm; }
+static uint32_t ota_chip_id(void) { return fl_jedec_ram(); }
 #include "../bsp/chip/ota.c"
 
 /* ---- ldr_core.c hooks: interrupts are off for the whole loader ---- */
@@ -73,6 +75,7 @@ static void ldr_record_clear(void)
     fm1_updata_parm_clear();                        /* CRC 0: the SPL ignores it on a warm reset */
 }
 static void ldr_progress(uint32_t done, uint32_t total) { (void)done; (void)total; ldr_poll(); }
+static int ldr_chip_ok(void) { uint32_t id = fl_jedec_ram(); return FL_JEDEC_OK(id); }
 #include "ldr_core.c"
 
 extern uint32_t _bss_start[], _bss_end[];
@@ -110,5 +113,9 @@ void ldr_cstart(void)
                                                      * warm reset; resume after power loss uses the flash record */
     for (p = _bss_start; p < _bss_end; p++)
         *p = 0;
+    if (!ldr_chip_ok())                             /* a flash chip it does not know (neither the older FM-1s' nor
+                                                     * the newer's): nothing written; a warm reset with the RAM record
+                                                     * gone boots the firmware already there (the installer says why) */
+        fm1_core_reset();
     ldr_main();
 }

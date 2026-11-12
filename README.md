@@ -61,7 +61,13 @@ On the FM-1 (in Studio, the computer key in brackets; turn a knob with the mouse
 
 Your own songs: drop a MIDI file on Studio (below). The full controls are in [Playing a MIDI file](#playing-a-midi-file).
 
-> **Status: beta (0.8.0), tested on the FM-1.** Working on the FM-1 and in the desktop and browser builds:
+> **Which FM-1:** Midi-Mania works on FM-1s with the older flash chip (ID `0x856014`). FM-1s with the newer flash chip
+> (UC25HQ80, ID `0xB36014`) are now supported too, but this is **not verified on a physical device yet: try at your
+> own risk** (to be confirmed in the next update). On any other chip the install stops without writing anything: the
+> update loader checks the chip first and restarts into the firmware already there. The installer's **Flash chip**
+> line shows which chip your FM-1 has (FM-1s running the official firmware report it only once the install starts).
+
+> **Status: beta (0.9.0), tested on the FM-1.** Working on the FM-1 and in the desktop and browser builds:
 > - **all four parts playable:** KEYS, DRUMS, GUITAR and BASS, each with play styles (KEYS on 49 keys, 27 keys or one
 >   octave; DRUMS full, on the beat, or beats 1 and 3; GUITAR and BASS as strings or chromatic lanes);
 > - **SONGS** (the SEQ button): the built-in songs, then your own (sent from Studio over USB, or loaded in Studio itself);
@@ -87,13 +93,16 @@ Your own songs: drop a MIDI file on Studio (below). The full controls are in [Pl
    piano, drums, guitar and bass go to the FM-1's four parts, and the card shows what the song will hold. **Preview**
    plays it on the FM-1's sounds; **Load** loads it. **Advanced** lists each instrument (its notes and range, in its
    part's colour) to change its part (KEYS, GUITAR, BASS, the drum kit DRUMS, or Leave out: say, the melody on a sax
-   onto KEYS) or to hear it alone; a preview playing follows your changes. **Shorten it** sets where the song starts
-   and ends (only the notes in between are kept). It is converted in the browser as below, your choices over the
-   converter's.
+   onto KEYS) or to hear it alone; a preview playing follows your changes. A **piano roll** of the whole file (each instrument in its
+   part's colour) has two handles that set where the song starts and ends, snapped to beats (only the notes in
+   between are kept; a preview's playhead runs along it); click anywhere else on it to hear the song from there. The
+   card's title is the one SONGS will show: click it to change it (24 characters). Drop the same file again later and
+   your choices for it (parts, start and end, title) come back; **Start over** clears them. It is converted in the
+   browser as below, your choices over the converter's.
 
    **Room on the FM-1:** an FM-1 keeps 240 KB of songs (up to 16); a song's size comes from its notes. Studio loads a
    song whatever its size and plays it there, and says in amber when it is too big for an FM-1, with about how long a
-   part of it would fit. The **Your FM-1** panel shows the song space as a bar (how full, in KB and per cent) with the
+   part of it would fit; **Fit to FM-1** keeps the start and moves the end back to where it fits. The **Your FM-1** panel shows the song space as a bar (how full, in KB and per cent) with the
    song you're looking at on top of it, green if it fits and red if it doesn't, changing as you shorten it; connected,
    it shows your FM-1's own songs and room, and the connection's state is shown at the top of the page too. **Send**
    checks your FM-1's free room first and tells you if it doesn't fit (delete a song on the FM-1, or load a shorter
@@ -335,7 +344,10 @@ See [BUILDING.md](BUILDING.md), and [docs/BUILDING_WINDOWS.md](docs/BUILDING_WIN
 ## Installing on an FM-1
 
 Use [the installer](https://shan-sherif.github.io/fm-1-midi-mania/webapp/installer/) in Chrome or Edge, at your own
-risk. Updating from an earlier Midi-Mania keeps the songs you've loaded onto your FM-1. Its **Return to official V15** (with the official `FM-1.fwsc` from M-VAVE) takes the FM-1 back to stock. If an install fails and the FM-1 does not start, recovery needs
+risk. Updating from an earlier Midi-Mania keeps the songs you've loaded onto your FM-1. It works on FM-1s with the
+older flash chip (ID `0x856014`); the newer flash chip (`0xB36014`) is not verified on a physical device yet: try at
+your own risk. 
+**Return to official V15** (with the official `FM-1.fwsc` from M-VAVE) takes the FM-1 back to stock. If an install fails and the FM-1 does not start, recovery needs
 [FM-1-transporter](https://github.com/kurogedelic/FM-1-transporter).
 
 Before **Return to official V15**, the installer saves a backup file to your computer (`Midi-Mania-backup-DATE.json`):

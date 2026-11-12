@@ -582,6 +582,69 @@ int main(int argc, char **argv)
         mm_song_base = 0;
         mm_song_scan();
     }
+    /* DRUMS: two hits on one pad within MM_LANE_MERGE (kick 35 + 36 at once; closed hat 42 + pedal hat 44 10 ms
+     * apart: the converter keeps both, they are different notes) are one to play: one press PERFECT, the other the
+     * FM-1's, never a MISS (it was: a second press nobody can make on one pad). Hits on a pad 200 ms apart stay two */
+    {
+        static uint8_t region[MM_SONG_SIZE];
+        static const uint8_t P[6] = {36, 35, 42, 44, 38, 38};
+        static const uint32_t T_MS[6] = {1000, 1000, 1500, 1510, 2000, 2200};
+        static chart_note_t dn[6];
+        static uint32_t db[4];
+        mm_song_t g;
+        uint32_t i2, b2, k = 0, pressed = 0, ok = 1, mode = pl.mode, range = pl.range, you = pl.you;
+        uint32_t last_key = 0xFFu, last_t = 0;
+        memset(&g, 0, sizeof g);
+        for (i2 = 0; i2 < 6u; i2++)
+            dn[i2] = (chart_note_t){T_MS[i2] * (CHART_FS / 1000u), CHART_FS / 50u, 0, P[i2], 100, MM_DRUMS | CN_DRUM};
+        for (i2 = 0; i2 < 4u; i2++)
+            db[i2] = i2 * CHART_FS;
+        g.title = "PAD TEST";
+        g.note = dn;
+        g.nnote = 6;
+        g.length = 3u * CHART_FS;
+        g.bpm_x10 = 600;
+        g.parts = 1u << MM_DRUMS;
+        g.beat = db;
+        g.nbeat = 4;
+        g.bpb = 4;
+        memset(region, 0xFF, sizeof region);
+        put_chart(region, 0, &g, 0xFFu);
+        mm_song_base = region;
+        mm_song_scan();
+        pl.mode = MM_DRUMS;
+        pl.range = 0;
+        pl.style[MM_DRUMS] = 0;
+        pl.you = 1;
+        player_start(MM_NSONGS);
+        mix_block(out, CTL);
+        s = pl_song();
+        ok &= pl_drum_key(36) == pl_drum_key(35) && pl_drum_key(42) == pl_drum_key(44);   /* (one pad each) */
+        for (b2 = 0; b2 < 4u * CHART_FS / CTL && (pl.playing || pl.req); b2++) {
+            mix_block(out, CTL);
+            for (; k < s->nnote && s->note[k].time < pl.pos; k++) {
+                uint32_t key = mm_note_key(&s->note[k]);
+                if (!mm_mine(&s->note[k]) || (key == last_key && s->note[k].time - last_t <= MM_LANE_MERGE))
+                    continue;                         /* (as a player: one press a pad at a time, not two at once) */
+                player_judge_key(MM_DRUMS, key, 0u);
+                last_key = key;
+                last_t = s->note[k].time;
+                pressed++;
+            }
+        }
+        ok &= pressed == 4u && pl_judge.count[J_PERFECT] == 4u && !pl_judge.count[J_MISS] && judge_total(&pl_judge) == 4u;
+        printf("player: DRUMS pads: %u presses, %u PERFECT, %u MISS\n", (unsigned)pressed,
+               (unsigned)pl_judge.count[J_PERFECT], (unsigned)pl_judge.count[J_MISS]);
+        check("DRUMS: two hits on one pad at once (kick 35 + 36, hats 42 + 44) one press PERFECT, no MISS; 200 ms apart two", ok);
+        player_stop();
+        mix_block(out, CTL);
+        memset(pl.style, 0, sizeof pl.style);
+        pl.mode = (uint8_t)mode;
+        pl.range = (uint8_t)range;
+        pl.you = (uint8_t)you;
+        mm_song_base = 0;
+        mm_song_scan();
+    }
     /* the reverb (fx.c fx_buses): asleep while every part's REV is 0 (the default: its comb lines never move); a send
      * wakes it (a tail heard); REV back to 0, it rings on for REV_TAIL, then its lines are cleared and it sleeps */
     {

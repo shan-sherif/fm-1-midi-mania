@@ -13,7 +13,7 @@ const MAXDATA = 512;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const IS_OTA = (id) => /^ota-/i.test(id.model);
 
-// errors carry a code the pages translate: notfound, model, stopped, noloader, lost, noreturn,
+// errors carry a code the pages translate: notfound, model, stopped, noloader, unknownchip, lost, noreturn,
 // mismatch (detail: the identity the device reports), badreq
 function fail(code, msg, detail = "") { const e = new Error(msg); e.code = code; e.detail = detail; return e; }
 
@@ -108,6 +108,24 @@ async function handshake(link, tries = 3) {
   return null;
 }
 
+// The flash chip's JEDEC id, asked of the firmware running (cmd 0x4A, "J": Midi-Mania's app and update loader answer
+// with 'J' and the id; the official firmware does not, so null). FLASH_CHIPS: the ones Midi-Mania knows
+const CHIP_QUERY = [0, 0x59, 0x4A, 0, 0, 0, 0xFF];
+export const FLASH_CHIPS = { 0x856014: "older", 0xB36014: "newer" };
+export async function chipOf(link, ms = 800) {
+  link.drain();
+  if (!link.send([0xF0, ...pack7(CHIP_QUERY), 0xF7])) return null;
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    const p = await link.read(end - Date.now());
+    if (!p) break;
+    const d = unpack7(p.slice(1, -1));
+    if (d.length >= 10 && d[0] === 0 && d[1] === 0x59 && d[2] === 0x4A && d[6] === 0x4A)
+      return (d[7] << 16) | (d[8] << 8) | d[9];
+  }
+  return null;
+}
+
 export class Updater {
   constructor(access, log) {
     this.access = access;
@@ -129,6 +147,14 @@ export class Updater {
       link.close();
     }
     return null;
+  }
+
+  // the FM-1 connected (any firmware, or its update loader): {text, chip} (chip: null when it does not say), or null
+  async chip() {
+    const dev = await this.find();
+    if (!dev) return null;
+    try { return { text: dev.id.text, chip: await chipOf(dev.link) }; }
+    finally { dev.link.close(); }
   }
 
   async waitFor(filter, ms) {
@@ -177,6 +203,7 @@ export class Updater {
     if (!dev) throw fail("notfound", "FM-1 not found (USB cable, and no other app using it?)");
     const [model] = product.split("_");
     if (dev.id.model !== model) { dev.link.close(); throw fail("model", `the device is ${dev.id.text}, the package is for ${product}`); }
+    step("chip", await chipOf(dev.link));                // (Midi-Mania running: its chip; the official firmware: null)
     step("start", dev.id.text);
     dev.link.send(UPGRADE);
     await sleep(2000);
@@ -185,7 +212,20 @@ export class Updater {
     if (!s1.finished) throw fail(s1.lost ? "lost" : "stopped", `the device ${s1.lost ? "was disconnected" : "stopped"} after ${s1.served} requests: nothing was written`);
     step("loader");
     await sleep(3000);
-    const ota = await this.waitFor((id) => id.model === "ota-" + model, 30000);
+    // the loader, or the firmware that was there coming back instead: Midi-Mania's loader restarts at once, writing
+    // nothing, on a flash chip it does not know (neither the older FM-1s' nor the newer's: firmware/loader/loader.c)
+    const t0 = Date.now();
+    let ota = null, home = 0;                         // (home: the old firmware seen back, in a row)
+    while (Date.now() - t0 < 30000) {
+      const d = await this.find((id) => id.model === "ota-" + model || !IS_OTA(id));
+      if (d && IS_OTA(d.id)) { ota = d; step("chip", await chipOf(d.link)); break; }
+      if (d) {
+        d.link.close();
+        if (Date.now() - t0 > 9000 && ++home >= 3)
+          throw fail("unknownchip", "this FM-1 went back to its own firmware instead of the update loader: its flash chip is not one Midi-Mania knows. Nothing was written.");
+      } else home = 0;
+      await sleep(1000);
+    }
     if (!ota) throw fail("noloader", "the update loader did not appear. Replug the USB cable and press Install again: the device stays in update mode until it is finished.");
     const s2 = await this.write(ota, image, step);
     if (!s2.finished) throw fail(s2.lost ? "lost" : "stopped", `the loader ${s2.lost ? "was disconnected" : "stopped"} after ${s2.served} requests. Replug and press Install again to resume.`);

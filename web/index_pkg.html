@@ -92,6 +92,13 @@
   .meter progress::-moz-progress-bar { background: var(--pink); border-radius: 4px; }
   .meter .pct { font-weight: 700; font-size: 14px; min-width: 3.2em; text-align: right; }
   #status { margin: 10px 0 0; min-height: 1.55em; font-weight: 500; }
+  .chip { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin: 10px 0 0; font-size: 14px; }
+  .chip .k { color: var(--dim); }
+  .chip b { font-variant-numeric: tabular-nums; }
+  .chip .ok { color: #1a8a3e; } .chip .risk { color: var(--warn); } .chip .no { color: #c8184a; }
+  .chip button { font: inherit; font-size: 13px; padding: 3px 12px; border-radius: 999px; border: 1px solid var(--line, #ccc);
+                 background: transparent; color: inherit; cursor: pointer; }
+  .chip button:disabled { opacity: .5; cursor: progress; }
   .progress .hold { margin: 10px 0 0; font-size: 13px; color: var(--warn); }
 
   /* the extras, folded */
@@ -141,6 +148,7 @@
     <ul class="facts"><li data-t="factBrowser"></li><li data-t="factCable"></li><li data-t="factTime"></li></ul>
   </section>
   <p class="banner"><b data-t="betaHead"></b> <span data-t="beta"></span></p>
+  <p class="banner"><b data-t="flashHead"></b> <span data-t="flash"></span></p>
 
   <section class="progress" aria-live="polite">
     <ol class="stages" id="stages">
@@ -150,6 +158,8 @@
     </ol>
     <div class="meter"><progress id="bar" max="100" value="0"></progress><span class="pct" id="pct">0%</span></div>
     <p id="status"></p>
+    <p class="chip"><span class="k" data-t="chipLabel"></span> <span id="chipval"></span>
+      <button type="button" id="chipcheck" data-t="chipCheck"></button></p>
     <p class="hold" id="hold" hidden data-t="leave"></p>
   </section>
 
@@ -240,6 +250,8 @@ const TEXT = {
     intro: "FM-1 を USB で接続してください。（Chrome か Edge で使えます）",
     factBrowser: "Chrome または Edge", factCable: "USB データケーブル", factTime: "約 3 分",
     betaHead: "ご注意:",
+    flashHead: "対応機種:",
+    flash: "旧型フラッシュ（ID 0x856014）の FM-1 に対応しています。新型フラッシュ（UC25HQ80、ID 0xB36014）の FM-1 にも対応しましたが、実機ではまだ未検証です。自己責任でお試しください（次のアップデートで確認予定）。それ以外のチップでは、何も書き込まずにインストールを中止し、元のファームウェアのまま戻ります。",
     s1Title: "FM-1 を接続", s1Note: "MIDI を使う他のアプリやページは閉じておいてください。",
     s2Title: "インストール", s2Body: "FM-1 を書き込みモードに切り替えて Midi-Mania を書き込み、再起動します。",
     s3Title: "遊ぶ", s3Body: "FM-1 で SEQ を押すと SONGS が開きます。Studio で MIDI ファイルを曲にして FM-1 に送れます。",
@@ -282,6 +294,12 @@ const TEXT = {
     notfound: "FM-1 が見つかりません。USB ケーブル（データ通信用か）を確かめ、MIDI を使う他のアプリを閉じてから、もう一度押してください。",
     model: "接続されている機器は FM-1 ではありません。",
     lost: "USB の接続が切れました。挿し直してもう一度押してください。",
+    unknownchip: "この FM-1 は書き込みモードに入らず、元のファームウェアに戻りました。Midi-Mania が知らないフラッシュチップです（旧型 0x856014・新型 0xB36014 以外）。何も書き込んでいないので、FM-1 はそのまま使えます。",
+    chipLabel: "フラッシュチップ:", chipCheck: "確認", chipAsking: "確認中…", chipNotFound: "FM-1 が見つかりません（USB を確認）",
+    chipUnchecked: "未確認（「確認」を押すか、インストール中に確認します）",
+    chipOld: "旧型（Puya P25Q80）: 対応", chipNew: "新型（UC25HQ80）: 実機ではまだ未検証。自己責任でお試しください",
+    chipUnknown: "不明なチップ: Midi-Mania はインストールしません",
+    chipNone: "このファームウェアは答えません（純正）。書き込みの前に Midi-Mania の書き込みモードが確認します",
     noloader: "書き込みモードの FM-1 が見つかりません。USB を挿し直してもう一度押してください（終わるまで書き込みモードのままです）。",
     noreturn: "FM-1 が戻ってきません。電源を入れ直してください。",
     mismatch: "書き込みは終わりましたが、FM-1 が別のバージョンを報告しています: ",
@@ -296,6 +314,8 @@ const TEXT = {
     intro: "Connect the FM-1 by USB. (Works in Chrome or Edge.)",
     factBrowser: "Chrome or Edge", factCable: "A USB data cable", factTime: "About 3 minutes",
     betaHead: "Heads up:",
+    flashHead: "Which FM-1:",
+    flash: "Midi-Mania works on FM-1s with the older flash chip (ID 0x856014). FM-1s with the newer flash chip (UC25HQ80, ID 0xB36014) are now supported too, but this is not verified on a physical device yet: try at your own risk (to be confirmed in the next update). On any other chip the install stops without writing anything, and the FM-1 keeps its own firmware.",
     s1Title: "Connect the FM-1", s1Note: "Close other apps and pages that use MIDI first.",
     s2Title: "Install", s2Body: "The FM-1 switches to update mode, Midi-Mania is written, and it restarts.",
     s3Title: "Play", s3Body: "On the FM-1, press SEQ for SONGS. Turn your MIDI files into songs in Studio and send them to your FM-1.",
@@ -338,6 +358,12 @@ const TEXT = {
     notfound: "FM-1 not found. Check the USB cable (a data cable), close other apps that use MIDI, and press Install again.",
     model: "The connected device is not an FM-1.",
     lost: "The USB connection was lost. Replug it and press Install again.",
+    unknownchip: "This FM-1 went back to its own firmware instead of starting the update: its flash chip is not one Midi-Mania knows (neither the older 0x856014 nor the newer 0xB36014). Nothing was written, and your FM-1 is as it was.",
+    chipLabel: "Flash chip:", chipCheck: "Check", chipAsking: "checking…", chipNotFound: "FM-1 not found (check the USB cable)",
+    chipUnchecked: "not checked yet (press Check, or it is checked during the install)",
+    chipOld: "older (Puya P25Q80): supported", chipNew: "newer (UC25HQ80): not verified on a physical device yet, try at your own risk",
+    chipUnknown: "unknown chip: Midi-Mania will not install",
+    chipNone: "not reported by this firmware (the official one doesn't say): Midi-Mania's update loader checks it before writing",
     noloader: "The FM-1 in update mode was not found. Replug the USB cable and press Install again (it stays in update mode until it is finished).",
     noreturn: "The FM-1 did not come back. Power-cycle it.",
     mismatch: "Written, but the FM-1 reports another version: ",
@@ -355,8 +381,34 @@ function applyLang() {
   document.querySelectorAll("[data-t]").forEach((e) => { e.textContent = t(e.dataset.t); });
   $("lang").textContent = t("other");
   if (lastKey) $("status").textContent = t(lastKey) + lastArg;
+  if (typeof showChip === "function") showChip(chipKey, chipId);
 }
 $("lang").addEventListener("click", () => { lang = lang === "ja" ? "en" : "ja"; applyLang(); });
+/* the flash chip (fm1ota.js chipOf): asked of the FM-1 by Check, and during an install. Midi-Mania (its app, its update
+ * loader) says which; the official firmware does not (null) */
+let chipKey = "chipUnchecked", chipId;
+function showChip(key, id) {
+  chipKey = key; chipId = id;
+  const cls = { chipOld: "ok", chipNew: "risk", chipUnknown: "no" }[key] || "";
+  $("chipval").innerHTML = "";
+  const b = document.createElement("b");
+  if (cls) b.className = cls;
+  b.textContent = (id ? `0x${id.toString(16).toUpperCase().padStart(6, "0")} · ` : "") + t(key);
+  $("chipval").append(b);
+}
+const chipKeyOf = (id) => id == null ? "chipNone" : FLASH_CHIPS[id] === "older" ? "chipOld" : FLASH_CHIPS[id] === "newer" ? "chipNew" : "chipUnknown";
+showChip("chipUnchecked");
+$("chipcheck").addEventListener("click", async () => {
+  if (writing || !navigator.requestMIDIAccess) return;
+  $("chipcheck").disabled = true;
+  showChip("chipAsking");
+  try {
+    const midi = await navigator.requestMIDIAccess({ sysex: true });
+    const r = await new Updater(midi, log).chip();
+    if (!r) showChip("chipNotFound"); else showChip(chipKeyOf(r.chip), r.chip ?? undefined);
+  } catch (e) { showChip("chipNotFound"); log(String(e)); }
+  $("chipcheck").disabled = false;
+});
 applyLang();
 /* the progress card: the stage a step key is in (the ones before it done), the bar and its percentage; the steps'
  * circles (1 connect, 2 install, 3 play) as the install goes */
@@ -421,6 +473,7 @@ async function runInstall() {
     const total = 74 + 1167;
     const step = (k, a) => {
       log(`${k} ${a ?? ""}`);
+      if (k === "chip" && (a != null || chipKey === "chipUnchecked")) showChip(chipKeyOf(a), a ?? undefined);
       if (k === "start") sayK("start");
       if (k === "verify") { sayK("verify"); setBar((a / total) * 100); }
       if (k === "loader") sayK("loader");

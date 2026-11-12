@@ -99,6 +99,8 @@ static int ldr_prog(uint32_t off, const void *p, uint32_t n)
     return 0;
 }
 static void ldr_record_clear(void) { record_cleared++; }
+static uint32_t chip_id = 0x856014u;                  /* the flash chip's JEDEC id (the older FM-1s'; the newer: B36014) */
+static int ldr_chip_ok(void) { return chip_id == 0x856014u || chip_id == 0xB36014u; }
 static void ldr_progress(uint32_t done, uint32_t total) { (void)done; (void)total; }
 #include "../firmware/loader/ldr_core.c"
 
@@ -185,6 +187,17 @@ int main(int argc, char **argv)
         memcpy(nor + 0xA0F00, r, sizeof r);
         memcpy(user, nor + 0xA0000, sizeof user);
     }
+    /* a flash chip it does not know (neither the older FM-1s' P25Q80, 85 60 14, nor the newer's UC25HQ80, B3 60 14):
+     * refused before anything is asked of the host or erased; the app area and the head as they were */
+    {
+        uint32_t req0 = requests;
+        chip_id = 0xEF4014u;
+        erases = 0;
+        rc = ldr_session();
+        bad += check("an unknown flash chip (0xEF4014): refused (-50), nothing asked, nothing erased",
+                     rc == -50 && erases == 0 && requests == req0 && !memcmp(nor + 0x4000, old + ofo + 0x4000, 0x93000 - 0x4000));
+        chip_id = 0x856014u;
+    }
     /* 1.6.1: flash.bin must be exactly this board's [0, app area end): a package with another board's size (an
      * SMK-37's app area ends at 0x9D000, the FM-1's at 0x93000; one byte short too) is refused before any erase */
     {
@@ -230,6 +243,16 @@ int main(int argc, char **argv)
     erases = 0; requests = 0;
     rc = ldr_session();
     bad += check("re-run with the same package erases nothing", rc == 0 && erases == 0);
+    /* the newer FM-1s' flash chip (UC25HQ80, B3 60 14): known, the same commands; the install goes as on the older */
+    {
+        memcpy(nor, old + ofo, 0x93000);
+        chip_id = 0xB36014u;
+        erases = 0; requests = 0;
+        rc = ldr_session();
+        bad += check("the newer flash chip (0xB36014): installs as the older one",
+                     rc == 0 && erases > 0 && !memcmp(nor + 0x4000, logical + nfo + 0x4000, 0x93000 - 0x4000));
+        chip_id = 0x856014u;
+    }
     /* a package for another chip key is refused before any erase */
     {
         uint8_t save = logical[nfo + 0x4000 + 5];

@@ -156,7 +156,14 @@ RAMINL int fl_wait_ready(uint32_t max_us, uint32_t *took_us)
 
 /* ---- entry points: IRQs OFF, args/buffers in RAM ---- */
 
-static RAMFN uint32_t fl_jedec_ram(void)                 /* expect 0x856014 */
+/* the flash chips this firmware knows: the older FM-1s' Puya P25Q80 (85 60 14) and the newer FM-1s' UC25HQ80 (B3 60 14),
+ * both 1 MiB with the same plain SPI NOR commands (Felucca f4cbb6a, #320; the UC25HQ80 not verified on a real FM-1
+ * here yet). Any other chip: the loader writes nothing (loader.c, ldr_core.c ldr_chip_ok), the app keeps to RAM
+ * (project.c persist_boot) */
+#define FL_JEDEC_FM1 0x856014u
+#define FL_JEDEC_FM1_NEW 0xB36014u
+#define FL_JEDEC_OK(id) ((id) == FL_JEDEC_FM1 || (id) == FL_JEDEC_FM1_NEW)
+static RAMFN uint32_t fl_jedec_ram(void)                 /* expect FL_JEDEC_FM1 */
 {
     fl_saved_t s; uint32_t id;
     if (fl_enter(&s)) return 0;

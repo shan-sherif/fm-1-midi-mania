@@ -28,6 +28,7 @@
  * Hooks from the platform (loader.c, ldr_test.c):
  *   ldr_fread(off, p, n)  ldr_erase(off)  ldr_prog(off, p, n)   flash, 0 = ok
  *   ldr_record_clear()    forget the RAM update record
+ *   ldr_chip_ok()         the flash chip is one it knows, FL_JEDEC_OK (else nothing is written: -50)
  *   ldr_progress(done, total)
  * plus the ota.c hooks (frames, time, idle). */
 #define LDR_APP_LO 0x4000u
@@ -43,6 +44,7 @@ static int ldr_erase(uint32_t off);
 static int ldr_prog(uint32_t off, const void *p, uint32_t n);
 static void ldr_record_clear(void);
 static void ldr_progress(uint32_t done, uint32_t total);
+static int ldr_chip_ok(void);                           /* the flash chip is one this build knows (FL_JEDEC_OK) */
 
 /* SFC cipher: per 32-byte block, key ^ (block offset >> 2) */
 static void ldr_sfc(uint8_t *p, uint32_t n, uint32_t base_off, uint32_t key)
@@ -112,6 +114,10 @@ static int ldr_session(void)
     static uint16_t sc[LDR_NSEC];
     uint32_t i, k, fl_off, fl_size, ota_off, ota_len, key, s, want = ~0u, done = 0;   /* (no CRC16: no flash.bin entry) */
     int rc;
+    /* 0. only on a flash chip this build knows (the older FM-1s' P25Q80, the newer's UC25HQ80): another is refused
+     *    before anything is read from the host or erased (loader.c also restarts into the old app at once) */
+    if (!ldr_chip_ok())
+        return -50;
     /* 1. UFW header + entry list (ota.c; it leaves the entries decoded in hdr) */
     if ((rc = ota_ufw(hdr, &fl_off, &fl_size, &ota_off, &ota_len)) != 0)
         return rc;

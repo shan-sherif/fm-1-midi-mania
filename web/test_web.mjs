@@ -41,8 +41,10 @@ const UPGRADE = [0xF0, 0x22, 0x24, 0x35, 0x7F, 0xF7];
 
 /* an FM-1 on WebMIDI: identity, then "device asks, host answers" reads of the image */
 class FakeFM1 {
-  constructor(image, { unplugAfter = Infinity } = {}) {
-    this.image = image; this.unplugAfter = unplugAfter; this.served = 0; this.bad = 0;
+  constructor(image, { unplugAfter = Infinity, unknownChip = false, chip = 0x856014 } = {}) {
+    this.image = image; this.unplugAfter = unplugAfter; this.unknownChip = unknownChip; this.chip = chip;
+    this.served = 0; this.bad = 0;
+    this.written = 0;                                  // (the loader's reads of the image: what it would write)
     this.access = { inputs: new Map(), outputs: new Map() };
     this.boot("FM-1_015", "FM-1");
   }
@@ -64,6 +66,9 @@ class FakeFM1 {
       const t = [...new TextEncoder().encode(this.identity)];
       const body = [0, 0x59, 0x11, 0, 0, 0, ...t, ...new Array(28 - t.length).fill(0)];
       this.tx([0xF0, ...pack7(body), 0xF7]);
+    } else if (d.length > 2 && unpack7(d.slice(1, -1))[2] === 0x4A) {
+      // "which flash chip": Midi-Mania (its app, its loader) answers; the official firmware (FM-1_015) does not
+      if (this.identity !== "FM-1_015") this.tx([0xF0, ...pack7([0, 0x59, 0x4A, 0, 0, 0, 0x4A, this.chip >> 16, (this.chip >> 8) & 0xFF, this.chip & 0xFF, 0]), 0xF7]);
     } else if (eq(d, UPGRADE)) {
       this.queue = this.identity.startsWith("ota-")
         ? [...Array.from({ length: 6 }, (_, k) => [k * 512, 512]), [0xF0000000, 8]]
@@ -78,7 +83,9 @@ class FakeFM1 {
       this.waiting = null;
       this.served++;
       if (this.served >= this.unplugAfter) { this.input.state = this.output.state = "disconnected"; return; }
-      if (addr === 0xE0000000) setTimeout(() => this.boot("ota-FM-1_800", "FM-1 Midi-Mania Update"), 300);
+      if (addr < 0xE0000000 && this.identity.startsWith("ota-")) this.written++;
+      // (a flash chip it does not know: Midi-Mania's loader restarts into the firmware that was there, writing nothing)
+      if (addr === 0xE0000000) setTimeout(() => this.unknownChip ? this.boot("FM-1_015", "FM-1") : this.boot("ota-FM-1_800", "FM-1 Midi-Mania Update"), 300);
       else if (addr === 0xF0000000) setTimeout(() => this.boot("FM-1_800", "Midi-Mania"), 300);
       else this.next();
     }
@@ -115,6 +122,24 @@ async function updater() {
   ok(e && e.code === "lost", "fm1ota.js: unplugged in step 1 -> error code 'lost'");
   const e2 = await new Updater({ inputs: new Map(), outputs: new Map() }).install(image, "FM-1_800").then(() => null, (x) => x);
   ok(e2 && e2.code === "notfound", "fm1ota.js: no device -> error code 'notfound'");
+
+  const dev4 = new FakeFM1(image, { unknownChip: true });
+  const t4 = Date.now();
+  const e4 = await new Updater(dev4.access).install(image, "FM-1_800").then(() => null, (x) => x);
+  ok(e4 && e4.code === "unknownchip" && dev4.written === 0 && dev4.identity === "FM-1_015" && Date.now() - t4 < 25000,
+    `fm1ota.js: an unknown flash chip (back to its own firmware, no loader) -> 'unknownchip', nothing written (${((Date.now() - t4) / 1000).toFixed(0)} s)`);
+
+  // the flash chip: asked of Midi-Mania (its app, its loader); the official firmware does not say (null)
+  const dev5 = new FakeFM1(image, { chip: 0xB36014 });
+  const c0 = await new Updater(dev5.access).chip();
+  dev5.boot("FM-1_800", "Midi-Mania");
+  const c1 = await new Updater(dev5.access).chip();
+  const chips = [];
+  const dev6 = new FakeFM1(image, { chip: 0xB36014 });
+  await new Updater(dev6.access).install(image, "FM-1_800", (k, a) => { if (k === "chip") chips.push(a); });
+  ok(c0 && c0.chip === null && c0.text === "FM-1_015" && c1 && c1.chip === 0xB36014 && c1.text === "FM-1_800" &&
+     chips.length === 2 && chips[0] === null && chips[1] === 0xB36014,
+    "fm1ota.js: the flash chip: Midi-Mania (app, loader) says 0xB36014, the official firmware nothing");
 }
 
 await packages();

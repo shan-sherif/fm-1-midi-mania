@@ -1182,12 +1182,20 @@ static uint8_t persist_pending;                 /* 1 requested, 2 waiting after 
 static uint32_t persist_retry_ms;
 #endif
 
+#ifndef FL_JEDEC_OK                                /* (fm1_flash.h's; the tests' own flash has none) */
+#define FL_JEDEC_OK(id) ((id) == 0x856014u || (id) == 0xB36014u)
+#endif
+static uint32_t flash_jedec;                       /* the flash chip's JEDEC id, read at boot (0: none read) */
+#ifdef OTA_CHIP_ID
+static uint32_t ota_chip_id(void) { return flash_jedec; }   /* (ota.c: the installer asks, Flash chip) */
+#endif
 static void persist_boot(void)                    /* before settings_init / panel_init */
 {
 #if MM_FLASH
     persist_t p;
     uint32_t f = irq_save();
-    flash_ok = FL_FAR(fl_jedec_ram)() == 0x856014u;       /* the expected 1 MiB part, else stay RAM-only */
+    flash_jedec = FL_FAR(fl_jedec_ram)();
+    flash_ok = FL_JEDEC_OK(flash_jedec);           /* a known 1 MiB part (older or newer FM-1), else stay RAM-only */
     irq_restore(f);
     if (!flash_ok)
         return;
