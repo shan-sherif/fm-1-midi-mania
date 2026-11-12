@@ -108,6 +108,34 @@ static int ldr_check(uint32_t fl_off, uint32_t fl_size, uint32_t want, uint16_t 
     return crc == want ? 0 : -12;
 }
 
+/* the update records gone (RAM, then flash: 4K boundary - 256 between LDR_REC_LO and LDR_REC_HI, never Felucca's
+ * store), so the SPL boots the app from now on, also at power-on */
+static void ldr_records_clear(void)
+{
+    static uint8_t r[80];
+    uint32_t s;
+    ldr_record_clear();
+    for (s = LDR_REC_HI; s > LDR_REC_LO; s -= 0x1000u) {
+        if (s - 0x1000u >= LDR_DATA_LO && s - 0x1000u < LDR_DATA_HI)
+            continue;                                    /* Felucca's store: user data that may look like one */
+        if (ldr_fread(s - 0x100u, r, 80))
+            break;
+        if (ota_rd16(r + 6) == 0x5441u && ota_rd16(r) && ota_rd16(r) == ota_crc16(r + 2, 78, 0))
+            ldr_erase(s - 0x1000u);
+    }
+}
+
+/* the installer's check only (cmd 0x4B, after it asked the chip): no install. The records go, nothing else is
+ * written (the app as it was), and loader.c restarts into it. Only on a chip it knows (ldr_chip_ok: else -50, nothing
+ * erased) */
+static int ldr_cancel(void)
+{
+    if (!ldr_chip_ok())
+        return -50;
+    ldr_records_clear();
+    return 0;
+}
+
 static int ldr_session(void)
 {
     static uint8_t hdr[0x400], sec[0x1000], cur[0x1000];
@@ -176,15 +204,6 @@ static int ldr_session(void)
     for (i = 0; i < 4u; i++)
         if (!ota_read(0xF0000000u, sec, 8))
             break;
-    ldr_record_clear();
-    for (s = LDR_REC_HI; s > LDR_REC_LO; s -= 0x1000u) {   /* flash records: 4K boundary - 256 */
-        uint8_t r[80];
-        if (s - 0x1000u >= LDR_DATA_LO && s - 0x1000u < LDR_DATA_HI)
-            continue;                                    /* Felucca's store: user data that may look like one */
-        if (ldr_fread(s - 0x100u, r, 80))
-            break;
-        if (ota_rd16(r + 6) == 0x5441u && ota_rd16(r) && ota_rd16(r) == ota_crc16(r + 2, 78, 0))
-            ldr_erase(s - 0x1000u);
-    }
+    ldr_records_clear();
     return 0;
 }

@@ -65,7 +65,12 @@ Your own songs: drop a MIDI file on Studio (below). The full controls are in [Pl
 > (UC25HQ80, ID `0xB36014`) are now supported too, but this is **not verified on a physical device yet: try at your
 > own risk** (to be confirmed in the next update). On any other chip the install stops without writing anything: the
 > update loader checks the chip first and restarts into the firmware already there. The installer's **Flash chip**
-> line shows which chip your FM-1 has (FM-1s running the official firmware report it only once the install starts).
+> line shows which chip your FM-1 has. An FM-1 on the official firmware (or Midi-Mania before 0.9.0) doesn't report
+> it, so the installer offers a **check only**: the first step of an install, where the FM-1's own firmware loads
+> Midi-Mania's update loader, which reads the chip and cancels, so the FM-1 restarts into its own firmware with
+> nothing of Midi-Mania written (about 20 seconds; keep it connected until it's done).
+>
+> Why one small change makes the newer chip work: [The newer FM-1 flash chip](#the-newer-fm-1-flash-chip).
 
 > **Status: beta (0.9.0), tested on the FM-1.** Working on the FM-1 and in the desktop and browser builds:
 > - **all four parts playable:** KEYS, DRUMS, GUITAR and BASS, each with play styles (KEYS on 49 keys, 27 keys or one
@@ -345,8 +350,8 @@ See [BUILDING.md](BUILDING.md), and [docs/BUILDING_WINDOWS.md](docs/BUILDING_WIN
 
 Use [the installer](https://shan-sherif.github.io/fm-1-midi-mania/webapp/installer/) in Chrome or Edge, at your own
 risk. Updating from an earlier Midi-Mania keeps the songs you've loaded onto your FM-1. It works on FM-1s with the
-older flash chip (ID `0x856014`); the newer flash chip (`0xB36014`) is not verified on a physical device yet: try at
-your own risk. 
+older flash chip (ID `0x856014`); the newer flash chip (`0xB36014`, [below](#the-newer-fm-1-flash-chip)) is not
+verified on a physical device yet: try at your own risk.
 **Return to official V15** (with the official `FM-1.fwsc` from M-VAVE) takes the FM-1 back to stock. If an install fails and the FM-1 does not start, recovery needs
 [FM-1-transporter](https://github.com/kurogedelic/FM-1-transporter).
 
@@ -354,6 +359,23 @@ Before **Return to official V15**, the installer saves a backup file to your com
 your settings, sounds and uploaded songs. After installing Midi-Mania again, **Restore a backup** on the same page puts
 it back. Songs already on the FM-1 stay, and the backup's other songs are added. The file is `"midi-mania-backup"`;
 older ones, saved as `"felucca-backup"` (Felucca's name for the same format) before 0.2.0, still restore, without songs.
+
+### The newer FM-1 flash chip
+
+For Midi-Mania and the other Felucca-based firmware (Felucca itself, SLOOP):
+the FM-1's firmware drives its flash with the standard SPI flash commands (read `0x03`, write `0x02`,
+4 KB erase `0x20`, status `0x05`, write enable `0x06`), and both chips understand them the same way. Both also hold
+1 MB, so everything sits in the same place. What differed was only a safety check: at power-on the firmware asks the
+chip for its ID (command `0x9F`) and uses the flash only if it recognises the answer. These firmwares knew only the
+older chip's `0x856014`, so a newer FM-1 (`0xB36014`) was treated as an unknown chip: nothing was saved to flash
+(settings and saved data lost at power-off), and
+where the update loader checks the chip too, updates were refused. Adding the second ID to that check, at power-on
+(`persist_boot`) and in the update loader, lets the same firmware and the same flash code work on both chips; any
+other chip is still refused. Felucca made this fix in
+[`f4cbb6a`](https://github.com/hugelton/Felucca/commit/f4cbb6a2a0a35e068d4f063083d464eb4dbaa415)
+([issue #320](https://github.com/hugelton/Felucca/issues/320)), SLOOP in
+[`bac9c05`](https://github.com/isod89/sloop-fm1/commit/bac9c05ea7627449405aa10e48da21d75b6c8c56), and Midi-Mania
+in 0.9.0.
 
 ## Based on Felucca
 

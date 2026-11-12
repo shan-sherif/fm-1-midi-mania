@@ -196,9 +196,10 @@ export class Updater {
     }
   }
 
-  // full install: running firmware -> loader -> new firmware
-  async install(image, product, onStep) {
-    const step = onStep || (() => {});
+  // step 1 (the running firmware stages Midi-Mania's update loader from the package), then the loader found: {ota,
+  // model}. The loader restarts at once, writing nothing, on a flash chip it does not know (neither the older FM-1s'
+  // nor the newer's: firmware/loader/loader.c): the firmware that was there comes back instead (unknownchip)
+  async toLoader(image, product, step) {
     const dev = await this.find((id) => !IS_OTA(id));
     if (!dev) throw fail("notfound", "FM-1 not found (USB cable, and no other app using it?)");
     const [model] = product.split("_");
@@ -212,13 +213,11 @@ export class Updater {
     if (!s1.finished) throw fail(s1.lost ? "lost" : "stopped", `the device ${s1.lost ? "was disconnected" : "stopped"} after ${s1.served} requests: nothing was written`);
     step("loader");
     await sleep(3000);
-    // the loader, or the firmware that was there coming back instead: Midi-Mania's loader restarts at once, writing
-    // nothing, on a flash chip it does not know (neither the older FM-1s' nor the newer's: firmware/loader/loader.c)
     const t0 = Date.now();
-    let ota = null, home = 0;                         // (home: the old firmware seen back, in a row)
+    let home = 0;                                     // (the old firmware seen back, in a row)
     while (Date.now() - t0 < 30000) {
       const d = await this.find((id) => id.model === "ota-" + model || !IS_OTA(id));
-      if (d && IS_OTA(d.id)) { ota = d; step("chip", await chipOf(d.link)); break; }
+      if (d && IS_OTA(d.id)) { step("chip", await chipOf(d.link)); return { ota: d, model }; }
       if (d) {
         d.link.close();
         if (Date.now() - t0 > 9000 && ++home >= 3)
@@ -226,7 +225,13 @@ export class Updater {
       } else home = 0;
       await sleep(1000);
     }
-    if (!ota) throw fail("noloader", "the update loader did not appear. Replug the USB cable and press Install again: the device stays in update mode until it is finished.");
+    throw fail("noloader", "the update loader did not appear. Replug the USB cable and press Install again: the device stays in update mode until it is finished.");
+  }
+
+  // full install: running firmware -> loader -> new firmware
+  async install(image, product, onStep) {
+    const step = onStep || (() => {});
+    const { ota } = await this.toLoader(image, product, step);
     const s2 = await this.write(ota, image, step);
     if (!s2.finished) throw fail(s2.lost ? "lost" : "stopped", `the loader ${s2.lost ? "was disconnected" : "stopped"} after ${s2.served} requests. Replug and press Install again to resume.`);
     step("reboot");
@@ -237,6 +242,26 @@ export class Updater {
     if (back.id.text !== product) throw fail("mismatch", `installed, but the device reports ${back.id.text}`, back.id.text);
     step("done", back.id.text);
     return back.id.text;
+  }
+
+  // The flash chip before installing, for an FM-1 whose firmware does not say (the official one, Midi-Mania before
+  // 0.9.0): step 1 as an install does (the running firmware stages Midi-Mania's update loader), the loader asked the
+  // chip, then told to cancel (cmd 0x4B): it clears the update record and restarts into the firmware that was there,
+  // Midi-Mania never written. -> the chip id. An unknown chip: unknownchip (the loader wrote nothing at all)
+  async probe(image, product, onStep) {
+    const step = onStep || (() => {});
+    let chip = null;
+    const { ota, model } = await this.toLoader(image, product, (k, a) => { if (k === "chip" && a != null) chip = a; step(k, a); });
+    ota.link.send([0xF0, ...pack7([0, 0x59, 0x4B, 0, 0, 0, 0xFF]), 0xF7]);
+    await sleep(500);
+    ota.link.close();
+    step("cancel");
+    await sleep(2000);
+    const back = await this.waitFor((id) => id.model === model, 40000);
+    if (!back) throw fail("noreturn", "the FM-1 did not come back from the check: power-cycle it");
+    back.link.close();
+    step("back", back.id.text);
+    return chip;
   }
 
   // step 2 with the loader found by find()/waitFor()

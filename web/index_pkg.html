@@ -53,6 +53,8 @@
   .banner { margin: 0 0 16px; padding: 12px 16px; border-radius: 12px; background: var(--warn-bg); border: 1px solid var(--warn-line);
             font-size: 14px; color: var(--ink); }
   .banner b { color: var(--warn); }
+  .banner .fix { display: block; margin-top: 6px; font-size: 13px; }
+  .banner .fix a { color: inherit; }
 
   /* the steps: numbered, the one in hand dark, the ones done ticked */
   .steps { list-style: none; margin: 0; padding: 0; counter-reset: step; }
@@ -99,6 +101,15 @@
   .chip button { font: inherit; font-size: 13px; padding: 3px 12px; border-radius: 999px; border: 1px solid var(--line, #ccc);
                  background: transparent; color: inherit; cursor: pointer; }
   .chip button:disabled { opacity: .5; cursor: progress; }
+  .probe { margin: 12px 0 0; padding: 12px 14px; border-radius: 12px; background: var(--warn-bg); border: 1px solid var(--warn-line);
+           font-size: 14px; }
+  .probe p { margin: 0 0 8px; }
+  .probe .risk { font-size: 13px; }
+  .probe .acts { display: flex; gap: 8px; flex-wrap: wrap; margin: 0; }
+  .probe button { font: inherit; font-size: 13px; padding: 5px 14px; border-radius: 999px; cursor: pointer;
+                  border: 1px solid var(--line, #ccc); background: transparent; color: inherit; }
+  .probe button.go { background: var(--fg, #17151f); color: var(--bg, #fff); border-color: transparent; font-weight: 600; }
+  .probe[hidden] { display: none; }
   .progress .hold { margin: 10px 0 0; font-size: 13px; color: var(--warn); }
 
   /* the extras, folded */
@@ -148,7 +159,11 @@
     <ul class="facts"><li data-t="factBrowser"></li><li data-t="factCable"></li><li data-t="factTime"></li></ul>
   </section>
   <p class="banner"><b data-t="betaHead"></b> <span data-t="beta"></span></p>
-  <p class="banner"><b data-t="flashHead"></b> <span data-t="flash"></span></p>
+  <p class="banner"><b data-t="flashHead"></b> <span data-t="flash"></span>
+    <span class="fix"><span data-t="flashFix"></span> <a href="https://github.com/hugelton/Felucca/commit/f4cbb6a2a0a35e068d4f063083d464eb4dbaa415" target="_blank" rel="noopener">Felucca f4cbb6a</a>
+      (<a href="https://github.com/hugelton/Felucca/issues/320" target="_blank" rel="noopener">#320</a>) ·
+      <a href="https://github.com/isod89/sloop-fm1/commit/bac9c05ea7627449405aa10e48da21d75b6c8c56" target="_blank" rel="noopener">SLOOP bac9c05</a> ·
+      <a href="https://github.com/shan-sherif/fm-1-midi-mania#the-newer-fm-1-flash-chip" target="_blank" rel="noopener" data-t="flashWhy"></a></span></p>
 
   <section class="progress" aria-live="polite">
     <ol class="stages" id="stages">
@@ -160,6 +175,12 @@
     <p id="status"></p>
     <p class="chip"><span class="k" data-t="chipLabel"></span> <span id="chipval"></span>
       <button type="button" id="chipcheck" data-t="chipCheck"></button></p>
+    <div class="probe" id="probe" hidden>
+      <p><b data-t="probeHead"></b> <span data-t="probeWhat"></span></p>
+      <p class="risk" data-t="probeRisk"></p>
+      <p class="acts"><button type="button" class="go" id="probe-go" data-t="probeGo"></button>
+        <button type="button" id="probe-no" data-t="probeNo"></button></p>
+    </div>
     <p class="hold" id="hold" hidden data-t="leave"></p>
   </section>
 
@@ -251,6 +272,8 @@ const TEXT = {
     factBrowser: "Chrome または Edge", factCable: "USB データケーブル", factTime: "約 3 分",
     betaHead: "ご注意:",
     flashHead: "対応機種:",
+    flashFix: "新型フラッシュへの対応は Felucca と SLOOP の修正と同じです（両方のチップを受け付ける）:",
+    flashWhy: "なぜこれで動くのか（README、英語）",
     flash: "旧型フラッシュ（ID 0x856014）の FM-1 に対応しています。新型フラッシュ（UC25HQ80、ID 0xB36014）の FM-1 にも対応しましたが、実機ではまだ未検証です。自己責任でお試しください（次のアップデートで確認予定）。それ以外のチップでは、何も書き込まずにインストールを中止し、元のファームウェアのまま戻ります。",
     s1Title: "FM-1 を接続", s1Note: "MIDI を使う他のアプリやページは閉じておいてください。",
     s2Title: "インストール", s2Body: "FM-1 を書き込みモードに切り替えて Midi-Mania を書き込み、再起動します。",
@@ -295,11 +318,19 @@ const TEXT = {
     model: "接続されている機器は FM-1 ではありません。",
     lost: "USB の接続が切れました。挿し直してもう一度押してください。",
     unknownchip: "この FM-1 は書き込みモードに入らず、元のファームウェアに戻りました。Midi-Mania が知らないフラッシュチップです（旧型 0x856014・新型 0xB36014 以外）。何も書き込んでいないので、FM-1 はそのまま使えます。",
+    probeHead: "インストールの前にチップを確認しますか？",
+    probeWhat: "この FM-1 のファームウェアはフラッシュチップを答えません。確認では、インストールの最初の手順だけを行います。FM-1 自身のファームウェアが Midi-Mania の小さな書き込みプログラムを読み込み、それがチップを読んでから取り消すので、Midi-Mania は何も書き込まれずに FM-1 は元のファームウェアで再起動します。約 20 秒かかり、FM-1 は 1 回再起動します。",
+    probeRisk: "リスク: どのインストールでも最初に行う手順と同じです。終わるまで USB を抜かず、電源を切らないでください。途中で切れると、次に FM-1 が書き込みモードで起動することがあります（インストールを押して完了するか、純正 V15 に戻すを使います）。不明なチップでは何も消去せず元のファームウェアに戻りますが、次にアップデートするまで起動に少し時間がかかることがあります。自己責任でお使いください。",
+    probeGo: "確認する", probeNo: "今はしない",
+    probing: "フラッシュチップを確認中（約 20 秒）。FM-1 をつないだままにしてください…",
+    probeDone: "確認しました。FM-1 は元のファームウェアに戻りました（Midi-Mania は書き込んでいません）。",
     chipLabel: "フラッシュチップ:", chipCheck: "確認", chipAsking: "確認中…", chipNotFound: "FM-1 が見つかりません（USB を確認）",
     chipUnchecked: "未確認（「確認」を押すか、インストール中に確認します）",
     chipOld: "旧型（Puya P25Q80）: 対応", chipNew: "新型（UC25HQ80）: 実機ではまだ未検証。自己責任でお試しください",
     chipUnknown: "不明なチップ: Midi-Mania はインストールしません",
-    chipNone: "このファームウェアは答えません（純正）。書き込みの前に Midi-Mania の書き込みモードが確認します",
+    chipNone: "このファームウェアは答えません。書き込みの前に Midi-Mania の書き込みモードが確認します",
+    chipNoneStock: "純正ファームウェアは答えません。下の確認を使うか、インストールを始めると確認できます",
+    chipNoneOld: "0.9.0 より前の Midi-Mania は答えません。下の確認を使うか、インストールを始めると確認できます",
     noloader: "書き込みモードの FM-1 が見つかりません。USB を挿し直してもう一度押してください（終わるまで書き込みモードのままです）。",
     noreturn: "FM-1 が戻ってきません。電源を入れ直してください。",
     mismatch: "書き込みは終わりましたが、FM-1 が別のバージョンを報告しています: ",
@@ -315,6 +346,8 @@ const TEXT = {
     factBrowser: "Chrome or Edge", factCable: "A USB data cable", factTime: "About 3 minutes",
     betaHead: "Heads up:",
     flashHead: "Which FM-1:",
+    flashFix: "The newer-flash fix is the same as Felucca's and SLOOP's (both chips accepted):",
+    flashWhy: "why this works (README)",
     flash: "Midi-Mania works on FM-1s with the older flash chip (ID 0x856014). FM-1s with the newer flash chip (UC25HQ80, ID 0xB36014) are now supported too, but this is not verified on a physical device yet: try at your own risk (to be confirmed in the next update). On any other chip the install stops without writing anything, and the FM-1 keeps its own firmware.",
     s1Title: "Connect the FM-1", s1Note: "Close other apps and pages that use MIDI first.",
     s2Title: "Install", s2Body: "The FM-1 switches to update mode, Midi-Mania is written, and it restarts.",
@@ -359,11 +392,19 @@ const TEXT = {
     model: "The connected device is not an FM-1.",
     lost: "The USB connection was lost. Replug it and press Install again.",
     unknownchip: "This FM-1 went back to its own firmware instead of starting the update: its flash chip is not one Midi-Mania knows (neither the older 0x856014 nor the newer 0xB36014). Nothing was written, and your FM-1 is as it was.",
+    probeHead: "Check the chip before installing?",
+    probeWhat: "This FM-1's firmware doesn't report its flash chip. The check runs only the first step of an install: your FM-1's own firmware loads Midi-Mania's small update program, which reads the chip and then cancels, so your FM-1 restarts into its own firmware with nothing of Midi-Mania written. It takes about 20 seconds, and the FM-1 restarts once.",
+    probeRisk: "Risks: this is the same first step every install starts with. Keep the USB cable in and the FM-1 powered until it says it's done: if it's cut off midway, the FM-1 may start in update mode next time (press Install to finish, or use Return to official V15). On an unknown chip nothing is erased and the FM-1 goes back to its own firmware, though it may take a moment longer to start until it's next updated. Use at your own risk.",
+    probeGo: "Run the check", probeNo: "Not now",
+    probing: "Checking the flash chip (about 20 seconds): keep the FM-1 connected…",
+    probeDone: "Checked: your FM-1 is back on its own firmware (nothing of Midi-Mania written).",
     chipLabel: "Flash chip:", chipCheck: "Check", chipAsking: "checking…", chipNotFound: "FM-1 not found (check the USB cable)",
     chipUnchecked: "not checked yet (press Check, or it is checked during the install)",
     chipOld: "older (Puya P25Q80): supported", chipNew: "newer (UC25HQ80): not verified on a physical device yet, try at your own risk",
     chipUnknown: "unknown chip: Midi-Mania will not install",
-    chipNone: "not reported by this firmware (the official one doesn't say): Midi-Mania's update loader checks it before writing",
+    chipNone: "not reported by this firmware: Midi-Mania's update loader checks it before writing",
+    chipNoneStock: "not reported by the official firmware: run the check below, or it shows once the install starts",
+    chipNoneOld: "not reported by Midi-Mania before 0.9.0: run the check below, or it shows once the install starts",
     noloader: "The FM-1 in update mode was not found. Replug the USB cable and press Install again (it stays in update mode until it is finished).",
     noreturn: "The FM-1 did not come back. Power-cycle it.",
     mismatch: "Written, but the FM-1 reports another version: ",
@@ -398,6 +439,28 @@ function showChip(key, id) {
 }
 const chipKeyOf = (id) => id == null ? "chipNone" : FLASH_CHIPS[id] === "older" ? "chipOld" : FLASH_CHIPS[id] === "newer" ? "chipNew" : "chipUnknown";
 showChip("chipUnchecked");
+$("probe-no").addEventListener("click", () => { $("probe").hidden = true; });
+$("probe-go").addEventListener("click", async () => {
+  if (writing || !image) return;
+  $("probe").hidden = true;
+  lockInstaller(true);
+  $("chipcheck").disabled = true;
+  showChip("chipAsking");
+  say(t("probing"));
+  try {
+    const midi = await navigator.requestMIDIAccess({ sysex: true });
+    const chip = await new Updater(midi, log).probe(image, meta.product, (k, a) => log(`check ${k} ${a ?? ""}`));
+    showChip(chipKeyOf(chip), chip ?? undefined);
+    sayK("probeDone");
+  } catch (e) {
+    if (e && e.code === "unknownchip") showChip("chipUnknown");
+    else showChip("chipUnchecked");
+    if (e && e.code && TEXT[lang][e.code]) sayK(e.code, e.detail || ""); else sayK("error", e && e.message);
+    log(String(e && e.stack || e));
+  }
+  $("chipcheck").disabled = false;
+  lockInstaller(false);
+});
 $("chipcheck").addEventListener("click", async () => {
   if (writing || !navigator.requestMIDIAccess) return;
   $("chipcheck").disabled = true;
@@ -405,7 +468,13 @@ $("chipcheck").addEventListener("click", async () => {
   try {
     const midi = await navigator.requestMIDIAccess({ sysex: true });
     const r = await new Updater(midi, log).chip();
-    if (!r) showChip("chipNotFound"); else showChip(chipKeyOf(r.chip), r.chip ?? undefined);
+    if (!r) showChip("chipNotFound");
+    else if (r.chip != null) showChip(chipKeyOf(r.chip), r.chip);
+    else {
+      showChip(/^FM-1_8\d\d$/.test(r.text) ? "chipNoneOld" : /^FM-1_0\d\d$/.test(r.text) ? "chipNoneStock" : "chipNone");
+      $("probe").hidden = !image || !/^FM-1_/.test(r.text);           /* (offered: the check only, with its risks) */
+    }
+    log(`chip check: ${r ? r.text : "no FM-1"} -> ${r && r.chip != null ? "0x" + r.chip.toString(16) : "not reported"}`);
   } catch (e) { showChip("chipNotFound"); log(String(e)); }
   $("chipcheck").disabled = false;
 });

@@ -66,6 +66,9 @@ class FakeFM1 {
       const t = [...new TextEncoder().encode(this.identity)];
       const body = [0, 0x59, 0x11, 0, 0, 0, ...t, ...new Array(28 - t.length).fill(0)];
       this.tx([0xF0, ...pack7(body), 0xF7]);
+    } else if (d.length > 2 && unpack7(d.slice(1, -1))[2] === 0x4B) {
+      // the installer's check only, to the loader: the update record cleared, back to the firmware that was there
+      if (this.identity.startsWith("ota-")) { this.cancelled = true; setTimeout(() => this.boot("FM-1_015", "FM-1"), 300); }
     } else if (d.length > 2 && unpack7(d.slice(1, -1))[2] === 0x4A) {
       // "which flash chip": Midi-Mania (its app, its loader) answers; the official firmware (FM-1_015) does not
       if (this.identity !== "FM-1_015") this.tx([0xF0, ...pack7([0, 0x59, 0x4A, 0, 0, 0, 0x4A, this.chip >> 16, (this.chip >> 8) & 0xFF, this.chip & 0xFF, 0]), 0xF7]);
@@ -140,6 +143,18 @@ async function updater() {
   ok(c0 && c0.chip === null && c0.text === "FM-1_015" && c1 && c1.chip === 0xB36014 && c1.text === "FM-1_800" &&
      chips.length === 2 && chips[0] === null && chips[1] === 0xB36014,
     "fm1ota.js: the flash chip: Midi-Mania (app, loader) says 0xB36014, the official firmware nothing");
+
+  // the check only, from the official firmware: step 1, the loader asked its chip and cancelled, back to the official
+  // firmware, Midi-Mania never written
+  const dev7 = new FakeFM1(image, { chip: 0xB36014 });
+  const seen = [];
+  const c7 = await new Updater(dev7.access).probe(image, "FM-1_800", (k) => seen.push(k));
+  ok(c7 === 0xB36014 && dev7.cancelled && dev7.written === 0 && dev7.identity === "FM-1_015" && seen.includes("cancel") && seen.at(-1) === "back",
+    "fm1ota.js: check only: the loader says 0xB36014, cancels, back to the official firmware, nothing written");
+  const dev8 = new FakeFM1(image, { unknownChip: true });
+  const e8 = await new Updater(dev8.access).probe(image, "FM-1_800").then(() => null, (x) => x);
+  ok(e8 && e8.code === "unknownchip" && dev8.written === 0 && !dev8.cancelled,
+    "fm1ota.js: check only, an unknown chip: 'unknownchip', nothing written");
 }
 
 await packages();

@@ -187,6 +187,33 @@ int main(int argc, char **argv)
         memcpy(nor + 0xA0F00, r, sizeof r);
         memcpy(user, nor + 0xA0000, sizeof user);
     }
+    /* the installer's check only (ldr_cancel, cmd 0x4B): on a chip it knows, the update records go and nothing else is
+     * written (the app, the head, the user data as they were); on one it does not know, nothing at all. The records
+     * are put back for the install tests below */
+    {
+        static uint8_t before[0x100000];
+        uint8_t rec[112];
+        uint32_t k, other = 0;
+        memcpy(rec, nor + 0xE4F00, sizeof rec);
+        memcpy(before, nor, sizeof before);
+        chip_id = 0xEF4014u;
+        erases = 0; record_cleared = 0;
+        rc = ldr_cancel();
+        bad += check("check only, an unknown chip: refused (-50), nothing erased", rc == -50 && erases == 0 &&
+                     !record_cleared && !memcmp(nor, before, sizeof before));
+        chip_id = 0xB36014u;
+        rc = ldr_cancel();
+        for (k = 0; k < sizeof before; k++)
+            if (nor[k] != before[k] && !((k >= 0xE4000u && k < 0xE5000u) || (k >= 0xE8000u && k < 0xE9000u)))
+                other++;
+        bad += check("check only (newer chip): the update records go, the app, head and user data as they were",
+                     rc == 0 && record_cleared && nor[0xE4F06] == 0xFF && nor[0xE8F06] == 0xFF && other == 0 &&
+                     erases == 2u && !memcmp(nor + 0xA0000, user, sizeof user));
+        chip_id = 0x856014u;
+        memcpy(nor + 0xE4F00, rec, sizeof rec);
+        memcpy(nor + 0xE8F00, rec, sizeof rec);
+        record_cleared = 0;
+    }
     /* a flash chip it does not know (neither the older FM-1s' P25Q80, 85 60 14, nor the newer's UC25HQ80, B3 60 14):
      * refused before anything is asked of the host or erased; the app area and the head as they were */
     {

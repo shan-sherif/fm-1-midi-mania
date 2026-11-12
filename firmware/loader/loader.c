@@ -93,7 +93,16 @@ void ldr_main(void)
             fm1_delay_ms(30);
             fm1_enter_uboot();
         }
-        ota_service();                              /* handshake */
+        if (ota_service() == 7u && ota_dec[2] == 0x4B && ldr_cancel() == 0) {
+            /* the installer's check only: the chip asked (ota.c cmd 0x4A), then cancelled: the update records gone,
+             * nothing else written; back to the firmware that was there */
+            static const uint8_t ok = 'C';
+            ota_send_msg(0x4B, &ok, 1);
+            fm1_delay_ms(200);                      /* (the reply leaves) */
+            usb_detach();
+            fm1_delay_ms(30);
+            fm1_core_reset();
+        }
         if (usb.ota_req) {
             usb.ota_req = 0;
             if (ldr_session() == 0) {
