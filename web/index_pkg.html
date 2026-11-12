@@ -446,8 +446,12 @@ showChip("chipUnchecked");
  * Updater.probe: step 1, the loader asked, then cancelled: back to the firmware that was there, Midi-Mania never
  * written */
 /* the status and the bar in view (a long task started further down the page: the check, back to V15, a restore) */
-const toProgress = () => document.querySelector(".progress").scrollIntoView({
-  behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+const toProgress = () => {
+  /* (the button keeps the focus otherwise, and the browser brings it back into view after a dialog or a download) */
+  if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+  document.querySelector(".progress").scrollIntoView({
+    behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+};
 $("probe-go").addEventListener("click", async () => {
   if (writing || !image || !navigator.requestMIDIAccess) return;
   $("probe-go").disabled = true;
@@ -602,6 +606,7 @@ $("stock-go").addEventListener("click", async () => {
       loader.link.close();
       if (!$("stock-recovery").checked) { sayK("stockNeedBackup"); return; }
       if (!confirm(t("stockConfirm"))) return;
+      toProgress();
       sayK(await up.resume(selected.image, step, selected.product) ? "done" : "stopped");
     } else {
       const device = await up.find(id => id.model === "FM-1");
@@ -615,7 +620,9 @@ $("stock-go").addEventListener("click", async () => {
       const archive = await captureBackup(req, info.version, (done,total) => sayK("backup", pct(done, total)), songs);
       log(`backup: ${archive.objects.length} objects, ${songs ? songs.length : 0} songs`);
       saveArchive(archive); link.close(); link = null;
+      toProgress();
       if (!confirm(t("stockConfirm"))) return;
+      toProgress();                                  /* (a dialog closing puts the page back at the button: up again) */
       await up.install(selected.image, selected.product, step);
     }
   } catch (e) {
