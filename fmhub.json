@@ -8,5 +8,6 @@
   "editor": "https://shan-sherif.github.io/fm-1-midi-mania/webapp/studio/",
   "cheat": "https://github.com/shan-sherif/fm-1-midi-mania#quick-start",
   "image": "web/site_media/fmhub-wide.png",
-  "color": "#FFE600"
+  "color": "#FFE600",
+  "sounds": "CC0: piano and flute samples from Versilian Studios (VSCO-2 Community Edition and VCSL); the drums and every other sound are synthesised in code"
 }
