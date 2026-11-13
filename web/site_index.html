@@ -58,10 +58,13 @@
   .shots.screens { margin-top: 14px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
   .shots img.px { image-rendering: pixelated; }
   /* Your MIDI, onto your FM-1: Studio's two steps, pictures beside what they show */
-  .studio { display: grid; gap: 18px 24px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); align-items: start; }
-  .studio figure { margin: 0; }
+  /* the steps as rows: the picture, its text beside it (a phone: one above the other) */
+  .studio { display: grid; gap: 28px; }
+  .studio figure { margin: 0; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 22px;
+                   align-items: center; }
   .studio img { display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--rule); }
-  .studio figcaption { margin-top: 10px; color: var(--dim); }
+  .studio figcaption { color: var(--dim); }
+  @media (max-width: 640px) { .studio figure { grid-template-columns: 1fr; gap: 10px; } }
   .studio figcaption b { display: block; color: var(--fg); font-size: 16px; margin-bottom: 2px; }
   .studio-cta { margin: 18px 0 0; }
 
@@ -111,16 +114,20 @@
   </div>
 
   <h2>Your MIDI, onto your FM&#8209;1</h2>
-  <p>Any MIDI file can be a song. Drop it on Studio and it's set up for you: the parts are chosen automatically, so you
+  <p>Any MIDI file can be a song. Drop it on Studio, see it as a piano roll, and it's set up for you: the parts are chosen automatically, so you
     can send it to your FM&#8209;1 over USB straight away, all from the browser. Want more control? The advanced
     options are there too.</p>
   <div class="studio">
+    <figure><img src="media/midi-roll.png" alt="Studio's song card for FM Keys: its parts (KEYS on a grand piano, DRUMS on the drum kit), the number of notes and length, and a piano roll of the whole song, the piano in amber and the drums in pink, with a pink handle at each end" loading="lazy">
+      <figcaption><b>1. See your song</b>Drop a MIDI file and Studio shows it as a piano roll: every note, each part in
+        its colour. Drag the handles to choose where it starts and ends, click to hear it from there, and press Preview
+        to hear it on the FM&#8209;1's sounds before you load it.</figcaption></figure>
     <figure><img src="media/midi-advance-selection.png" alt="Studio's song card: Start and End sliders to shorten the song, and Advanced, a table of the file's instruments, each with a play button, its notes and range, and the part it plays: KEYS, BASS, DRUMS or Leave out" loading="lazy">
-      <figcaption><b>1. Choose what plays (optional)</b>Studio picks the piano, drums, guitar and bass automatically, so
+      <figcaption><b>2. Choose what plays (optional)</b>Studio picks the piano, drums, guitar and bass automatically, so
         there's nothing you have to set. These are the advanced options: open Advanced to hear each instrument alone and
         choose its part, or leave it out, and shorten the song with Start and End.</figcaption></figure>
     <figure><img src="media/midi-load.png" alt="Studio's Your FM-1 panel, connected: the song space bar with the song about to be sent shown in green, 28 KB, and Send all your songs to the FM-1" loading="lazy">
-      <figcaption><b>2. Send it to your FM&#8209;1</b>Connect by USB (Chrome or Edge). The bar shows the room on your
+      <figcaption><b>3. Send it to your FM&#8209;1</b>Connect by USB (Chrome or Edge). The bar shows the room on your
         FM&#8209;1 and what the song will take: green if it fits, red if not. Then find it in SONGS (the SEQ
         button).</figcaption></figure>
   </div>

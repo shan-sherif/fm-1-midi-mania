@@ -4,7 +4,7 @@
 # The game's pictures for the README and the site, from the host build (tools/make_screens.c: the built-in songs
 # played with every note hit on time):
 #   screen-keys27.png screen-keys49.png screen-drums.png screen-guitar-strings.png screen-guitar-chromatic.png
-#   screen-bass-strings.png screen-songs.png screen-sounds.png screen-sounds-list.png   480 x 480, each pixel doubled (sharp)
+#   screen-bass-strings.png screen-bass-chromatic.png screen-songs.png screen-sounds.png screen-sounds-list.png   480 x 480, each pixel doubled (sharp)
 #   gameplay-keys.gif                                            FM Keys on 27 KEYS, 8 s at 15 frames a second
 #   tools/make_screens.sh [OUT_DIR]      (default web/site_media/, the site's media/ and the README's pictures)
 # Needs a C compiler and Python 3 with Pillow (the build's venv, ~/.venvs/midi-mania, when it is there). Run it again

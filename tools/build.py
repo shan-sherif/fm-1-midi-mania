@@ -85,7 +85,7 @@ def tc(tool, *args):
     r = subprocess.run(cmd, cwd=SRC, capture_output=True, text=True)
     if r.returncode and docker and not (r.stdout + r.stderr).strip():
         # In a container (macOS: Colima or Docker Desktop, the x86 tools under Rosetta) a step now and then fails
-        # with no output at all, and the same step again passes (TODO.md). A tool's own error always says something,
+        # with no output at all, and the same step again passes (NOTES.md). A tool's own error always says something,
         # so a silent failure is the container's: once more, its exit code said (125..127: docker's own; 128 + n,
         # or negative: a signal, as a crash under Rosetta)
         sys.stderr.write(f"build: {tool} exited {r.returncode} with no output in its container: once more\n")

@@ -88,10 +88,13 @@ Your own songs: drop a MIDI file on Studio (below). The full controls are in [Pl
 
 <table>
 <tr>
-<td align="center" valign="top"><img src="web/site_media/midi-advance-selection.png" width="420" alt="Studio's song card: Start and End sliders to shorten the song, and Advanced, a table of the file's instruments, each with a play button, its notes and range, and the part it plays"><br><sub><b>1. Choose what plays (optional):</b> the parts are chosen automatically; these advanced options change them (each instrument's part or Leave out, heard alone with ▶) and shorten the song (Start, End)</sub></td>
+<td align="center" valign="top"><img src="web/site_media/midi-roll.png" width="420" alt="Studio's song card for FM Keys: its parts, its notes and length, and a piano roll of the whole song (the piano in amber, the drums in pink) with a handle at each end"><br><sub><b>1. See your song:</b> a piano roll of the whole file, each part in its colour; drag the handles to choose its start and end, click to hear it from there, and Preview it on the FM-1's sounds before loading it</sub></td>
 </tr>
 <tr>
-<td align="center" valign="top"><img src="web/site_media/midi-load.png" width="420" alt="Studio's Your FM-1 panel, connected: the song space bar with the song about to be sent in green"><br><sub><b>2. Send it to your FM-1:</b> the room on it, and what the song will take (green: it fits)</sub></td>
+<td align="center" valign="top"><img src="web/site_media/midi-advance-selection.png" width="420" alt="Studio's song card: Start and End sliders to shorten the song, and Advanced, a table of the file's instruments, each with a play button, its notes and range, and the part it plays"><br><sub><b>2. Choose what plays (optional):</b> the parts are chosen automatically; these advanced options change them (each instrument's part or Leave out, heard alone with ▶) and shorten the song (Start, End)</sub></td>
+</tr>
+<tr>
+<td align="center" valign="top"><img src="web/site_media/midi-load.png" width="420" alt="Studio's Your FM-1 panel, connected: the song space bar with the song about to be sent in green"><br><sub><b>3. Send it to your FM-1:</b> the room on it, and what the song will take (green: it fits)</sub></td>
 </tr>
 </table>
 

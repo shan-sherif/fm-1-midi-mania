@@ -16,8 +16,8 @@ __pycache__/
 midi-mania_flash.bin
 midi-mania_plugins.txt
 
-# my own task list (TODO.md: not in the repository)
-/TODO.md
+# my own notes: the task list and build details
+/NOTES.md
 
 # my local build-and-serve helper (the installer and Studio on localhost)
 /local_site.sh
@@ -28,5 +28,3 @@ midi-mania_plugins.txt
 # crash dumps (the toolchain under emulation)
 core
 
-# my own reference: what was renamed from Felucca (moved out of README.md)
-RENAMED-FROM-FELUCCA.md

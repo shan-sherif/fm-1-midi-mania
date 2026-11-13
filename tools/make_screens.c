@@ -4,7 +4,7 @@
  * tests run it (tests/ui_test.c, its harness only: UI_TEST_NO_MAIN), the built-in songs played with their notes hit
  * on time (each note's key held while it lasts, so the keys light and every press is PERFECT), the screen saved as
  * PPM (240 x 240) into OUT:
- *   view_keys27 view_keys49 view_drums view_guitar_strings view_guitar_chromatic view_bass_strings view_songs
+ *   view_keys27 view_keys49 view_drums view_guitar_strings view_guitar_chromatic view_bass_strings view_bass_chromatic view_songs
  *   view_sounds view_sounds_list   each a moment of its view (DRUMS played by the FM-1: CPU, the pads lit as the song plays them)
  *   gif_keys_000 .. 119   FM Keys on 27 KEYS, 8 s at 15 frames a second (the GIF's frames)
  *   tools/make_screens [OUT]   (default build/screens) */
@@ -114,6 +114,7 @@ int main(int argc, char **argv)
     ms_view("view_guitar_strings", "FM Guitar", MM_GUITAR, MM_VIEW_STRINGS, 14);
     ms_view("view_guitar_chromatic", "FM Guitar", MM_GUITAR, MM_VIEW_CHROMATIC, 24);
     ms_view("view_bass_strings", "FM Bass", MM_BASS, MM_VIEW_STRINGS, 14);
+    ms_view("view_bass_chromatic", "FM Bass", MM_BASS, MM_VIEW_CHROMATIC, 20);
     {   /* SONGS with FM Keys selected; SOUNDS (ENV) */
         songs_open();
         sg.free = 0;

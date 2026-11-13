@@ -282,7 +282,7 @@ static void cost(void)
         ok &= c <= lim * 1.02;                           /* (the count varies ~1 % run to run) */
     }
     /* (counted on the Mac's ARM build, not the FM-1's: shown, a failure only with COST_STRICT=1. 2026-11-10: PHYS on
-     * GUITAR played clean on the FM-1 through a heavy song; TODO.md, Host builds) */
+     * GUITAR played clean on the FM-1 through a heavy song; NOTES.md, Host builds) */
     printf("phys_test: cost: worst PHYS %.0f vs PHASE WIRE %.0f; MEMB, SYMP <= MODAL struck: %s\n", worst,
            wire, ok ? "ok" : getenv("COST_STRICT") ? "FAIL" : "OVER (not counted: COST_STRICT=1 counts it)");
     fails += !ok && getenv("COST_STRICT");

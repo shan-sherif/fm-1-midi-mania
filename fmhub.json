@@ -1,0 +1,12 @@
+{
+  "what": "A rhythm game for the FM-1. Load songs from the browser Studio, turn any MIDI file into a song: your part's notes fall to the keys and you play KEYS, DRUMS, GUITAR or BASS while the FM-1 plays the rest on its synth engines. Every note judged, with combos and best scores.",
+  "author": "Shan-Sherif",
+  "kinds": [
+    "other"
+  ],
+  "play": "https://shan-sherif.github.io/fm-1-midi-mania/webapp/studio/",
+  "editor": "https://shan-sherif.github.io/fm-1-midi-mania/webapp/studio/",
+  "cheat": "https://github.com/shan-sherif/fm-1-midi-mania#quick-start",
+  "image": "web/site_media/fmhub-wide.png",
+  "color": "#FF4F8B"
+}
