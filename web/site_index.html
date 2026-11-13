@@ -13,11 +13,13 @@
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%201024%201024%22%3E%3Ctitle%3EFM-1%20Midi-Mania%3C/title%3E%3Crect%20width=%221024%22%20height=%221024%22%20fill=%22%23F4F1E8%22/%3E%3Cg%20fill=%22%2317151F%22%3E%3Crect%20x=%22160%22%20y=%22181%22%20width=%22136%22%20height=%22662%22%20rx=%2228%22/%3E%3Crect%20x=%22331%22%20y=%22307%22%20width=%22136%22%20height=%22320%22%20rx=%2228%22/%3E%3Crect%20x=%22557%22%20y=%22307%22%20width=%22136%22%20height=%22320%22%20rx=%2228%22/%3E%3Crect%20x=%22728%22%20y=%22181%22%20width=%22136%22%20height=%22662%22%20rx=%2228%22/%3E%3C/g%3E%3Crect%20x=%22444%22%20y=%22536%22%20width=%22136%22%20height=%22306%22%20rx=%2228%22%20fill=%22%23FF4F8B%22/%3E%3C/svg%3E">
 <meta name="description" content="FM-1 Midi-Mania: a keyboard rhythm game firmware for the M-VAVE FM-1. Turn your MIDI files into songs, watch the notes fall to the keys and play your part while the FM-1 plays the rest.">
 <style>
-  :root { --bg: #f4f1e8; --fg: #17151f; --dim: #5b5866; --card: #fffdf7; --rule: #dcd7c8; --pink: #ff4f8b;
-          --pink-ink: #c21d5a; --btn-fg: #f4f1e8; color-scheme: light; }
+  :root { --bg: #d6e8f5; --fg: #17151f; --dim: #424955; --card: #fffdf7; --rule: #b2d0e7; --pink: #ff4f8b;
+          --pink-ink: #c21d5a; --btn-fg: #f4f1e8; color-scheme: light;
+          /* the headings' marks: Studio's yellow (Muse MIDI DX's Neon), edged in ink on the light page */
+          --mark: #ffe600; --mark-edge: rgba(23, 21, 31, .35); }
   @media (prefers-color-scheme: dark) {
     :root { --bg: #17151f; --fg: #f4f1e8; --dim: #aaa6b5; --card: #211f2b; --rule: #34313f; --pink-ink: #ff7aa8;
-            --btn-fg: #17151f; color-scheme: dark; }
+            --btn-fg: #17151f; --mark-edge: transparent; color-scheme: dark; }
   }
   body { margin: 0; background: var(--bg); color: var(--fg);
          font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
@@ -37,7 +39,7 @@
 
   h2 { font-size: 22px; margin: 48px 0 16px; }
   h2::before { content: ""; display: inline-block; width: 10px; height: 22px; margin-right: 10px; border-radius: 3px;
-               background: var(--pink); vertical-align: -3px; }
+               background: var(--mark); box-shadow: inset 0 0 0 1px var(--mark-edge); vertical-align: -3px; }
   .features { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
   .features div { padding: 18px; background: var(--card); border: 1px solid var(--rule); border-radius: 12px; }
   .features h3 { margin: 0 0 6px; font-size: 16px; }
@@ -67,6 +69,10 @@
   @media (max-width: 640px) { .studio figure { grid-template-columns: 1fr; gap: 10px; } }
   .studio figcaption b { display: block; color: var(--fg); font-size: 16px; margin-bottom: 2px; }
   .studio-cta { margin: 18px 0 0; }
+  /* the sister project, under Get started: a card, an aside rather than a step */
+  .sibling { margin: 10px 0 0; padding: 14px 18px; background: var(--card); border: 1px solid var(--rule);
+             border-radius: 12px; color: var(--dim); }
+  .sibling b { color: var(--fg); }
 
   footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--rule); font-size: 13px; color: var(--dim); }
   footer nav { margin-bottom: 8px; }
@@ -118,15 +124,15 @@
     can send it to your FM&#8209;1 over USB straight away, all from the browser. Want more control? The advanced
     options are there too.</p>
   <div class="studio">
-    <figure><img src="media/midi-roll.png" alt="Studio's song card for FM Keys: its parts (KEYS on a grand piano, DRUMS on the drum kit), the number of notes and length, and a piano roll of the whole song, the piano in amber and the drums in pink, with a pink handle at each end" loading="lazy">
+    <figure><img src="media/midi-roll.png" alt="Studio's song card for FM Keys: its parts (KEYS on a grand piano, DRUMS on the drum kit), the number of notes and length, and a piano roll of the whole song, the piano in amber and the drums in pink, with a yellow handle at each end" loading="lazy">
       <figcaption><b>1. See your song</b>Drop a MIDI file and Studio shows it as a piano roll: every note, each part in
         its colour. Drag the handles to choose where it starts and ends, click to hear it from there, and press Preview
         to hear it on the FM&#8209;1's sounds before you load it.</figcaption></figure>
-    <figure><img src="media/midi-advance-selection.png" alt="Studio's song card: Start and End sliders to shorten the song, and Advanced, a table of the file's instruments, each with a play button, its notes and range, and the part it plays: KEYS, BASS, DRUMS or Leave out" loading="lazy">
+    <figure><img src="media/midi-advance-selection.png" alt="Studio's song card: Start and End sliders to shorten the song, and Advanced, a table of the file's instruments, each with a play button, its notes and range, and the part it plays: KEYS, GUITAR, BASS, DRUMS or Leave out" loading="lazy">
       <figcaption><b>2. Choose what plays (optional)</b>Studio picks the piano, drums, guitar and bass automatically, so
         there's nothing you have to set. These are the advanced options: open Advanced to hear each instrument alone and
         choose its part, or leave it out, and shorten the song with Start and End.</figcaption></figure>
-    <figure><img src="media/midi-load.png" alt="Studio's Your FM-1 panel, connected: the song space bar with the song about to be sent shown in green, 28 KB, and Send all your songs to the FM-1" loading="lazy">
+    <figure><img src="media/midi-load.png" alt="Studio's Your FM-1 panel, connected: the song space bar with the song about to be sent shown in green, 8 KB, and Send all your songs to the FM-1" loading="lazy">
       <figcaption><b>3. Send it to your FM&#8209;1</b>Connect by USB (Chrome or Edge). The bar shows the room on your
         FM&#8209;1 and what the song will take: green if it fits, red if not. Then find it in SONGS (the SEQ
         button).</figcaption></figure>
@@ -164,6 +170,9 @@
       <span><b>SEQ</b> opens SONGS: pick a song, and your part with ALGORITHM. <b>ENV</b> chooses the instruments, a
         knob for each part. <b>PLAY</b> starts the song; play the keys as the notes reach the line.</span></li>
   </ol>
+  <p class="sibling"><b>Rather play in your browser with your own MIDI keyboard or drum kit?</b> Try
+    <a href="https://shan-sherif.github.io/muse-midi-dx/">Muse MIDI DX</a>, a rhythm game of the same idea made for the
+    browser: connect a MIDI controller (or use the computer keys), load a MIDI file and play along, scored.</p>
 
   <footer>
     <p class="fn" id="songs-fn">* Up to 16 songs, as long as they fit: the FM&#8209;1 keeps your songs in 240 KB of
@@ -174,7 +183,8 @@
       those fill the memory. Studio shows each song's size and the room left on your FM&#8209;1.</p>
     <nav><a href="https://github.com/shan-sherif/fm-1-midi-mania">Source</a><a
       href="https://github.com/shan-sherif/fm-1-midi-mania/releases">Releases</a><a
-      href="https://github.com/shan-sherif/fm-1-midi-mania/issues">Report a problem</a></nav>
+      href="https://github.com/shan-sherif/fm-1-midi-mania/issues">Report a problem</a><a
+      href="https://shan-sherif.github.io/muse-midi-dx/">Muse MIDI DX (in the browser)</a></nav>
     FM-1 Midi-Mania by Shan-Sherif · <a href="https://www.gnu.org/licenses/gpl-3.0.html">GPL-3.0</a>, no warranty.
     Visits are counted anonymously with <a href="https://www.goatcounter.com/">GoatCounter</a> (no cookies).
     Based on <a href="https://github.com/hugelton/Felucca">Felucca</a> by Leo Kuroshita, Hügelton Instruments.<br>

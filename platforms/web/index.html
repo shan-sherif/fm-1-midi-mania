@@ -12,14 +12,14 @@
 <style>
 /* DotGothic16 (SIL OFL 1.1, fonts/OFL.txt), cut to printable ASCII, for the knob labels */
 @font-face { font-family: "DotGothic16"; src: url("fonts/DotGothic16-subset.woff") format("woff"); font-display: swap; }
-/* the page: the site's colours (web/site_index.html: the logo's cream, ink), dark with the system's dark mode; the FM-1
- * drawn in its own */
-:root { --bg: #f4f1e8; --fg: #17151f; --dim: #5b5866; --rule: #dcd7c8;
+/* the page: the site's colours (web/site_index.html: a light blue, the logo's ink), dark with the system's dark mode;
+ * the FM-1 drawn in its own */
+:root { --bg: #d6e8f5; --fg: #17151f; --dim: #424955; --rule: #b2d0e7;
         --body: #1d1d1f; --tray: #141415; --part: #2a2a2d; --edge: #3a3a3e; --label: #d6d6d8;
         --lit: #fff4d6; --green: #5fe08a; color-scheme: light; }
 @media (prefers-color-scheme: dark) {
-  :root { --bg: #100f15; --fg: #f4f1e8; --dim: #aaa6b5; --rule: #34313f; color-scheme: dark; }
-  .songs { border-color: #34313f !important; }
+  :root { --bg: #17151f; --fg: #f4f1e8; --dim: #aaa6b5; --rule: #34313f; color-scheme: dark; }
+  /* (the panels stay NEON's: darker than the ink page, set apart by their magenta edge and glow) */
 }
 html, body { background: var(--bg); }
 body { margin: 0; color: var(--fg); font: 13px/1.6 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; }
@@ -42,8 +42,8 @@ main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 32px; }
 }
 .title { margin: 0 0 12px; text-align: center; color: var(--fg); }
 .back { margin: 0 0 6px; font-size: 13px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
-.back a.install { color: var(--fg); font-weight: 600; padding: 4px 12px; border: 1px solid #ff4f8b; border-radius: 999px; }
-.back a.install:hover, .back a.install:focus-visible { background: #ff4f8b; color: #1a0b12; text-decoration: none; }
+.back a.install { color: #0a0814; background: #ffe600; font-weight: 600; padding: 4px 12px; border: 1px solid #ffe600; border-radius: 999px; }
+.back a.install:hover, .back a.install:focus-visible { background: #fff27a; color: #0a0814; text-decoration: none; }
 .back a { color: var(--dim); text-decoration: none; }
 .back a:hover, .back a:focus-visible { color: var(--fg); text-decoration: underline; }
 h1 .logo { vertical-align: middle; border-radius: 22%; margin: -4px 10px 0 0; }
@@ -100,9 +100,9 @@ a { color: inherit; }
 /* Your songs scrolls within the FM-1's height (wide screens): a bar pinned to its bottom while there's more below */
 .songs button.morehint { position: sticky; bottom: -18px; z-index: 1; display: block; box-sizing: content-box;
                          width: 100%; margin: 8px -18px -18px; padding: 26px 18px 10px; border: 0; border-radius: 0;
-                         background: linear-gradient(rgba(23, 21, 31, 0), var(--ink) 55%); color: var(--cream);
+                         background: linear-gradient(rgba(24, 24, 40, 0), var(--ink) 55%); color: var(--cream);
                          font-weight: 600; text-align: center; cursor: pointer; }
-.songs button.morehint:hover, .songs button.morehint:focus-visible { color: var(--pink); }
+.songs button.morehint:hover, .songs button.morehint:focus-visible { color: var(--lime); }
 .songs button.morehint[hidden] { display: none; }
 /* Quick start: the buttons that matter, the computer key for each */
 .quick { margin: 16px auto 0; max-width: 860px; padding: 10px 16px 12px; border: 1px solid var(--rule); border-radius: 12px; }
@@ -113,12 +113,17 @@ a { color: inherit; }
 .quick p { margin: 8px 0 0; color: var(--dim); font-size: 12px; }
 kbd { font: 600 11px ui-monospace, Menlo, monospace; border: 1px solid var(--rule); padding: 0 4px; color: var(--fg); }
 footer { margin-top: 12px; font-size: 12px; }
-/* Your songs: a song browser in Midi-Mania's own colours (the logo's ink, cream and pink); a part's colour each */
-.songs { --ink: #17151f; --panel: #201d2b; --row: #282436; --line: #3a3550; --cream: #f4f1e8; --mute: #a8a2b8;
-         --pink: #ff4f8b; --p0: #ffb84f; --p1: #ff4f8b; --p2: #5fe08a; --p3: #a88bff;
-         margin: 18px auto 0; max-width: 860px; padding: 16px 18px 18px; border: 2px solid var(--ink); border-radius: 14px;
-         color: var(--cream); background: var(--ink); color-scheme: dark; box-shadow: 0 6px 24px rgba(0, 0, 0, .25); }
-.songs.over { border: 2px dashed var(--pink); background: #241b2c; }
+/* Your songs: a song browser in Muse MIDI DX's Neon theme (the FM-1 screen palette NEON, as the device shows it: its
+ * RGB565 colours, so a navy, not violet): navy panels, yellow the lead (--accent: main buttons, what's chosen), lime
+ * for hover, focus and links (--lime), cyan for tips, a red for problems; a part's colour each (as the FM-1's screen:
+ * KEYS amber, DRUMS pink, GUITAR green, BASS violet) */
+.songs { --ink: #181828; --panel: #10101d; --row: #1f1f33; --line: #34344a; --cream: #f6f2ff; --mute: #9c9aa8;
+         --accent: #ffe600; --lime: #aaff40; --cyan: #00e4ff; --bad: #ff7a85;
+         --p0: #ffb84f; --p1: #ff4f8b; --p2: #5fe08a; --p3: #a88bff;
+         margin: 18px auto 0; max-width: 860px; padding: 16px 18px 18px; border: 2px solid var(--line);
+         border-radius: 14px; color: var(--cream); background: var(--ink); color-scheme: dark;
+         box-shadow: 0 6px 24px rgba(0, 0, 0, .25); }
+.songs.over { border: 2px dashed var(--lime); background: #1f2a1c; }
 .songs a { color: var(--cream); }
 .songs .sh { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .songs h2 { margin: 0; font-size: 18px; letter-spacing: .02em; }
@@ -129,19 +134,19 @@ footer { margin-top: 12px; font-size: 12px; }
 .songs ul { list-style: none; margin: 8px 0 0; padding: 0; }
 .songs button { font: inherit; font-size: 12px; padding: 4px 12px; cursor: pointer; border-radius: 8px;
                 border: 1px solid var(--line); background: var(--row); color: var(--cream); }
-.songs button:hover:not(:disabled), .songs button:focus-visible { border-color: var(--pink); outline: none; }
+.songs button:hover:not(:disabled), .songs button:focus-visible { border-color: var(--lime); outline: none; }
 .songs button:disabled { opacity: .45; cursor: default; }
-.songs button.add, .songs button.primary { background: var(--pink); border-color: var(--pink); color: #1a0b12; font-weight: 600; }
+.songs button.add, .songs button.primary { background: var(--accent); border-color: var(--accent); color: #0a0814; font-weight: 600; }
 .songs button.add:hover:not(:disabled), .songs button.primary:hover:not(:disabled) { filter: brightness(1.08); border-color: var(--cream); }
 .songs button.quiet { background: transparent; color: var(--mute); }
 .songs .msg { white-space: pre-wrap; font-size: 12px; color: var(--mute); }
-.songs .msg.err { color: #ffd0dd; font-weight: 600; }
-/* notes that need noticing, each in a box of its colour: a problem (pink), a warning (amber), a tip (teal) */
-.songs .msg.err:not(:empty), .songs .note.err { padding: 8px 12px; border: 1px solid var(--pink); border-radius: 8px;
-                                                background: rgba(255, 79, 139, .14); }
+.songs .msg.err { color: #ffd3da; font-weight: 600; }
+/* notes that need noticing, each in a box of its colour: a problem (red), a warning (amber), a tip (cyan) */
+.songs .msg.err:not(:empty), .songs .note.err { padding: 8px 12px; border: 1px solid var(--bad); border-radius: 8px;
+                                                background: rgba(255, 79, 109, .14); }
 .songs .note { margin: 8px 0; padding: 8px 12px; border-radius: 8px; font-size: 12px; }
 .songs .note.warn { border: 1px solid #ffb84f; background: rgba(255, 184, 79, .14); color: #ffe3b8; }
-.songs .note.tip { border: 1px solid #4fd1c5; background: rgba(79, 209, 197, .12); color: #c8f5ef; }
+.songs .note.tip { border: 1px solid var(--cyan); background: rgba(0, 228, 255, .1); color: #c6f7ff; }
 .songs .note b { color: var(--cream); }
 .songs .songsoff { display: flex; gap: 10px 14px; align-items: center; justify-content: space-between; flex-wrap: wrap;
                    font-size: 13px; }
@@ -152,7 +157,7 @@ footer { margin-top: 12px; font-size: 12px; }
 .songs .pick .trim { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 10px; align-items: center;
                      margin: 8px 0 0; font-size: 12px; }
 .songs .pick .trim label { color: var(--mute); }
-.songs .pick .trim input[type=range] { width: 100%; accent-color: var(--pink); }
+.songs .pick .trim input[type=range] { width: 100%; accent-color: var(--lime); }
 .songs .pick .trim output { font-variant-numeric: tabular-nums; min-width: 3.2em; text-align: right; }
 .songs .pick .roll { display: block; width: 100%; height: 104px; margin: 8px 0 0; border-radius: 8px; cursor: ew-resize;
                      touch-action: none; background: var(--ink); }
@@ -161,7 +166,7 @@ footer { margin-top: 12px; font-size: 12px; }
                            background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 2px 6px;
                            margin-left: -7px; text-align: left; }
 .songs .pick input.title:hover { border-color: var(--line); }
-.songs .pick input.title:focus { outline: none; border-color: var(--pink); background: var(--ink); }
+.songs .pick input.title:focus { outline: none; border-color: var(--lime); background: var(--ink); }
 .songs .pick .tcount { font-size: 11px; font-weight: normal; color: var(--mute); font-variant-numeric: tabular-nums; }
 .songs .pick .restored { margin: 4px 0 0; font-size: 12px; color: #c8f5ef; }
 .songs .pick .restored button, .songs .note button.fit { margin-left: 8px; padding: 2px 10px; font-size: 12px; }
@@ -172,11 +177,11 @@ footer { margin-top: 12px; font-size: 12px; }
 .songs .tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
 .songs .tools input[type=search] { flex: 1 1 14em; min-width: 0; font: inherit; font-size: 13px; padding: 6px 10px;
                                    border-radius: 8px; border: 1px solid var(--line); background: var(--ink); color: var(--cream); }
-.songs .tools input[type=search]:focus { outline: none; border-color: var(--pink); }
+.songs .tools input[type=search]:focus { outline: none; border-color: var(--lime); }
 .songs .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .songs .seg button { border: 0; border-radius: 0; background: transparent; color: var(--mute); padding: 5px 10px; }
 .songs .seg button + button { border-left: 1px solid var(--line); }
-.songs .seg button[aria-pressed=true] { background: var(--cream); color: var(--ink); font-weight: 600; }
+.songs .seg button[aria-pressed=true] { background: rgba(170, 255, 64, .12); color: var(--lime); font-weight: 600; }
 .songs .dir { padding: 4px 10px; font-weight: 700; }
 .songs .chips { display: inline-flex; gap: 6px; flex-wrap: wrap; }
 .songs .chips button { border-radius: 999px; padding: 3px 10px; font-size: 11px; font-weight: 600; letter-spacing: .04em;
@@ -199,13 +204,14 @@ footer { margin-top: 12px; font-size: 12px; }
               gap: 2px 10px; padding: 8px 12px; border-radius: 10px; background: var(--row);
               border: 1px solid transparent; border-left: 4px solid var(--line); cursor: pointer; }
 .songs .row:hover, .songs .row:focus-visible { border-color: var(--line); outline: none; }
-.songs .row[aria-selected=true] { border-color: var(--pink); border-left-color: var(--pink); background: #2f2238; }
+.songs .row[aria-selected=true] { border-color: var(--accent); border-left-color: var(--accent); background: rgba(255, 230, 0, .1);
+                                  box-shadow: none; }
 .songs .row .main { grid-area: main; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; min-width: 0; }
 .songs .row .t { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
 .songs .row .sub { grid-area: sub; color: var(--mute); font-size: 12px; }
 .songs .row .busy { grid-area: busy; align-self: center; display: inline-flex; gap: 3px; }
 .songs .row .busy i { width: 6px; height: 14px; border-radius: 2px; background: var(--line); }
-.songs .row .busy i.on { background: var(--pink); }
+.songs .row .busy i.on { background: var(--accent); }
 .songs .row.fm { grid-template-areas: "main busy" "sub busy"; cursor: default; }
 .songs .row.fm button { grid-area: busy; align-self: center; }
 .songs .none { color: var(--mute); font-size: 12px; padding: 12px; text-align: center; }
@@ -231,9 +237,9 @@ footer { margin-top: 12px; font-size: 12px; }
 .songs .acts { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0; }
 .songs .mem { display: flex; gap: 10px; align-items: center; margin-top: 10px; font-size: 11px; color: var(--mute); }
 .songs .mem .bar { flex: 0 0 120px; height: 6px; border-radius: 3px; background: var(--ink); overflow: hidden; }
-.songs .mem .bar span { display: block; height: 100%; width: 0; background: var(--pink); }
+.songs .mem .bar span { display: block; height: 100%; width: 0; background: var(--accent); }
 .songs meter { width: 100%; height: 8px; }
-.songs .pick { margin: 10px 0; padding: 12px 14px; border: 1px solid var(--pink); border-radius: 12px; background: var(--panel); }
+.songs .pick { margin: 10px 0; padding: 12px 14px; border: 1px solid var(--accent); border-radius: 12px; background: var(--panel); }
 .songs .pick h3 { margin: 0 0 2px; font-size: 14px; overflow-wrap: anywhere; }
 .songs .pick .tbl { overflow-x: auto; }
 .songs .pick table { border-collapse: collapse; width: 100%; font-size: 12px; }
@@ -262,7 +268,7 @@ footer { margin-top: 12px; font-size: 12px; }
 .songs .pick .sum { margin: 6px 0; font-size: 12px; }
 .songs .pick .m { color: var(--mute); font-size: 12px; }
 .songs button.hear { color: var(--cream); font-variant-numeric: tabular-nums; }
-.songs button.hear.on { border-color: var(--pink); color: var(--pink); }
+.songs button.hear.on { border-color: var(--accent); color: var(--accent); }
 .songs .pick td button.hear { padding: 1px 8px; }
 .songs .pick .auto { margin: 4px 0; font-size: 13px; }
 .songs .pick .auto b { font-weight: 600; }
@@ -349,6 +355,9 @@ footer small { font-size: 11px; opacity: .8; }
       reach the line. <b>PLAY</b> again stops; <b>HOME</b> <kbd>7</kbd> returns to the game.</li>
   </ol>
   <p>Turn a knob with the mouse wheel or by dragging it. Your own MIDI files: drop them on this page (Your songs).</p>
+  <p><b>Rather play with your own MIDI keyboard or drum kit, in the browser only?</b>
+    <a href="https://shan-sherif.github.io/muse-midi-dx/">Muse MIDI DX</a> is a rhythm game of the same idea made for
+    that: connect a MIDI controller, load a MIDI file and play along.</p>
 </details>
 
 <section class="songs" id="songs" aria-labelledby="songs-h">
@@ -1428,7 +1437,7 @@ function pickCard(name, bytes, inst) {
   let R = null;
   try { R = midiRoll(bytes); } catch { /* (no roll: the sliders alone) */ }
   const roll = document.createElement("canvas"), rollHint = mk("p", "rollhint",
-    "Drag the pink handles to choose where the song starts and ends (they snap to beats). Click anywhere else to hear it from there.");
+    "Drag the yellow handles to choose where the song starts and ends (they snap to beats). Click anywhere else to hear it from there.");
   roll.className = "roll";
   roll.setAttribute("role", "img");
   const PCOL = ["#ffb84f", "#ff4f8b", "#5fe08a", "#a88bff"];
@@ -1444,9 +1453,9 @@ function pickCard(name, bytes, inst) {
     for (const n of R.notes) { lo = Math.min(lo, n[3]); hi = Math.max(hi, n[3]); }
     lo -= 1; hi += 1;
     const x = (t) => t / total * W, y = (pch) => H - 4 * dpr - (pch - lo) / (hi - lo) * (H - 8 * dpr);
-    ctx.fillStyle = "#17151f"; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#080810"; ctx.fillRect(0, 0, W, H);
     for (let b = 0; b < R.beats.length; b += R.bpb) {             // bar lines (every 4th brighter)
-      ctx.fillStyle = (b / R.bpb) % 4 === 0 ? "rgba(244,241,232,.14)" : "rgba(244,241,232,.05)";
+      ctx.fillStyle = (b / R.bpb) % 4 === 0 ? "rgba(246,242,255,.14)" : "rgba(246,242,255,.05)";
       ctx.fillRect(Math.round(x(R.beats[b])), 0, Math.max(1, dpr), H);
     }
     const h = Math.max(1.5 * dpr, H / (hi - lo) * 0.8);
@@ -1454,18 +1463,18 @@ function pickCard(name, bytes, inst) {
       for (const n of R.notes) {
         const role = roles[n[2]];
         if ((role == null) !== (pass === 0)) continue;
-        ctx.fillStyle = role == null ? "rgba(168,162,184,.35)" : PCOL[role];
+        ctx.fillStyle = role == null ? "rgba(156,154,168,.35)" : PCOL[role];
         ctx.fillRect(x(n[0]), y(n[3]) - h / 2, Math.max(dpr, x(n[1] - n[0])), h);
       }
     const sx = x(trim.from * 44100), ex = x(trim.to * 44100);
-    ctx.fillStyle = "rgba(23,21,31,.72)";                           // outside Start..End: dimmed
+    ctx.fillStyle = "rgba(8,8,16,.72)";                             // outside Start..End: dimmed
     ctx.fillRect(0, 0, sx, H); ctx.fillRect(ex, 0, W - ex, H);
     if (playMs != null) {                                          // the preview playing: where
-      ctx.fillStyle = "#f4f1e8";
+      ctx.fillStyle = "#f6f2ff";
       ctx.fillRect(Math.round(x(playMs * 44.1)) - dpr / 2, 0, Math.max(1, dpr), H);
     }
     for (const hx of [sx, ex]) {                                   // the handles
-      ctx.fillStyle = "#ff4f8b";
+      ctx.fillStyle = "#ffe600";
       ctx.fillRect(hx - dpr, 0, 2 * dpr, H);
       ctx.beginPath();
       ctx.roundRect ? ctx.roundRect(hx - 6 * dpr, H / 2 - 16 * dpr, 12 * dpr, 32 * dpr, 4 * dpr)

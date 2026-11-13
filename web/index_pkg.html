@@ -12,18 +12,19 @@
 <title>FM-1 Midi-Mania installer</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%201024%201024%22%3E%3Ctitle%3EFM-1%20Midi-Mania%3C/title%3E%3Crect%20width=%221024%22%20height=%221024%22%20fill=%22%23F4F1E8%22/%3E%3Cg%20fill=%22%2317151F%22%3E%3Crect%20x=%22160%22%20y=%22181%22%20width=%22136%22%20height=%22662%22%20rx=%2228%22/%3E%3Crect%20x=%22331%22%20y=%22307%22%20width=%22136%22%20height=%22320%22%20rx=%2228%22/%3E%3Crect%20x=%22557%22%20y=%22307%22%20width=%22136%22%20height=%22320%22%20rx=%2228%22/%3E%3Crect%20x=%22728%22%20y=%22181%22%20width=%22136%22%20height=%22662%22%20rx=%2228%22/%3E%3C/g%3E%3Crect%20x=%22444%22%20y=%22536%22%20width=%22136%22%20height=%22306%22%20rx=%2228%22%20fill=%22%23FF4F8B%22/%3E%3C/svg%3E">
 <style>
-  /* Midi-Mania's colours: the logo's cream (paper), ink and pink */
-  :root { --paper: #f4f1e8; --card: #fffdf8; --ink: #17151f; --dim: #5d5a66; --faint: #8e8a96; --line: #e2ddcf;
-          --chip: #ebe6d8; --pink: #ff4f8b; --pink-bg: #ffe3ec; --warn: #8a5300; --warn-bg: #fff1d4; --warn-line: #f0d9a6;
+  /* Midi-Mania's colours: a light blue page with the logo's ink and pink; warnings in the KEYS amber, which stand out
+   * on the blue. Dark: the logo's ink. The same on the start page, here and in Studio */
+  :root { --paper: #d6e8f5; --card: #fffdf8; --ink: #17151f; --dim: #424955; --faint: #6a7280; --line: #bcd7eb;
+          --chip: #c4dcef; --pink: #ff4f8b; --pink-bg: #ffe3ec; --warn: #7a4600; --warn-bg: #fff1dc; --warn-line: #e3a352;
           --ok: #17733a; --ok-bg: #e2f3e8; --bad: #b42318; --focus: #ff4f8b;
           --shadow: 0 1px 2px rgba(23, 21, 31, .05), 0 8px 26px rgba(23, 21, 31, .07); color-scheme: light; }
   @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) { --paper: #100f15; --card: #1a1822; --ink: #f4f1e8; --dim: #b0abba; --faint: #7d7888;
-      --line: #2e2b38; --chip: #24212e; --pink-bg: #3a1726; --warn: #f4b54a; --warn-bg: #2a2111; --warn-line: #4a3a17;
+    :root:not([data-theme="light"]) { --paper: #17151f; --card: #211f2b; --ink: #f4f1e8; --dim: #b0abba; --faint: #7d7888;
+      --line: #34313f; --chip: #2a2736; --pink-bg: #3a1726; --warn: #ffb84f; --warn-bg: #2b2131; --warn-line: #5a4632;
       --ok: #55c785; --ok-bg: #12261a; --bad: #ff8577; --shadow: 0 1px 2px rgba(0, 0, 0, .5); color-scheme: dark; }
   }
-  :root[data-theme="dark"] { --paper: #100f15; --card: #1a1822; --ink: #f4f1e8; --dim: #b0abba; --faint: #7d7888;
-      --line: #2e2b38; --chip: #24212e; --pink-bg: #3a1726; --warn: #f4b54a; --warn-bg: #2a2111; --warn-line: #4a3a17;
+  :root[data-theme="dark"] { --paper: #17151f; --card: #211f2b; --ink: #f4f1e8; --dim: #b0abba; --faint: #7d7888;
+      --line: #34313f; --chip: #2a2736; --pink-bg: #3a1726; --warn: #ffb84f; --warn-bg: #2b2131; --warn-line: #5a4632;
       --ok: #55c785; --ok-bg: #12261a; --bad: #ff8577; --shadow: 0 1px 2px rgba(0, 0, 0, .5); color-scheme: dark; }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
@@ -44,7 +45,9 @@
   .site nav a[aria-current="page"] { color: var(--ink); font-weight: 600; }
 
   .hero { padding: 44px 0 24px; }
-  .kicker { margin: 0 0 10px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--pink); }
+  /* (a yellow tag, Studio's yellow (Muse MIDI DX's Neon), ink on it: readable on the light and the dark page) */
+  .kicker { display: inline-block; margin: 0 0 12px; padding: 3px 10px; border-radius: 999px; font-size: 12px;
+            font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #17151f; background: #ffe600; }
   h1 { margin: 0; font-size: clamp(32px, 8vw, 44px); line-height: 1.05; font-weight: 700; letter-spacing: -.025em; }
   h1 .v { color: var(--faint); font-weight: 500; font-size: .55em; letter-spacing: 0; margin-left: 6px; }
   .lede { margin: 14px 0 0; font-size: 18px; color: var(--dim); max-width: 34em; }
