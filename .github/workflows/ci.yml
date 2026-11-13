@@ -41,8 +41,15 @@ jobs:
       - name: JieLi toolchain and SDK
         run: |
           tools/get_toolchain.sh
-          git clone --depth 1 --branch AC79NN_SDK_V1.2.1_2023-12-13 \
-              https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git "$HOME/fw-AC79_AIoT_SDK"
+          # (gitee, far from GitHub's runners, fails a clone now and then: up to 4 tries, 30 s apart)
+          for try in 1 2 3 4; do
+            git clone --depth 1 --branch AC79NN_SDK_V1.2.1_2023-12-13 \
+                https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git "$HOME/fw-AC79_AIoT_SDK" && break
+            rm -rf "$HOME/fw-AC79_AIoT_SDK"
+            echo "the AC79 SDK clone from gitee failed (try $try of 4)"
+            [ "$try" = 4 ] || sleep 30
+          done
+          test -d "$HOME/fw-AC79_AIoT_SDK/.git" || { echo "could not clone the AC79 SDK from gitee: re-run the job later"; exit 1; }
       - name: The FM-1 firmware
         run: ./build.sh
       - name: Tests
