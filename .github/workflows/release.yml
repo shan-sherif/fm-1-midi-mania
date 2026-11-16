@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Releases, built and signed on GitHub by The Firmware Hub's shared workflow (zvenson/fm1-build): it installs JieLi's
+# toolchain and the AC79 SDK, runs the build and test commands below, attests the packages (the hub's card then shows
+# "Built from source on GitHub") and, on a version tag, publishes them as that tag's release.
+#   a tag vX.Y.Z:  ./build.sh --release X.Y.Z (identity FM-1_137XYZ), the tests, then the release vX.Y.Z
+#   by hand (Actions > release > Run workflow): the same build as MM_VERSION-test, no release: the package is a
+#                  download on the run's page (a trial, to compare with a local build)
+name: release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+jobs:
+  build:
+    uses: zvenson/fm1-build/.github/workflows/build.yml@v1
+    permissions:
+      contents: write          # the release
+      id-token: write          # the signing certificate
+      attestations: write      # the attestation
+    with:
+      # (fontTools: the font tables; a clean checkout's midi/ is empty, so only assets/songs/ are built in)
+      build: >-
+        python3 -m pip install fonttools &&
+        if [ "$GITHUB_REF_TYPE" = tag ]; then VER="${GITHUB_REF_NAME#v}";
+        else VER="$(sed -n 's/^#define MM_VERSION "v\([^"]*\)".*/\1/p' firmware/src/midimania.c | head -n 1)-test"; fi &&
+        ./build.sh --release "$VER"
+      # the package and the app, as earlier releases (the workflow adds SHA256SUMS for them)
+      packages: build/release-*/midi-mania-*
+      # (the update-path tests read build/midi-mania.fwsc: the release package under that name; mido: the song tests)
+      test: >-
+        python3 -m pip install mido &&
+        cp build/release-*/midi-mania-*.fwsc build/midi-mania.fwsc &&
+        sh tests/run_tests.sh
