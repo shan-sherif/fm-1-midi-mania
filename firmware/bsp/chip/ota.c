@@ -342,8 +342,11 @@ static int ota_stage(void)                       /* steps 1..6; 0 = host said su
         ota_len != len + 0x20u || len > OTA_AREA_LEN - 0x200u || ota_crc16(b + 0x22, 30, 0) != ota_rd16(b + 0x20) ||
         ota_rd32(b + 0x20 + 8) != 0x01C0A800u)
         return -7;
+    /* (Felucca's loader: its marker, "FELUCCA-LOADER-1" from 0.9.2, or Midi-Mania's own until 0.9.1, so both kinds of
+     *  package stay installable from here, either way) */
     for (i = 0x48, own = 0; i + 16u <= 0x48u + 64u && !own; i++)    /* first LZ4 literals: crt0_ldr.S */
-        own = ota_memeq(b + i, (const uint8_t *)"MIDIMANIA-LOADER-1", 16) && ota_rd32(b + 0x20 + 4) <= 0x14000u;
+        own = (ota_memeq(b + i, (const uint8_t *)"FELUCCA-LOADER-1", 16) ||
+               ota_memeq(b + i, (const uint8_t *)"MIDIMANIA-LOADER-1", 16)) && ota_rd32(b + 0x20 + 4) <= 0x14000u;
     /* 3. a flash image with it: Felucca's writer never writes its head (the app area only); any other may,
      *    so its boot area must be a bootable one for the FM-1 (no flash.bin: the writer brings its own) */
     if (fl_off && !own) {

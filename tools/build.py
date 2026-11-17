@@ -150,7 +150,7 @@ def ldr_wrap(image):
     blocks = bytearray()
     for i in range(0, len(image), 4096):
         raw = image[i:i + 4096]
-        c = lz4blk.compress(raw)
+        c = lz4blk.compress(raw, literal_head=64 if i == 0 else 0)   # (the markers in crt0_ldr.S: plain)
         if len(c) > 4096 or lz4blk.decompress(c) != raw:
             raise SystemExit(f"loader: block {i // 4096} does not compress below 4096 B")
         blocks += struct.pack("<II", len(c), len(raw)) + c

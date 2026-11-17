@@ -15,7 +15,9 @@ def _len_bytes(n):
     return out
 
 
-def compress(src: bytes) -> bytes:
+def compress(src: bytes, literal_head: int = 0) -> bytes:
+    """literal_head: the first bytes kept as literals (no match starts inside them), so a firmware scanning the
+    package finds them as they are (the Felucca loader's markers)"""
     n, out, table = len(src), bytearray(), {}
     anchor, i = 0, 0
     limit = n - 12                                  # matches must start before this
@@ -23,7 +25,7 @@ def compress(src: bytes) -> bytes:
         key = src[i:i + 4]
         cand = table.get(key)
         table[key] = i
-        if cand is None or i - cand > 65535:
+        if cand is None or i - cand > 65535 or i < literal_head:
             i += 1
             continue
         mlen = 4                                    # extend; leave the last 5 bytes as literals

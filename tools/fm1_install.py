@@ -32,7 +32,8 @@ UPGRADE = bytes([0xF0, 0x22, 0x24, 0x35, 0x7F, 0xF7])
 FINISH_CHECK, FINISH_WRITE = 0xE0000000, 0xF0000000
 MAXDATA = 512
 BLOCKS, BLK, KEEP = 20, 0x30, 0x2F
-LOADER_MARK = b"MIDIMANIA-LOADER-1"
+LOADER_MARK = b"FELUCCA-LOADER-1"            # Felucca's update loader, as Midi-Mania's packages carry it from 0.9.2
+LOADER_MARKS = (LOADER_MARK, b"MIDIMANIA-LOADER-1")   # (and its earlier name, Midi-Mania 0.3.0 to 0.9.1)
 # the unmodified official FM-1 V15 (FM-1.fwsc from M-VAVE): returning to it is allowed without --force,
 # as the web installer's "Return to official V15" (web/fm1pkg.js validateStockPackage)
 STOCK_V15_SHA256 = "db1642b2b6fa5c2cccb11ffd13878068bb28601678d3644049f99dc40e7edb8a"
@@ -380,9 +381,9 @@ def load_package(path, force):
     if not re.fullmatch(r"[^_]+_\d+", product):
         raise InstallError("badpkg", f"{path}: not an FM-1 package (identity {product!r})")
     official = hashlib.sha256(raw).hexdigest() == STOCK_V15_SHA256
-    if LOADER_MARK not in raw and not official and not force:
-        raise InstallError("badpkg", f"{path}: no Midi-Mania update loader in this package; only Midi-Mania's own "
-                                     "packages and the unmodified official V15 (FM-1.fwsc) are installed "
+    if not any(m in raw for m in LOADER_MARKS) and not official and not force:
+        raise InstallError("badpkg", f"{path}: no Felucca update loader in this package; only packages with it "
+                                     "(Midi-Mania's own) and the unmodified official V15 (FM-1.fwsc) are installed "
                                      "(--force overrides)")
     return product, logical_image(raw)
 

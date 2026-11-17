@@ -255,7 +255,7 @@ def errors():
     plain = pkgfile("plain.fwsc", package(marker=False))
     dev = FakeFM1(image)
     rc, out, err = cli([plain, "--yes"], dev)
-    ok(rc == 2 and "no Midi-Mania update loader" in err and dev.sent == [], "package without the loader marker -> exit 2, no MIDI")
+    ok(rc == 2 and "no Felucca update loader" in err and dev.sent == [], "package without the loader marker -> exit 2, no MIDI")
     dev = FakeFM1(I.logical_image(package(marker=False)))
     rc, out, err = cli([plain, "--yes", "--force"], dev)
     ok(rc == 0 and dev.bad == 0, "... installs with --force")
@@ -278,6 +278,10 @@ def against_js():
     ok(I.logical_image(raw) == r.stdout and I.product_of(raw) == r.stderr.decode(),
        f"logical_image / product_of == fm1pkg.js ({clean.name}, {I.product_of(raw)})")
     ok(I.LOADER_MARK in raw, f"{clean.name} carries the Felucca loader marker")
+    # Midi-Mania 0.9.1 and earlier take a package as its own only by "MIDIMANIA-LOADER-1" in the loader's first bytes (else its
+    # boot-area check refuses it): both markers plain, side by side, the old one right after Felucca's
+    f, m = raw.find(I.LOADER_MARK), raw.find(b"MIDIMANIA-LOADER-1")
+    ok(f >= 0 and m == f + 16, f"{clean.name}: Midi-Mania's old marker plain, right after Felucca's (updates from 0.9.1 and earlier)")
 
 
 def official():

@@ -74,7 +74,7 @@ Your own songs: drop a MIDI file on Studio (below). The full controls are in [Pl
 >
 > Why one small change makes the newer chip work: [The newer FM-1 flash chip](#the-newer-fm-1-flash-chip).
 
-> **Status: beta (0.9.0), tested on the FM-1.** Working on the FM-1 and in the desktop and browser builds:
+> **Status: beta (0.9.2), tested on the FM-1.** Working on the FM-1 and in the desktop and browser builds:
 > - **all four parts playable:** KEYS, DRUMS, GUITAR and BASS, each with play styles (KEYS on 49 keys, 27 keys or one
 >   octave; DRUMS full, on the beat, or beats 1 and 3; GUITAR and BASS as strings or chromatic lanes);
 > - **SONGS** (the SEQ button): the built-in songs, then your own (sent from Studio over USB, or loaded in Studio itself);

@@ -43,7 +43,8 @@ def main(pkg, version, out):
     product = product_of(raw)
     if not re.fullmatch(r"FM-1_(137(\d{3})?|8\d\d)", product):
         raise SystemExit(f"{pkg}: identity {product!r} is not a Midi-Mania package (FM-1_137 or FM-1_137XYZ)")
-    if b"MIDIMANIA-LOADER-1" not in raw:              # Felucca loader marker: never publish a package with vendor files
+    if b"FELUCCA-LOADER-1" not in raw and b"MIDIMANIA-LOADER-1" not in raw:   # the loader marker (from 0.9.2 Felucca's;
+        # until 0.9.1 Midi-Mania's): never publish a package with vendor files
         raise SystemExit(f"{pkg}: no Midi-Mania loader in it; the site ships only fm1pkg_make.py packages "
                          "(a package patched from an official one carries vendor files)")
     html = (HERE / "index_pkg.html").read_text(encoding="utf-8")
