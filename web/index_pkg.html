@@ -13,20 +13,23 @@
 <title>FM-1 Midi-Mania installer</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%201024%201024%22%3E%3Ctitle%3EFM-1%20Midi-Mania%3C/title%3E%3Crect%20width=%221024%22%20height=%221024%22%20fill=%22%23F4F1E8%22/%3E%3Cg%20fill=%22%2317151F%22%3E%3Crect%20x=%22160%22%20y=%22181%22%20width=%22136%22%20height=%22662%22%20rx=%2228%22/%3E%3Crect%20x=%22331%22%20y=%22307%22%20width=%22136%22%20height=%22320%22%20rx=%2228%22/%3E%3Crect%20x=%22557%22%20y=%22307%22%20width=%22136%22%20height=%22320%22%20rx=%2228%22/%3E%3Crect%20x=%22728%22%20y=%22181%22%20width=%22136%22%20height=%22662%22%20rx=%2228%22/%3E%3C/g%3E%3Crect%20x=%22444%22%20y=%22536%22%20width=%22136%22%20height=%22306%22%20rx=%2228%22%20fill=%22%23FF4F8B%22/%3E%3C/svg%3E">
 <style>
-  /* Midi-Mania's colours: a light blue page with the logo's ink and pink; warnings in the KEYS amber, which stand out
-   * on the blue. Dark: the logo's ink. The same on the start page, here and in Studio */
+  /* Midi-Mania's colours: a light blue page with the logo's ink; Studio's yellow for the actions and the progress (pink:
+   * the logo only); warnings in the KEYS amber, which stand out on the blue. Dark: the logo's ink. The same on the start page, here and in Studio */
   :root { --paper: #d6e8f5; --card: #fffdf8; --ink: #17151f; --dim: #424955; --faint: #6a7280; --line: #bcd7eb;
           --chip: #c4dcef; --pink: #ff4f8b; --pink-bg: #ffe3ec; --warn: #7a4600; --warn-bg: #fff1dc; --warn-line: #e3a352;
-          --ok: #17733a; --ok-bg: #e2f3e8; --bad: #b42318; --focus: #ff4f8b;
+          --ok: #17733a; --ok-bg: #e2f3e8; --bad: #b42318; --focus: #17151f; --now: #17151f; --tick: #3d8c00;
+          /* (Studio's colours: yellow the lead, a navy track under the progress) */ --lead: #ffe600; --lead-ink: #17151f; --track: #181828;
           --shadow: 0 1px 2px rgba(23, 21, 31, .05), 0 8px 26px rgba(23, 21, 31, .07); color-scheme: light; }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) { --paper: #17151f; --card: #211f2b; --ink: #f4f1e8; --dim: #b0abba; --faint: #7d7888;
       --line: #34313f; --chip: #2a2736; --pink-bg: #3a1726; --warn: #ffb84f; --warn-bg: #2b2131; --warn-line: #5a4632;
-      --ok: #55c785; --ok-bg: #12261a; --bad: #ff8577; --shadow: 0 1px 2px rgba(0, 0, 0, .5); color-scheme: dark; }
+      --ok: #55c785; --ok-bg: #12261a; --bad: #ff8577; --shadow: 0 1px 2px rgba(0, 0, 0, .5); color-scheme: dark;
+      --focus: #ffe600; --now: #ffe600; --tick: #aaff40; --track: #10101d; }
   }
   :root[data-theme="dark"] { --paper: #17151f; --card: #211f2b; --ink: #f4f1e8; --dim: #b0abba; --faint: #7d7888;
       --line: #34313f; --chip: #2a2736; --pink-bg: #3a1726; --warn: #ffb84f; --warn-bg: #2b2131; --warn-line: #5a4632;
-      --ok: #55c785; --ok-bg: #12261a; --bad: #ff8577; --shadow: 0 1px 2px rgba(0, 0, 0, .5); color-scheme: dark; }
+      --ok: #55c785; --ok-bg: #12261a; --bad: #ff8577; --shadow: 0 1px 2px rgba(0, 0, 0, .5); color-scheme: dark;
+      --focus: #ffe600; --now: #ffe600; --tick: #aaff40; --track: #10101d; }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
   html, body { background: var(--paper); }
@@ -75,9 +78,9 @@
          min-height: 44px; padding: 0 20px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
   a.btn { text-decoration: none; }
   .btn:hover:not(:disabled) { border-color: var(--faint); }
-  .btn.primary { background: var(--ink); border-color: var(--ink); color: var(--paper); }
-  .btn.primary:hover:not(:disabled) { opacity: .9; }
-  .btn.pink { background: var(--pink); border-color: var(--pink); color: #1a0b12; }
+  /* the actions in Studio's yellow, ink on it (as Studio's and the start page's) */
+  .btn.primary, .btn.pink { background: var(--lead); border-color: var(--lead); color: var(--lead-ink); }
+  .btn.primary:hover:not(:disabled), .btn.pink:hover:not(:disabled) { background: #fff27a; border-color: #fff27a; }
   .btn.big { width: 100%; min-height: 52px; font-size: 16px; }
   .btn:disabled { opacity: .38; cursor: default; }
   .caution { display: flex; gap: 10px; align-items: flex-start; color: var(--ink) !important; background: var(--warn-bg);
@@ -90,12 +93,13 @@
   .stages li { flex: 1 1 0; min-width: 76px; font-size: 12px; font-weight: 600; color: var(--faint); padding-top: 8px;
                border-top: 3px solid var(--line); }
   .stages li.done { color: var(--ok); border-top-color: var(--ok); }
-  .stages li.now { color: var(--ink); border-top-color: var(--pink); }
+  .stages li.now { color: var(--ink); border-top-color: var(--now); }
   .meter { display: flex; align-items: center; gap: 12px; }
-  .meter progress { flex: 1; height: 8px; appearance: none; -webkit-appearance: none; border: 0; border-radius: 4px; background: var(--chip); overflow: hidden; }
-  .meter progress::-webkit-progress-bar { background: var(--chip); border-radius: 4px; }
-  .meter progress::-webkit-progress-value { background: var(--pink); border-radius: 4px; }
-  .meter progress::-moz-progress-bar { background: var(--pink); border-radius: 4px; }
+  /* the bar: a navy track, Studio's yellow filling it (seen on the light page and the dark) */
+  .meter progress { flex: 1; height: 10px; appearance: none; -webkit-appearance: none; border: 0; border-radius: 5px; background: var(--track); overflow: hidden; }
+  .meter progress::-webkit-progress-bar { background: var(--track); border-radius: 5px; }
+  .meter progress::-webkit-progress-value { background: var(--lead); border-radius: 5px; }
+  .meter progress::-moz-progress-bar { background: var(--lead); border-radius: 5px; }
   .meter .pct { font-weight: 700; font-size: 14px; min-width: 3.2em; text-align: right; }
   #status { margin: 10px 0 0; min-height: 1.55em; font-weight: 500; }
   .chip { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin: 10px 0 0; font-size: 14px; }
@@ -143,7 +147,7 @@
   dialog li { padding: 8px 0; border-bottom: 1px solid var(--line); color: var(--dim); }
   dialog li b { color: var(--ink); display: block; }
   dialog .tick { display: flex; gap: 10px; align-items: flex-start; margin: 4px 0 18px; font-weight: 500; cursor: pointer; }
-  dialog .tick input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--pink); flex: none; }
+  dialog .tick input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--tick); flex: none; }
   dialog .row { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
   .themebtn { font: 600 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; padding: 4px 11px;
             border-radius: 999px; border: 1px solid var(--rule, #b2d0e7); background: transparent; color: inherit; cursor: pointer; }
