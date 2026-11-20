@@ -41,6 +41,7 @@
 #define FM6_OWN FM6_NFACTORY     /* SLOT: the track's own patch (F1..F8 before it) */
 #define FM6_NBANK 32u            /* SLOT: B1..B32 after OWN, the voice bank (fm6_vbank.c) */
 #define FM6_PACKED 128u
+#define FM6_XSLOT (FM6_OWN + FM6_NBANK + 1u)   /* Midi-Mania: SLOT F9.. after B32, the extra factory voices (FM6_EXTRA) */
 
 static uint8_t fm6_patch[NTRK][FP_SIZE + 1u];   /* the tracks' patches (main loop writes, then fm6_pgen) */
 static volatile uint8_t fm6_pgen[NTRK];          /* +1 after each write of fm6_patch[t] */
@@ -65,10 +66,17 @@ static int32_t fm6_bank_slot(int32_t s)
 {
     return s > (int32_t)FM6_OWN && s <= (int32_t)(FM6_OWN + FM6_NBANK) ? s - (int32_t)FM6_OWN - 1 : -1;
 }
-/* SLOT value s can load: a factory slot, OWN, or a bank slot with a voice */
+/* SLOT value s is one of the extra factory voices (F9..; Midi-Mania): its number in FM6_EXTRA, else -1 */
+static int32_t fm6_extra_slot(int32_t s)
+{
+    return s >= (int32_t)FM6_XSLOT && s < (int32_t)(FM6_XSLOT + FM6_NEXTRA) ? s - (int32_t)FM6_XSLOT : -1;
+}
+/* SLOT value s can load: a factory slot, OWN, an extra voice, or a bank slot with a voice */
 static int fm6_slot_ok(int32_t s)
 {
     int32_t k = fm6_bank_slot(s);
+    if (fm6_extra_slot(s) >= 0)
+        return 1;
     return k < 0 ? s >= 0 && s <= (int32_t)FM6_OWN : (int)((fm6_bank_used >> k) & 1u);
 }
 
@@ -180,8 +188,10 @@ static void fm6_set_patch(uint32_t tr, const uint8_t *v)
 static int fm6_load_slot(uint32_t tr, uint32_t s)
 {
     uint8_t v[FP_SIZE + 1u], pk[FM6_PACKED];
-    int32_t k = fm6_bank_slot((int32_t)s);
-    if (k < 0) {
+    int32_t k = fm6_bank_slot((int32_t)s), x = fm6_extra_slot((int32_t)s);
+    if (x >= 0) {
+        memcpy(pk, FM6_EXTRA[x], FM6_PACKED);
+    } else if (k < 0) {
         s %= FM6_NFACTORY;
         memcpy(pk, FM6_FACTORY[s], FM6_PACKED);
     } else if (!fm6_slot_ok((int32_t)s) || !fm6_bank_read || fm6_bank_read((uint32_t)k, pk)) {
@@ -211,6 +221,14 @@ static void fm6_adopt(uint32_t tr)
                 break;
         }
         s = k < FM6_NFACTORY ? (int32_t)((f + k) % FM6_NFACTORY) : (int32_t)FM6_OWN;
+        if (k == FM6_NFACTORY)                              /* (an extra voice unchanged: its SLOT, F9..) */
+            for (k = 0; k < FM6_NEXTRA; k++) {
+                fm6_unpack(FM6_EXTRA[k], v);
+                if (!memcmp(v, fm6_patch[tr], FP_SIZE)) {
+                    s = (int32_t)(FM6_XSLOT + k);
+                    break;
+                }
+            }
         t->p[P_E7] = (int16_t)s;
     }
     fm6_slot[tr] = (uint8_t)s;
@@ -222,7 +240,7 @@ static void fm6_track_loaded(const track_t *t)
     uint32_t tr = (uint32_t)(t - trk);
     if (tr < NTRK && t->eng_req == ENGI_FM6) {
         fm6_own_ok &= (uint8_t)~(1u << tr);
-        if (t->p[P_E7] >= 0 && t->p[P_E7] < (int32_t)FM6_NFACTORY)
+        if ((t->p[P_E7] >= 0 && t->p[P_E7] < (int32_t)FM6_NFACTORY) || fm6_extra_slot(t->p[P_E7]) >= 0)
             fm6_load_slot(tr, (uint32_t)t->p[P_E7]);
         else
             fm6_adopt(tr);
@@ -252,7 +270,7 @@ static void fm6_poll(void)
         if (trk[tr].eng_req != ENGI_FM6 || s == fm6_slot[tr])
             continue;
         bit = 1u << tr;
-        if (s < 0 || (s >= (int32_t)FM6_NFACTORY && fm6_bank_slot(s) < 0)) {   /* OWN */
+        if (s < 0 || (s >= (int32_t)FM6_NFACTORY && fm6_bank_slot(s) < 0 && fm6_extra_slot(s) < 0)) {   /* OWN */
             if (fm6_own_ok & bit) {
                 uint8_t v[FP_SIZE + 1u];
                 fm6_unpack(fm6_own[tr], v);
@@ -269,7 +287,7 @@ static void fm6_poll(void)
             fm6_own_ok |= (uint8_t)bit;
         }
         if (fm6_load_slot(tr, (uint32_t)s))                  /* a bank slot without a voice: SLOT back */
-            trk[tr].p[P_E7] = (int16_t)(fm6_slot[tr] <= FM6_OWN + FM6_NBANK ? fm6_slot[tr] : FM6_OWN);
+            trk[tr].p[P_E7] = (int16_t)(fm6_slot[tr] < FM6_XSLOT + FM6_NEXTRA ? fm6_slot[tr] : FM6_OWN);
     }
 }
 
@@ -402,8 +420,8 @@ static const char *const N_FM6_ALG[] = {"PAT", "1", "2", "3", "4", "5", "6", "7"
 static const char *const N_FM6_PATCH[] = {"F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "OWN",
                                           "B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B9", "B10", "B11", "B12",
                                           "B13", "B14", "B15", "B16", "B17", "B18", "B19", "B20", "B21", "B22", "B23",
-                                          "B24", "B25", "B26", "B27", "B28", "B29", "B30", "B31", "B32", 0};
-_Static_assert(NELEM(N_FM6_PATCH) == FM6_OWN + FM6_NBANK + 2u, "a SLOT name per value");
+                                          "B24", "B25", "B26", "B27", "B28", "B29", "B30", "B31", "B32", "F9", "F10", "F11", 0};
+_Static_assert(NELEM(N_FM6_PATCH) == FM6_OWN + FM6_NBANK + FM6_NEXTRA + 2u, "a SLOT name per value");
 
 /* {ALG, FB, MLVL, MRAT, MEG, VMOD, DTUN, SLOT}: the factory patch F1..F8 as it is, DTUN on the pad */
 static const preset_t FM6_PRESETS[] = {
@@ -415,6 +433,10 @@ static const preset_t FM6_PRESETS[] = {
     {"MARIMBA", {0, 0, 0, 0, 0, 0, 0, 5}, {0, 0, 127, 0}, 0, 0, FX(0, 0, 25, 40), PAT(3)},
     {"ORGAN", {0, 0, 0, 0, 0, 0, 0, 6}, {0, 0, 127, 0}, 0, 0, FX(10, 40, 0, 30), PAT(6)},
     {"PLUCK", {0, 0, 0, 0, 0, 0, 0, 7}, {0, 0, 127, 0}, 0, 0, FX(0, 20, 35, 30), PAT(13)},
+    /* Midi-Mania: keyboard voices, appended (SLOT F9.. after the bank: FM6_EXTRA, tools/gen_fm6_patches.py EXTRA) */
+    {"CLAVINET", {0, 0, 0, 0, 0, 0, 0, FM6_XSLOT}, {0, 0, 127, 0}, 0, 0, FX(0, 15, 20, 30), PAT(6)},
+    {"DX EP", {0, 0, 0, 0, 0, 0, 0, FM6_XSLOT + 1}, {0, 0, 127, 0}, 0, 0, FX(0, 45, 25, 35), PAT(6)},
+    {"ELEC GRAND", {0, 0, 0, 0, 0, 0, 0, FM6_XSLOT + 2}, {0, 0, 127, 0}, 0, 0, FX(0, 30, 25, 35), PAT(6)},
 };
 
 static const engine_t ENG_FM6 = {
@@ -428,7 +450,7 @@ static const engine_t ENG_FM6 = {
         {"MEG", F_BIPCT, -64, 63, 0, 0, 0},
         {"VMOD", F_INT, -7, 7, 0, 0, 0},
         {"DTUN", F_PCT, 0, 127, 0, 0, 0},
-        {"SLOT", F_INT, 0, FM6_OWN + FM6_NBANK, 0, N_FM6_PATCH, 0},
+        {"SLOT", F_INT, 0, FM6_OWN + FM6_NBANK + FM6_NEXTRA, 0, N_FM6_PATCH, 0},
     },
     .presets = FM6_PRESETS,
     .npresets = NELEM(FM6_PRESETS),

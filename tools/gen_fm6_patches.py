@@ -121,6 +121,42 @@ PATCHES = [
 ]
 
 
+# Midi-Mania's extra keyboard voices, after the bank (SLOT F9.., eng_fm6.c FM6_XSLOT): their own list, so F1..F8, OWN
+# and B1..B32 keep their numbers (a project's or the autosave's SLOT values mean what they meant)
+EXTRA = [
+    # clavinet: Melodee's own FM6 voice (github.com/keremimo/melodee firmware/src/eng_fm6_rom.h "CLAVINET", GPL-3.0):
+    # a bright, nasal pluck that holds while the key is down
+    ("CLAVINET", voice("CLAVINET", 5, [
+        op(r=(99, 42, 30, 85), l=(99, 86, 62, 0), ol=99, kvs=2, rs=3),
+        op(r=(99, 60, 40, 85), l=(99, 72, 50, 0), ol=78, fc=3, kvs=6, rs=3),
+        op(r=(99, 42, 30, 85), l=(99, 86, 62, 0), ol=84, det=9, kvs=2, rs=3),
+        op(r=(99, 70, 50, 85), l=(99, 60, 40, 0), ol=80, kvs=6, rs=3),
+        op(r=(99, 46, 34, 85), l=(99, 80, 55, 0), ol=70, fc=2, kvs=2, rs=3),
+        op(r=(99, 64, 44, 85), l=(99, 66, 46, 0), ol=60, fc=5, kvs=5, rs=3)],
+        fb=5, lpms=0)),
+    # a brighter DX electric piano: three pairs, OP4 (x14) the tine's bell, louder and more with velocity than TINE
+    # EP's; the pairs a little detuned
+    ("DX EP", voice("DX EP", 5, [
+        op(r=(96, 35, 25, 60), l=(99, 0, 0, 0), ol=98, det=8, kvs=2, rs=3),
+        op(r=(95, 45, 25, 66), l=(99, 0, 0, 0), ol=76, det=6, kvs=6, rs=3),
+        op(r=(96, 33, 25, 58), l=(99, 0, 0, 0), ol=92, kvs=2, rs=3),
+        op(r=(99, 70, 40, 60), l=(99, 0, 0, 0), ol=78, fc=14, kvs=7, rs=3, bp=51, rd=34, rc=1),
+        op(r=(96, 36, 25, 60), l=(99, 0, 0, 0), ol=82, det=4, kvs=2, rs=3),
+        op(r=(95, 50, 25, 66), l=(99, 0, 0, 0), ol=66, det=10, kvs=6, rs=3)],
+        fb=2, lpms=0)),
+    # an electric grand (after the 1970s stage pianos): the body (1:1), its octave (2:3, a little sharp), a third
+    # pair a little flat with a hammer click (x7) gone in a moment; brighter with velocity, shorter up the keys
+    ("ELEC GRAND", voice("ELEC GRAND", 5, [
+        op(r=(98, 30, 22, 55), l=(99, 70, 0, 0), ol=99, kvs=2, rs=3),
+        op(r=(99, 45, 30, 60), l=(99, 55, 0, 0), ol=74, kvs=5, rs=3),
+        op(r=(98, 34, 24, 55), l=(99, 64, 0, 0), ol=80, fc=2, det=9, kvs=2, rs=3),
+        op(r=(99, 55, 35, 60), l=(99, 40, 0, 0), ol=60, fc=3, kvs=6, rs=3),
+        op(r=(98, 30, 22, 55), l=(99, 70, 0, 0), ol=86, det=5, kvs=2, rs=3),
+        op(r=(99, 80, 50, 60), l=(99, 0, 0, 0), ol=52, fc=7, kvs=7, rs=3)],
+        fb=3, lpms=0)),
+]
+
+
 def c_rows(b):
     return ",\n".join("     " + ", ".join(f"{x:3d}" for x in b[i:i + 16]) for i in range(0, len(b), 16))
 
@@ -132,9 +168,12 @@ def main(path):
          f"static const uint8_t FM6_FACTORY[{len(PATCHES)}][128] = {{"]
     for name, v in PATCHES:
         L += [f"    {{/* {name} */", c_rows(pack(v)) + "},"]
+    L += ["};", f"#define FM6_NEXTRA {len(EXTRA)}", f"static const uint8_t FM6_EXTRA[{len(EXTRA)}][128] = {{"]
+    for name, v in EXTRA:
+        L += [f"    {{/* {name} */", c_rows(pack(v)) + "},"]
     L += ["};"]
     Path(path).write_text("\n".join(L) + "\n")
-    print(f"fm6 patches: {len(PATCHES)} -> {path}")
+    print(f"fm6 patches: {len(PATCHES)} + {len(EXTRA)} extra -> {path}")
 
 
 def js():

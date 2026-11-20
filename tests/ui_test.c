@@ -797,8 +797,8 @@ static int test_songs(void)
 static int test_mm_engines(void)
 {
     static const char *const WANT[NPART][20] = {
-        {"PIANO", "FLUTE", "TINE EP", "ORGAN", "HARP", "KALIMBA", "MARIMBA", "FULL ORGAN", "JAZZ PERC", "GOSPEL", "BELL",
-         "BELL TREE", "PAD", "STRINGS", "BRASS", "CHOIR AAH", "SINE KEY"}, {0},
+        {"PIANO", "FLUTE", "TINE EP", "ELEC GRAND", "DX EP", "CLAVINET", "ORGAN", "HARP", "KALIMBA", "MARIMBA",
+         "FULL ORGAN", "JAZZ PERC", "GOSPEL", "BELL", "BELL TREE", "PAD", "STRINGS", "BRASS", "CHOIR AAH", "SINE KEY"}, {0},
         {"PLUCK", "HARP", "KALIMBA", "DRONE STRING", "BOWED METAL", "PWM STR", "SAW LEAD", "SYNC LEAD", "ARP LEAD",
          "VOX LEAD", "PULSE LD", "WAVE LEAD"},
         {"FM BASS", "PLUCK", "SUB BASS", "SQR BASS", "FAT BASS", "ACID", "RAVE", "WOW BASS", "WAVE BASS"}};

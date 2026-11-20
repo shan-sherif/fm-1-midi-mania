@@ -322,6 +322,15 @@ static const preset_t DRUM_PRESETS[] = {
     {"DEEP KIT", {DK_DEEP, 64, 64, 64, 64, 100, 0, 0}, {0, 100, 127, 100}, 0, 0, FX(0, 0, 0, 28), PAT(12)},
     {"TIGHT KIT", {DK_TIGHT, 64, 64, 56, 64, 100, 0, 16}, {0, 100, 127, 100}, 0, 0, FX(0, 0, 0, 8), PAT(12)},
     {"PERC KIT", {DK_PERC, 64, 64, 64, 64, 100, 0, 0}, {0, 100, 127, 100}, 0, 0, FX(0, 0, 0, 24), PAT(12)},
+    /* Midi-Mania: the model kits (drum_voice.c DV_KIT), each a preset of its own (before only a KIT value, so not in
+     * SOUNDS), appended: 80 an analog kit with a deep sine kick and the six-square hats; 10 a small kit, its kick
+     * swept from 90 Hz; 66 an early rhythm box (a conga on TOM); 55 a kick dropping from 100 Hz, a click rim; 77
+     * claves on RIM, a cymbal on BELL */
+    {"80 KIT", {DK_80, 64, 64, 64, 64, 100, 0, 0}, {0, 100, 127, 100}, 0, 0, FX(0, 0, 0, 20), PAT(12)},
+    {"10 KIT", {DK_10, 64, 64, 64, 64, 100, 0, 0}, {0, 100, 127, 100}, 0, 0, FX(0, 0, 0, 20), PAT(12)},
+    {"66 KIT", {DK_66, 64, 64, 64, 64, 100, 0, 0}, {0, 100, 127, 100}, 0, 0, FX(0, 0, 0, 20), PAT(12)},
+    {"55 KIT", {DK_55, 64, 64, 64, 64, 100, 0, 0}, {0, 100, 127, 100}, 0, 0, FX(0, 0, 0, 20), PAT(12)},
+    {"77 KIT", {DK_77, 64, 64, 64, 64, 100, 0, 0}, {0, 100, 127, 100}, 0, 0, FX(0, 0, 0, 20), PAT(12)},
 };
 
 static const engine_t ENG_DRUM = {

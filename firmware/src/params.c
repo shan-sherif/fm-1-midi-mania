@@ -268,8 +268,8 @@ static int32_t enum_orig(const param_desc_t *d, int32_t v)
 static int32_t param_fit(const param_desc_t *d, int32_t v)
 {
     v = clamp(v, d->min, d->max);
-    if (d->names == N_FM6_PATCH)
-        return v > (int32_t)FM6_OWN ? (int32_t)FM6_OWN : v;
+    if (d->names == N_FM6_PATCH)                    /* (Midi-Mania's extra voices, F9.., stay: FM6_EXTRA) */
+        return v > (int32_t)FM6_OWN && fm6_extra_slot(v) < 0 ? (int32_t)FM6_OWN : v;
     return d->names == N_DRUM_KIT ? enum_orig(d, v) : v;
 }
 

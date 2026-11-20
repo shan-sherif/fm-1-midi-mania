@@ -396,11 +396,12 @@ static int slot_test(void)
     const param_desc_t *d = &ENG_FM6.edit[7];
     uint32_t k;
     reset();
-    ok = param_turn(d, FM6_OWN, 1) == FM6_OWN && param_turn(d, FM6_OWN, -1) == 7 && param_turn(d, 7, 1) == FM6_OWN &&
-         param_turn(d, 7, 5) == FM6_OWN;
+    ok = param_turn(d, FM6_OWN, 1) == FM6_XSLOT && param_turn(d, FM6_OWN, -1) == 7 && param_turn(d, 7, 1) == FM6_OWN &&
+         param_turn(d, 7, 5) == FM6_XSLOT && param_turn(d, FM6_XSLOT, -1) == FM6_OWN &&
+         param_turn(d, FM6_XSLOT + FM6_NEXTRA - 1u, 1) == FM6_XSLOT + FM6_NEXTRA - 1u;
     slot_to(0, FM6_OWN + 3);
     ok &= trk[0].p[P_E7] == FM6_OWN && fm6_slot[0] == FM6_OWN;
-    bad += check("no bank: the knob stops at OWN (B1..B32 skipped); a B value from elsewhere is refused (SLOT back)", ok);
+    bad += check("no bank: the knob goes OWN to F9 (B1..B32 skipped), stops at F11; a B value from elsewhere is refused (SLOT back)", ok);
     make_bank(&a, 'A', 0xFFFFFFFFu, "FULL");
     send_bank(&a, 0);
     ok = 1;
@@ -446,11 +447,11 @@ static int slot_test(void)
     ok = trk[0].p[P_E7] == FM6_OWN && fm6_slot[0] == FM6_OWN && patch_is(0, a.v[4]);
     bad += check("a new bank: the track on B5 keeps that voice as its own (SLOT OWN)", ok);
     ok = param_turn(d, FM6_OWN, 1) == FM6_OWN + 1 && param_turn(d, FM6_OWN + 1, 1) == FM6_OWN + 6 &&
-         param_turn(d, FM6_OWN + 6, 1) == FM6_OWN + 32 && param_turn(d, FM6_OWN + 32, 1) == FM6_OWN + 32 &&
+         param_turn(d, FM6_OWN + 6, 1) == FM6_OWN + 32 && param_turn(d, FM6_OWN + 32, 1) == FM6_XSLOT &&
          param_turn(d, FM6_OWN + 32, -1) == FM6_OWN + 6 && param_turn(d, FM6_OWN + 1, -1) == FM6_OWN &&
          param_turn(d, FM6_OWN, 3) == FM6_OWN + 6 && param_turn(d, FM6_OWN + 6, 9) == FM6_OWN + 32 &&
-         param_turn(d, FM6_OWN + 6, 40) == FM6_OWN + 32;
-    bad += check("bank voices 1, 6, 32 only: the knob goes OWN B1 B6 B32 and back, the empty slots skipped", ok);
+         param_turn(d, FM6_OWN + 6, 40) == FM6_XSLOT + FM6_NEXTRA - 1u;
+    bad += check("bank voices 1, 6, 32 only: the knob goes OWN B1 B6 B32 F9..F11 and back, the empty slots skipped", ok);
     slot_to(0, FM6_OWN + 6);
     ok = patch_is(0, b.v[5]);
     slot_to(0, FM6_OWN + 2);                              /* B2: none there (the editor's SET, a MIDI CC) */

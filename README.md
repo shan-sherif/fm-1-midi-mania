@@ -75,7 +75,7 @@ Your own songs: drop a MIDI file on Studio (below). The full controls are in [Pl
 >
 > Why one small change makes the newer chip work: [The newer FM-1 flash chip](#the-newer-fm-1-flash-chip).
 
-> **Status: beta (0.9.3), tested on the FM-1.** Working on the FM-1 and in the desktop and browser builds:
+> **Status: beta (0.9.4), tested on the FM-1.** Working on the FM-1 and in the desktop and browser builds:
 > - **all four parts playable:** KEYS, DRUMS, GUITAR and BASS, each with play styles (KEYS on 49 keys, 27 keys or one
 >   octave; DRUMS full, on the beat, or beats 1 and 3; GUITAR and BASS as strings or chromatic lanes);
 > - **SONGS** (the SEQ button): FREE PLAY, then your own songs (sent from Studio over USB, or added in Studio itself), then the built-in ones;
@@ -252,8 +252,8 @@ Each part is one instrument with its own sounds (`firmware/src/engines.c` `MM_SO
 
 | Part | Sounds (engine) |
 | --- | --- |
-| **1 KEYS** (17) | PIANO, FLUTE (SAMPLE); TINE EP, ORGAN, BELL, PAD, BRASS (FM6); HARP, KALIMBA, MARIMBA, BELL TREE (PHYS); FULL ORGAN, JAZZ PERC, GOSPEL (WHEEL); STRINGS, SINE KEY (ANALOG); CHOIR AAH (VOICE) |
-| **2 DRUMS** | the DRUM engine's kits |
+| **1 KEYS** (20) | PIANO, FLUTE (SAMPLE); TINE EP, ELEC GRAND, DX EP, CLAVINET, ORGAN, BELL, PAD, BRASS (FM6); HARP, KALIMBA, MARIMBA, BELL TREE (PHYS); FULL ORGAN, JAZZ PERC, GOSPEL (WHEEL); STRINGS, SINE KEY (ANALOG); CHOIR AAH (VOICE) |
+| **2 DRUMS** (9) | DRUM KIT, DEEP KIT, TIGHT KIT, PERC KIT, 80 KIT, 10 KIT, 66 KIT, 55 KIT, 77 KIT (DRUM) |
 | **3 GUITAR** (12) | PLUCK, HARP, KALIMBA, DRONE STRING, BOWED METAL (PHYS); PWM STR, SAW LEAD (ANALOG); SYNC LEAD, ARP LEAD (TRIO); VOX LEAD (VOICE); PULSE LD, WAVE LEAD (LOFI) |
 | **4 BASS** (9) | FM BASS, PLUCK (FM6); SUB BASS, SQR BASS, ACID, RAVE (ANALOG); FAT BASS (TRIO); WOW BASS (VOICE); WAVE BASS (LOFI) |
 

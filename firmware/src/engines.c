@@ -151,7 +151,8 @@ typedef struct { uint8_t e, k; } mm_sound_t;
 #define MM_ALL 0xFFu
 static const mm_sound_t MM_SND_DRUMS[] = {{ENGI_DRUM, MM_ALL}};
 static const mm_sound_t MM_SND_KEYS[] = {
-    {ENGI_SAMPLE, 0}, {ENGI_SAMPLE, 2}, {ENGI_FM6, 0}, {ENGI_FM6, 6},              /* PIANO FLUTE TINE EP ORGAN */
+    {ENGI_SAMPLE, 0}, {ENGI_SAMPLE, 2}, {ENGI_FM6, 0},                             /* PIANO FLUTE TINE EP */
+    {ENGI_FM6, 10}, {ENGI_FM6, 9}, {ENGI_FM6, 8}, {ENGI_FM6, 6},                   /* ELEC GRAND DX EP CLAVINET ORGAN */
     {ENGI_PHYS, 8}, {ENGI_PHYS, 4}, {ENGI_PHYS, 1},                                /* HARP KALIMBA MARIMBA */
     {ENGI_WHEEL, 0}, {ENGI_WHEEL, 1}, {ENGI_WHEEL, 2},                             /* FULL ORGAN JAZZ PERC GOSPEL */
     {ENGI_FM6, 1}, {ENGI_PHYS, 0}, {ENGI_FM6, 4}, {ENGI_ANALOG, 11},               /* BELL BELL TREE PAD STRINGS */
