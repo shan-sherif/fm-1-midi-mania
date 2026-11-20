@@ -37,10 +37,11 @@ Piano (KEYS) in PLAY mode: the notes fall to the keys, each press judged, the co
 - **[Landing Page](https://shan-sherif.github.io/fm-1-midi-mania/)**: Landing page (away from the Github Repo).
 - **[FM-1 Midi-Mania Studio](https://shan-sherif.github.io/fm-1-midi-mania/webapp/studio/)**: the FM-1 in your browser,
   the same code the instrument runs. Play the built-in songs or FREE PLAY, and drop your own MIDI files on the page
-  to load them as songs: preview them on the FM-1's sounds first, and find them again in a song browser (search,
-  sort, filter by part). No FM-1 needed; Chrome, Edge, Firefox or Safari. **Have an FM-1?** Connect it by USB on the
-  same page (Chrome or Edge; Midi-Mania 0.2.0 or later) to send your songs to it, and to list and delete the ones on
-  it. Up to 16 songs, 240 KB in all.
+  to add them as songs: set each up in a pop-up (where it starts and ends, who plays what), preview it on the FM-1's
+  sounds, and find it again In Studio (search, sort, filter by part). Light or dark: as your system, or the toggle at
+  the top. No FM-1 needed; Chrome, Edge, Firefox or Safari. **Have an FM-1?** Connect it by USB on the
+  same page (Chrome or Edge; Midi-Mania 0.2.0 or later): your songs In Studio on the left, On your FM-1 on the right;
+  tick songs and press the arrow to send them, and delete the ones on it. Up to 16 songs, 240 KB in all.
 - **[The installer](https://shan-sherif.github.io/fm-1-midi-mania/webapp/installer/)**: puts Midi-Mania on your FM-1
   over USB, from Chrome or Edge. **Return to official V15** on the same page puts the stock firmware back.
 - **[Releases](https://github.com/shan-sherif/fm-1-midi-mania/releases)**: each version's package and notes.
@@ -77,7 +78,7 @@ Your own songs: drop a MIDI file on Studio (below). The full controls are in [Pl
 > **Status: beta (0.9.2), tested on the FM-1.** Working on the FM-1 and in the desktop and browser builds:
 > - **all four parts playable:** KEYS, DRUMS, GUITAR and BASS, each with play styles (KEYS on 49 keys, 27 keys or one
 >   octave; DRUMS full, on the beat, or beats 1 and 3; GUITAR and BASS as strings or chromatic lanes);
-> - **SONGS** (the SEQ button): the built-in songs, then your own (sent from Studio over USB, or loaded in Studio itself);
+> - **SONGS** (the SEQ button): FREE PLAY, then your own songs (sent from Studio over USB, or added in Studio itself), then the built-in ones;
 > - the **play page** (HOME): your part's notes falling to the hit line, the keys lit as they sound; **PLAY** mode
 >   leaves your part to you (a key on time plays the song's note) and scores it: each press PERFECT, GREAT, GOOD or
 >   MISS, the combo and the score on screen, the result when the song ends;
@@ -88,32 +89,43 @@ Your own songs: drop a MIDI file on Studio (below). The full controls are in [Pl
 
 <table>
 <tr>
-<td align="center" valign="top"><img src="web/site_media/midi-roll.png" width="420" alt="Studio's song card for FM Keys: its parts, its notes and length, and a piano roll of the whole song (the piano in amber, the drums in pink) with a handle at each end"><br><sub><b>1. See your song:</b> a piano roll of the whole file, each part in its colour; drag the handles to choose its start and end, click to hear it from there, and Preview it on the FM-1's sounds before loading it</sub></td>
+<td align="center" valign="top"><img src="web/site_media/midi-roll.png" width="420" alt="Studio's Song setup pop-up, its Section tab: the parts found (KEYS Grand Piano, DRUMS Drum kit, GUITAR Steel Guitar, BASS Finger Bass) and a piano roll of the whole file, each part in its colour, a yellow handle at each end, the end moved in"><br><sub><b>1. See your song:</b> drop a MIDI file and it opens in a pop-up. <b>Section</b> shows it as a piano roll, each part in its colour: drag the handles to choose where it starts and ends, click to hear it from there, <b>Preview</b> it on the FM-1's sounds</sub></td>
 </tr>
 <tr>
-<td align="center" valign="top"><img src="web/site_media/midi-advance-selection.png" width="420" alt="Studio's song card: Start and End sliders to shorten the song, and Advanced, a table of the file's instruments, each with a play button, its notes and range, and the part it plays"><br><sub><b>2. Choose what plays (optional):</b> the parts are chosen automatically; these advanced options change them (each instrument's part or Leave out, heard alone with ▶) and shorten the song (Start, End)</sub></td>
+<td align="center" valign="top"><img src="web/site_media/midi-advance-selection.png" width="420" alt="The pop-up's Parts tab: a column for KEYS, DRUMS, GUITAR, BASS and Left out, each instrument a card with its reason: Strings on KEYS (no piano), Harp on GUITAR (no guitar), Cello on BASS (the lowest), the drum kit over two tracks as one card, a recorder left out as it doubles the flute"><br><sub><b>2. Who plays what (optional):</b> <b>Parts</b> shows each instrument as a card in its part's column, and why it's there. Drag a card to another part or use its menu; ▶ hears it alone; a drum kit over several tracks is one card</sub></td>
 </tr>
 <tr>
-<td align="center" valign="top"><img src="web/site_media/midi-load.png" width="420" alt="Studio's Your FM-1 panel, connected: the song space bar with the song about to be sent in green"><br><sub><b>3. Send it to your FM-1:</b> the room on it, and what the song will take (green: it fits)</sub></td>
+<td align="center" valign="top"><img src="web/site_media/midi-load.png" width="420" alt="Studio's main page: In Studio on the left, three songs, two ticked; a yellow arrow, Send 2 songs (16 KB); On your FM-1 on the right, connected, its song space with the ticked songs in green, and its own two songs"><br><sub><b>3. Send it to your FM-1:</b> your songs <b>In Studio</b> on the left, <b>On your FM-1</b> on the right. Tick songs and press the arrow; the bar shows the room they'll take (green: it fits)</sub></td>
 </tr>
 </table>
 
 1. The easy way: drop it on **[FM-1 Midi-Mania Studio](https://shan-sherif.github.io/fm-1-midi-mania/webapp/studio/)**
-   (Your songs) to try it in the browser, then connect your FM-1 there and send it on. Studio sets it up for you: its
-   piano, drums, guitar and bass go to the FM-1's four parts, and the card shows what the song will hold. **Preview**
-   plays it on the FM-1's sounds; **Load** loads it. **Advanced** lists each instrument (its notes and range, in its
-   part's colour) to change its part (KEYS, GUITAR, BASS, the drum kit DRUMS, or Leave out: say, the melody on a sax
-   onto KEYS) or to hear it alone; a preview playing follows your changes. A **piano roll** of the whole file (each instrument in its
-   part's colour) has two handles that set where the song starts and ends, snapped to beats (only the notes in
-   between are kept; a preview's playhead runs along it); click anywhere else on it to hear the song from there. The
-   card's title is the one SONGS will show: click it to change it (24 characters). Drop the same file again later and
-   your choices for it (parts, start and end, title) come back; **Start over** clears them. It is converted in the
-   browser as below, your choices over the converter's.
+   to try it in the browser, then connect your FM-1 there and send it on. A file you add opens in a **Song setup**
+   pop-up, set up for you, with two tabs:
+   - **Section:** a **piano roll** of the whole file, each instrument in its part's colour. Its two handles set where
+     the song starts and ends, snapped to beats (only the notes between are kept; a preview's playhead runs along
+     it); click anywhere else to hear it from there.
+   - **Parts:** a column for each part (KEYS, DRUMS, GUITAR, BASS, Left out), each instrument a card in its column
+     with its notes, its range and why it's there. Drag a card to another part, or use its menu; ▶ hears it alone,
+     and a preview playing follows your changes. A drum kit spread over several tracks (as GarageBand and Logic
+     write it) is one card: open **Drum tracks** to keep or leave out each drum, and hear it.
+
+   **Preview** plays it on the FM-1's sounds; **Done: add to Studio** adds it to your songs here (In Studio). The
+   title at the top is the one SONGS will show (24 characters). **Set up** on a song opens it again (Studio keeps the
+   MIDI file of each song you add, in this browser); drop the same file again later and your choices for it come
+   back (**Start over** clears them). To send songs to your FM-1, tick them In Studio and press the arrow to **On
+   your FM-1**. It is converted in the browser as below, your choices over Studio's.
+
+   **Who plays what, at first:** each instrument goes to the part of its kind: pianos KEYS, guitars GUITAR, basses
+   BASS, the drum channel (10) DRUMS. A part the file has none of is given to the next most suitable instrument:
+   BASS the lowest one (a cello, tuba, bassoon …), KEYS a keyboard-like one (vibes, marimba, organ), else the busiest
+   left, GUITAR a plucked one (harp, banjo, sitar …), else a lead. A line another instrument doubles is left out, and
+   so is one whose notes no part can play.
 
    **Room on the FM-1:** an FM-1 keeps 240 KB of songs (up to 16); a song's size comes from its notes. Studio loads a
    song whatever its size and plays it there, and says in amber when it is too big for an FM-1, with about how long a
-   part of it would fit; **Fit to FM-1** keeps the start and moves the end back to where it fits. The **Your FM-1** panel shows the song space as a bar (how full, in KB and per cent) with the
-   song you're looking at on top of it, green if it fits and red if it doesn't, changing as you shorten it; connected,
+   part of it would fit; **Fit to FM-1** keeps the start and moves the end back to where it fits. The **On your FM-1** pane shows the song space as a bar (how full, in KB and per cent) with the
+   songs you've ticked (or the one you're looking at) on top of it, green if they fit and red if it doesn't, changing as you shorten it; connected,
    it shows your FM-1's own songs and room, and the connection's state is shown at the top of the page too. **Send**
    checks your FM-1's free room first and tells you if it doesn't fit (delete a song on the FM-1, or load a shorter
    version).
@@ -278,7 +290,8 @@ keyboard, MIDI IN, the stores), so it comes out one module at a time.
 
 How a file is fitted to the FM-1 (`tools/gen_songs.py`, and Studio's `web/mm_songs.js`, byte for byte the same):
 four modes, one per part. The instruments below are the parts' default sounds; a song plays on the ones you picked.
-In Studio, **Advanced** puts any instrument on any part instead.
+In Studio, the pop-up's **Parts** tab puts any instrument on any part instead (and suggests a part for one this table
+would leave out, when the file has no instrument of that part's kind).
 
 | Mode | Part | MIDI instruments | Default sound |
 | --- | --- | --- | --- |

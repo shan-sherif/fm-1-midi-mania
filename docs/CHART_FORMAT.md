@@ -68,7 +68,7 @@ Stored songs live in the song region, flash `0xA0000..0xDBFFF` (240 KiB, 60 sect
 slots). Each chart starts on a sector boundary. At power-on the firmware (`firmware/src/player.c` `mm_song_scan`)
 looks at every sector:
 
-- a chart there whose CRC holds and whose `live` is 0xFF is listed after the built-in songs (16 at most) and played in
+- a chart there whose CRC holds and whose `live` is 0xFF is listed before the built-in songs, right after FREE PLAY (16 at most) and played in
   place; its sectors are in use, and the scan goes on after its last one;
 - anything else (erased, a deleted chart, a broken upload) is free, and the scan goes on at the next sector.
 

@@ -185,11 +185,13 @@ if (typeof registerProcessor === "function") {
                     ex.fh_breath_buttons(), ex.fh_breath_keys(), ex.fh_mid_keys ? ex.fh_mid_keys() : 0];
       const an = ex.fh_anim_levels ? ex.fh_anim_levels() : 0;   // the power-on sweep: each LED's level
       const anim = an ? Array.from(new Uint8Array(mem, an, 41)) : null;
-      const key = leds.join(",") + (anim ? ";" + anim.join(",") : "");
+      const ui = ex.fh_ui_state ? ex.fh_ui_state() : 0;      // (SONGS, GAME, a song playing: Studio's first-steps hints)
+      const key = leds.join(",") + (anim ? ";" + anim.join(",") : "") + "|" + ui;
       if (key !== this.sentLeds) {
         this.sentLeds = key;
         msg.leds = leds;
         msg.anim = anim;
+        msg.ui = ui;
       }
       if (this.frames >= 44100) {                     // the share of real time spent running the device
         msg.load = this.busy / (this.frames / 44.1);

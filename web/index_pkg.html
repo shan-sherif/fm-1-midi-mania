@@ -7,6 +7,7 @@
      or artwork copied (CREDITS.md) -->
 <html lang="ja">
 <head>
+<script>/* the colour theme chosen on any of the site's pages (Auto: the system's), before the page is drawn */try{var t=localStorage.getItem("mm-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FM-1 Midi-Mania installer</title>
@@ -144,6 +145,9 @@
   dialog .tick { display: flex; gap: 10px; align-items: flex-start; margin: 4px 0 18px; font-weight: 500; cursor: pointer; }
   dialog .tick input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--pink); flex: none; }
   dialog .row { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+  .themebtn { font: 600 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; padding: 4px 11px;
+            border-radius: 999px; border: 1px solid var(--rule, #b2d0e7); background: transparent; color: inherit; cursor: pointer; }
+  .themebtn:hover, .themebtn:focus-visible { border-color: #ffe600; outline: none; }
 </style>
 <!-- Page counts: GoatCounter (no cookies, no personal data; localhost is not counted) -->
 <script data-goatcounter="https://shan-sherif.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
@@ -152,7 +156,7 @@
 <header class="wrap site">
   <a class="brand" href="../../"><img src="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%201024%201024%22%3E%3Ctitle%3EFM-1%20Midi-Mania%3C/title%3E%3Crect%20width=%221024%22%20height=%221024%22%20fill=%22%23F4F1E8%22/%3E%3Cg%20fill=%22%2317151F%22%3E%3Crect%20x=%22160%22%20y=%22181%22%20width=%22136%22%20height=%22662%22%20rx=%2228%22/%3E%3Crect%20x=%22331%22%20y=%22307%22%20width=%22136%22%20height=%22320%22%20rx=%2228%22/%3E%3Crect%20x=%22557%22%20y=%22307%22%20width=%22136%22%20height=%22320%22%20rx=%2228%22/%3E%3Crect%20x=%22728%22%20y=%22181%22%20width=%22136%22%20height=%22662%22%20rx=%2228%22/%3E%3C/g%3E%3Crect%20x=%22444%22%20y=%22536%22%20width=%22136%22%20height=%22306%22%20rx=%2228%22%20fill=%22%23FF4F8B%22/%3E%3C/svg%3E" alt="" width="28" height="28">FM-1 Midi-Mania</a>
   <nav><a href="../../" data-t="navHome"></a><a href="../studio/" data-t="navStudio"></a><a href="./" aria-current="page" data-t="navInstall"></a>
-    <button class="lang" id="lang" type="button"></button></nav>
+    <button class="lang" id="lang" type="button"></button><button type="button" class="themebtn" id="themebtn">◐ Auto</button></nav>
 </header>
 <main class="wrap">
   <section class="hero">
@@ -677,6 +681,15 @@ $("restore-go").addEventListener("click", async () => {
     log(String(e.stack || e));
   } finally { if (link) link.close(); lockInstaller(false); }
 });
+</script>
+<script>/* the theme toggle: Auto (the system's light or dark) -> Light -> Dark, kept for every page of the site */
+(function(){var b=document.getElementById("themebtn");if(!b)return;var r=document.documentElement,
+L={auto:"\u25D0 Auto",light:"\u2600 Light",dark:"\u263E Dark"},N={auto:"light",light:"dark",dark:"auto"};
+function cur(){return r.dataset.theme||"auto"}
+function draw(){var c=cur();b.textContent=L[c];b.title="Colours: "+(c==="auto"?"as your system's (light or dark)":c)+". Click to change";
+b.setAttribute("aria-label","Colour theme: "+(c==="auto"?"automatic, as your system":c)+". Change it")}
+b.addEventListener("click",function(){var n=N[cur()];if(n==="auto")delete r.dataset.theme;else r.dataset.theme=n;
+try{if(n==="auto")localStorage.removeItem("mm-theme");else localStorage.setItem("mm-theme",n)}catch(e){}draw()});draw()})();
 </script>
 </body>
 </html>

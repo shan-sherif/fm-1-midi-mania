@@ -46,3 +46,20 @@ export function testMidi() {
   const tracks = [track(meta), track(drums), track(keys), track(bass)];
   return Uint8Array.from([0x4D, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 1, 0, tracks.length, PPQ >> 8, PPQ & 255, ...tracks.flat()]);
 }
+
+// A file of the instruments given, for Studio's suggestion (web/test_songs.mjs): [{ch (0..15), program (or null),
+// notes: [pitch ...] (one a beat), chord (true: each note with the one a fifth above)}], one track each, 120 BPM
+export function bandMidi(parts) {
+  const meta = [[0, [0xFF, 0x51, 0x03, 0x07, 0xA1, 0x20]]];
+  const tracks = [track(meta)];
+  for (const p of parts) {
+    const ev = [];
+    if (p.program != null) ev.push([0, [0xC0 | p.ch, p.program]]);
+    p.notes.forEach((n, i) => {
+      for (const q of p.chord ? [n, n + 7] : [n])
+        ev.push([PPQ + i * PPQ, [0x90 | p.ch, q, 90]], [PPQ + i * PPQ + PPQ - 40, [0x80 | p.ch, q, 0]]);
+    });
+    tracks.push(track(ev));
+  }
+  return Uint8Array.from([0x4D, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 1, 0, tracks.length, PPQ >> 8, PPQ & 255, ...tracks.flat()]);
+}

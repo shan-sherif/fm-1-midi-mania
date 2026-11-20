@@ -387,14 +387,15 @@ int main(int argc, char **argv)
         ok &= mm_nstored == 0u && mm_song_room(1u) == 0 && mm_song_free_sectors() == MM_SONG_NSEC && mm_nsongs() == MM_NSONGS;
         o1 = put_chart(region, 0, s, 0xFFu);
         mm_song_scan();
-        t = mm_song(MM_NSONGS);
-        ok &= mm_nstored == 1u && mm_nsongs() == MM_NSONGS + 1u && !strncmp(t->title, s->title, 24) && t->nnote == s->nnote &&
+        t = mm_song(0);                              /* (SONGS: your songs first, then the built-in ones) */
+        ok &= mm_nstored == 1u && mm_nsongs() == MM_NSONGS + 1u && t == &mm_stored[0] && (!MM_NSONGS || mm_song(1u) == &MM_SONGS[0]) &&
+              !strncmp(t->title, s->title, 24) && t->nnote == s->nnote &&
               t->nbeat == s->nbeat && t->length == s->length && t->bpm_x10 == s->bpm_x10 && t->bpb == s->bpb &&
               t->beat0 == s->beat0 && t->parts == s->parts && !memcmp(t->part, s->part, sizeof t->part) &&
               !memcmp(t->note, s->note, s->nnote * sizeof *s->note) && !memcmp(t->beat, s->beat, s->nbeat * 4u) &&
               (const uint8_t *)t->note > region && (const uint8_t *)t->note < region + sizeof region &&
               mm_song_room(1u) == (int32_t)((o1 + 0xFFFu) / 0x1000u * 0x1000u);
-        check("stored songs: none in an erased region; one chart listed after the built-in songs, as the song it came "
+        check("stored songs: none in an erased region; one chart listed first, before the built-in songs, as the song it came "
               "from (title, beats, notes, parts), read in place", ok);
         n0 = (uint32_t)mm_song_room(1u);
         o2 = put_chart(region, n0, s, 0x00u);         /* deleted */
@@ -427,12 +428,12 @@ int main(int argc, char **argv)
         }
         {   /* the stored song plays: every note started, the song ends by itself */
             uint32_t k;
-            player_start(MM_NSONGS);
+            player_start(0);
             mix_block(out, CTL);
             for (k = 0; k < (s->length + 2u * CHART_FS) / CTL && pl.playing; k++)
                 mix_block(out, CTL);
             check("stored songs: one plays as the built-in one does (every note started, the end)",
-                  !pl.playing && pl.song == MM_NSONGS && pl.next == s->nnote);
+                  !pl.playing && pl.song == 0u && pl.next == s->nnote);
             player_stop();
             mix_block(out, CTL);
         }
@@ -455,7 +456,7 @@ int main(int argc, char **argv)
                 memset(region, 0xFF, sizeof region);
                 memcpy(region, file, len);
                 mm_song_scan();
-                same &= mm_nstored == 1u && !strncmp(mm_song(MM_NSONGS)->title, w->title, 24);   /* (24: the chart's) */
+                same &= mm_nstored == 1u && !strncmp(mm_song(0)->title, w->title, 24);   /* (24: the chart's) */
             }
             snprintf(msg, sizeof msg, "stored songs: %s from tools/gen_songs.py --charts: the firmware's chart of "
                      "its song, byte for byte, and listed", argv[k3]);
@@ -505,7 +506,7 @@ int main(int argc, char **argv)
         pl.range = 0;
         pl.you = 0;
         pl.style[MM_GUITAR] = MM_VIEW_STRINGS;
-        player_start(MM_NSONGS);
+        player_start(0);
         mix_block(out, CTL);
         mm_lanes_fit();
         s = pl_song();
@@ -549,7 +550,7 @@ int main(int argc, char **argv)
             uint32_t pressed = 0, b2, k = 0, sung = 1;
             pl.style[MM_GUITAR] = (uint8_t)view;
             pl.you = 1;
-            player_start(MM_NSONGS);
+            player_start(0);
             mix_block(out, CTL);
             mm_lanes_fit();
             ok = player_key_note(MM_GUITAR, 1u) < 0;  /* (a black key: no lane) */
@@ -616,7 +617,7 @@ int main(int argc, char **argv)
         pl.range = 0;
         pl.style[MM_DRUMS] = 0;
         pl.you = 1;
-        player_start(MM_NSONGS);
+        player_start(0);
         mix_block(out, CTL);
         s = pl_song();
         ok &= pl_drum_key(36) == pl_drum_key(35) && pl_drum_key(42) == pl_drum_key(44);   /* (one pad each) */
@@ -731,7 +732,7 @@ int main(int argc, char **argv)
         mm_song_scan();
         memset(pl.style, 0, sizeof pl.style);
         pl.you = 0;
-        player_start(MM_NSONGS);
+        player_start(0);
         mix_block(out, CTL);
         s = pl_song();
         #define COUNT_MINE() (cnt = 0, ({ for (i2 = 0; i2 < s->nnote; i2++) cnt += mm_mine(&s->note[i2]) != 0; }), cnt)
@@ -779,7 +780,7 @@ int main(int argc, char **argv)
         {   /* PLAY YOU on 49 KEYS: a MIDI keyboard's notes, each in the block it starts in: PERFECT, all 7 */
             uint32_t b2, kk = 0, pressed = 0;
             pl.you = 1;
-            player_start(MM_NSONGS);
+            player_start(0);
             mix_block(out, CTL);
             for (b2 = 0; b2 < 30u * CHART_FS / CTL && (pl.playing || pl.req); b2++) {
                 mix_block(out, CTL);

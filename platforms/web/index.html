@@ -4,6 +4,7 @@
      The page follows X0X's browser page, web/emu/index.html of charlesvestal/fm1-x0x (GPL-3.0), a Felucca fork. -->
 <html lang="en">
 <head>
+<script>/* the colour theme chosen on any of the site's pages (Auto: the system's), before the page is drawn */try{var t=localStorage.getItem("mm-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FM-1 Midi-Mania Studio</title>
@@ -17,28 +18,40 @@
 :root { --bg: #d6e8f5; --fg: #17151f; --dim: #424955; --rule: #b2d0e7;
         --body: #1d1d1f; --tray: #141415; --part: #2a2a2d; --edge: #3a3a3e; --label: #d6d6d8;
         --lit: #fff4d6; --green: #5fe08a; color-scheme: light; }
+/* dark: the system's (unless Light is chosen), or Dark chosen (the theme toggle: <html data-theme>) */
+:root[data-theme="dark"] { --bg: #17151f; --fg: #f4f1e8; --dim: #aaa6b5; --rule: #34313f; color-scheme: dark; }
+:root[data-theme="dark"] .quick { background: rgba(255, 255, 255, .04); }
+.themebtn { font: 600 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; padding: 4px 11px;
+            border-radius: 999px; border: 1px solid var(--rule, #b2d0e7); background: transparent; color: inherit; cursor: pointer; }
+.themebtn:hover, .themebtn:focus-visible { border-color: #ffe600; outline: none; }
 @media (prefers-color-scheme: dark) {
-  :root { --bg: #17151f; --fg: #f4f1e8; --dim: #aaa6b5; --rule: #34313f; color-scheme: dark; }
+  :root:not([data-theme="light"]) { --bg: #17151f; --fg: #f4f1e8; --dim: #aaa6b5; --rule: #34313f; color-scheme: dark; }
   /* (the panels stay NEON's: darker than the ink page, set apart by their magenta edge and glow) */
 }
 html, body { background: var(--bg); }
 body { margin: 0; color: var(--fg); font: 13px/1.6 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; }
 main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 32px; }
-/* a wide screen: the FM-1 on the left, Your songs beside it on the right, its top and bottom on the FM-1's body (the
- * drawing is 4 / 1000 of its width in from its box: the box out by as much, so the body meets the row's edges) and
- * scrolling within that height; its list and a song's details one above the other; the keys' hints under the FM-1.
- * Narrower: Your songs under the FM-1 */
-@media (min-width: 1200px) {
-  main { max-width: 1520px; }
-  .stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(420px, 500px); grid-template-areas: "dev side" "keys fm1" "quick fm1";
-           column-gap: 16px; }
-  .stage > .device { grid-area: dev; margin: -0.4% 0; }
-  .stage > .keys { grid-area: keys; }
-  .stage > .quick { grid-area: quick; max-width: none; }
-  .stage > #fm1 { grid-area: fm1; margin: 16px 0 0; max-width: none; align-self: start; }
-  .stage > #songs { grid-area: side; margin: 0; max-width: none; contain: size; overflow-y: auto; box-sizing: border-box; }
-  .stage > #songs .panes { grid-template-columns: 1fr; }
-  .stage > #songs .rows { max-height: none; }
+/* The page: the FM-1 to play (and the computer keys for it) with Quick start beside it, the same height; under them a
+ * two-pane browser, as a file manager: In Studio (this computer) on the left, On your FM-1 on the right, the arrow
+ * between sending the ticked songs across. A song is set up in a pop-up (#setup). Narrow: one column */
+main { max-width: 1240px; }
+.top { display: grid; grid-template-columns: minmax(0, 620px) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+.top .play { min-width: 0; }
+/* the two panes in one frame of Studio's navy (a shade deeper than the panes), the arrow between them */
+.browse { display: grid; grid-template-columns: minmax(0, 1fr) 96px minmax(0, 1fr); gap: 12px; margin-top: 16px;
+          align-items: stretch; padding: 14px; border-radius: 18px; background: #10101d; border: 1px solid #34344a;
+          box-shadow: 0 8px 28px rgba(0, 0, 0, .25); color-scheme: dark; }
+.browse > .songs { margin: 0; max-width: none; box-shadow: none; border-width: 1px; }
+.xfer { align-self: stretch; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+        text-align: center; color: #9c9aa8; font-size: 12px; }
+.xfer button { width: 64px; height: 64px; border-radius: 50%; border: 0; background: #ffe600; color: #0a0814;
+               font: 900 28px/1 -apple-system, sans-serif; cursor: pointer; box-shadow: 0 0 18px rgba(255, 230, 0, .45); }
+.xfer button:hover:not(:disabled), .xfer button:focus-visible { background: #fff27a; outline: 2px solid #aaff40; outline-offset: 3px; }
+.xfer button:disabled { background: #1f1f33; box-shadow: inset 0 0 0 1px #34344a; color: #6c6a80; cursor: default; }
+@media (max-width: 900px) {
+  .top, .browse { grid-template-columns: 1fr; }
+  .xfer { flex-direction: row; }
+  .xfer button { transform: rotate(90deg); width: 52px; height: 52px; }
 }
 .title { margin: 0 0 12px; text-align: center; color: var(--fg); }
 .back { margin: 0 0 6px; font-size: 13px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -51,8 +64,27 @@ h1 .logo { vertical-align: middle; border-radius: 22%; margin: -4px 10px 0 0; }
 .title p { margin: 2px 0 0; color: var(--dim); }
 @media (orientation: portrait) and (max-width: 700px) { main { padding: 8px 8px 24px; } }
 a { color: inherit; }
-.device { position: relative; width: 100%; aspect-ratio: 1000 / 624; user-select: none; -webkit-user-select: none;
-          -webkit-touch-callout: none; touch-action: manipulation; }
+/* the first steps (drawHint): SEQ glows, SELECT and PLAY blink, in Studio's yellow; the line under the FM-1 */
+@keyframes hintglow { 0%, 100% { filter: drop-shadow(0 0 2px rgba(255, 230, 0, .35)); } 50% { filter: drop-shadow(0 0 12px rgba(255, 230, 0, 1)); } }
+@keyframes hintblink { 0%, 49% { filter: drop-shadow(0 0 9px rgba(255, 230, 0, 1)); } 50%, 100% { filter: none; } }
+.hintglow { animation: hintglow 1.4s ease-in-out infinite; }
+.hintblink { animation: hintblink .9s steps(1) infinite; }
+.hintglow .face.btn, .hintblink .face.btn { stroke: #ffe600; stroke-width: 3; }
+.hintblink circle[stroke] { stroke: #ffe600; stroke-width: 3; }
+@media (prefers-reduced-motion: reduce) { .hintglow, .hintblink { animation: none; filter: drop-shadow(0 0 8px rgba(255, 230, 0, .9)); } }
+.devhint { margin: 10px 0 0; padding: 8px 12px; border-radius: 10px; background: #181828; color: #f6f2ff; text-align: center;
+           font-size: 13px; box-shadow: 0 0 0 1px #34344a; }
+.devhint[hidden] { display: none; }
+.devhint .n { color: #ffe600; font-weight: 700; margin-right: 6px; }
+.devhint b { color: #ffe600; }
+.devhint kbd { color: #f6f2ff; border-color: #34344a; }
+.devhint button { margin-left: 10px; font: inherit; font-size: 12px; padding: 2px 10px; border-radius: 6px; cursor: pointer;
+                  background: transparent; color: #9c9aa8; border: 1px solid #34344a; }
+/* the drawing in Studio's Neon (Muse MIDI DX's): a navy body, yellow lights; the buttons stay dark, as the FM-1's are
+ * (their LEDs), their labels in --cap */
+.device { position: relative; width: 100%; aspect-ratio: 1000 / 488; user-select: none; -webkit-user-select: none;
+          -webkit-touch-callout: none; touch-action: manipulation;
+          --body: #181828; --tray: #10101d; --part: #1f1f33; --edge: #3a3a5a; --label: #f6f2ff; --lit: #ffe600; --cap: #d6d6d8; }
 .device svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .device canvas { position: absolute; image-rendering: crisp-edges; image-rendering: pixelated; background: #000; }
 .hit { position: absolute; touch-action: none; cursor: pointer; -webkit-tap-highlight-color: transparent; border-radius: 10px; }
@@ -97,20 +129,15 @@ a { color: inherit; }
 .keys, footer { margin: 16px 0 0; color: var(--dim); text-align: center; }
 .keys span { white-space: nowrap; margin: 0 8px; }
 .keys select { font: inherit; font-size: 12px; }
-/* Your songs scrolls within the FM-1's height (wide screens): a bar pinned to its bottom while there's more below */
-.songs button.morehint { position: sticky; bottom: -18px; z-index: 1; display: block; box-sizing: content-box;
-                         width: 100%; margin: 8px -18px -18px; padding: 26px 18px 10px; border: 0; border-radius: 0;
-                         background: linear-gradient(rgba(24, 24, 40, 0), var(--ink) 55%); color: var(--cream);
-                         font-weight: 600; text-align: center; cursor: pointer; }
-.songs button.morehint:hover, .songs button.morehint:focus-visible { color: var(--lime); }
-.songs button.morehint[hidden] { display: none; }
-/* Quick start: the buttons that matter, the computer key for each */
-.quick { margin: 16px auto 0; max-width: 860px; padding: 10px 16px 12px; border: 1px solid var(--rule); border-radius: 12px; }
-.quick summary { cursor: pointer; font-weight: 600; }
-.quick ol { margin: 8px 0 0; padding-left: 20px; }
-.quick li { margin: 3px 0; }
+/* Quick start: beside the FM-1, as tall as it (its keys' hints included), the steps spread down it */
+.quick { margin: 0; padding: 14px 18px; border: 1px solid var(--rule); border-radius: 14px; background: rgba(255, 255, 255, .45);
+         display: flex; flex-direction: column; min-width: 0; }
+.quick h2 { margin: 0 0 6px; font-size: 16px; }
+.quick ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; justify-content: space-evenly; flex: 1; gap: 6px; }
+.quick li { margin: 0; }
 .quick b { font-weight: 600; }
-.quick p { margin: 8px 0 0; color: var(--dim); font-size: 12px; }
+.quick p { margin: 10px 0 0; color: var(--dim); font-size: 12px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .quick { background: rgba(255, 255, 255, .04); } }
 kbd { font: 600 11px ui-monospace, Menlo, monospace; border: 1px solid var(--rule); padding: 0 4px; color: var(--fg); }
 footer { margin-top: 12px; font-size: 12px; }
 /* Your songs: a song browser in Muse MIDI DX's Neon theme (the FM-1 screen palette NEON, as the device shows it: its
@@ -241,27 +268,6 @@ footer { margin-top: 12px; font-size: 12px; }
 .songs meter { width: 100%; height: 8px; }
 .songs .pick { margin: 10px 0; padding: 12px 14px; border: 1px solid var(--accent); border-radius: 12px; background: var(--panel); }
 .songs .pick h3 { margin: 0 0 2px; font-size: 14px; overflow-wrap: anywhere; }
-.songs .pick .tbl { overflow-x: auto; }
-.songs .pick table { border-collapse: collapse; width: 100%; font-size: 12px; }
-.songs .pick td, .songs .pick th { padding: 3px 6px 3px 0; text-align: left; white-space: nowrap; }
-.songs .pick th { color: var(--mute); font-weight: normal; }
-.songs .pick td.n { text-align: right; }
-.songs .pick tr.out td:not(:last-child) { color: var(--mute); opacity: .7; }
-/* Advanced's rows: an instrument in the colour of the part it plays (left out: none, dimmed) */
-.songs .pick tbody tr td { transition: background .12s; }
-.songs .pick tr.r0 td { background: color-mix(in srgb, var(--p0) 14%, transparent); }
-.songs .pick tr.r1 td { background: color-mix(in srgb, var(--p1) 14%, transparent); }
-.songs .pick tr.r2 td { background: color-mix(in srgb, var(--p2) 14%, transparent); }
-.songs .pick tr.r3 td { background: color-mix(in srgb, var(--p3) 14%, transparent); }
-.songs .pick tr.r0 td:first-child { box-shadow: inset 3px 0 var(--p0); }
-.songs .pick tr.r1 td:first-child { box-shadow: inset 3px 0 var(--p1); }
-.songs .pick tr.r2 td:first-child { box-shadow: inset 3px 0 var(--p2); }
-.songs .pick tr.r3 td:first-child { box-shadow: inset 3px 0 var(--p3); }
-.songs .pick tr.r0 select { border-color: var(--p0); color: var(--p0); }
-.songs .pick tr.r1 select { border-color: var(--p1); color: var(--p1); }
-.songs .pick tr.r2 select { border-color: var(--p2); color: var(--p2); }
-.songs .pick tr.r3 select { border-color: var(--p3); color: var(--p3); }
-.songs .pick td { padding-left: 6px !important; }
 .songs .pick .auto b.p0 { color: var(--p0); } .songs .pick .auto b.p1 { color: var(--p1); }
 .songs .pick .auto b.p2 { color: var(--p2); } .songs .pick .auto b.p3 { color: var(--p3); }
 .songs .pick select { font: inherit; font-size: 12px; background: var(--ink); color: var(--cream); border: 1px solid var(--line); border-radius: 6px; }
@@ -269,7 +275,74 @@ footer { margin-top: 12px; font-size: 12px; }
 .songs .pick .m { color: var(--mute); font-size: 12px; }
 .songs button.hear { color: var(--cream); font-variant-numeric: tabular-nums; }
 .songs button.hear.on { border-color: var(--accent); color: var(--accent); }
-.songs .pick td button.hear { padding: 1px 8px; }
+/* the pop-up (#setup, a <dialog>): one song's card at a time over the page, as Muse MIDI DX's Song setup */
+dialog.setup { width: min(1060px, calc(100vw - 32px)); max-width: none; max-height: calc(100vh - 32px); margin: auto; padding: 0;
+               border: 1px solid var(--line); border-radius: 16px; overflow: auto; box-shadow: 0 24px 70px rgba(0, 0, 0, .55); }
+dialog.setup::backdrop { background: rgba(8, 8, 16, .6); backdrop-filter: blur(2px); }
+dialog.setup .pick { margin: 0; padding: 16px 18px; border: 0; border-radius: 0; background: var(--ink); }
+dialog.setup .pick + .pick { display: none; }                    /* (the next files wait their turn) */
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.songs .pick .shead { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 10px; align-items: end;
+                      padding-bottom: 12px; border-bottom: 1px solid var(--line); margin-bottom: 10px; }
+.songs .pick .tt { min-width: 0; }
+.songs .pick .tg { font-size: 10px; letter-spacing: .12em; color: var(--accent); font-weight: 800; }
+.songs .pick .qpos { margin-left: 8px; font-size: 11px; color: var(--mute); }
+.songs .pick .shead h3 { margin: 2px 0 0; }
+.songs .pick .tabs { display: flex; gap: 4px; background: var(--panel); padding: 4px; border-radius: 10px; align-self: center; }
+.songs .pick .tabs button { border: 0; background: transparent; color: var(--mute); font-weight: 700; padding: 6px 14px; }
+.songs .pick .tabs button[aria-selected=true] { background: var(--accent); color: #0a0814; }
+.songs .pick .shead > button { align-self: center; }
+.songs .pick .pane { min-height: 240px; }
+.songs .pick .pane[hidden] { display: none; }
+.songs .pick .roll { height: 190px; }
+.songs .pick .sfoot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; padding-top: 10px;
+                      border-top: 1px solid var(--line); }
+.songs .pick .sfoot .sum { margin: 0; color: var(--mute); }
+/* the part board: a lane for each part, an instrument a card in it (drag it to another, or its menu) */
+.songs .board { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+.songs .lane { background: var(--panel); border-radius: 10px; padding: 8px; min-height: 180px; border-top: 3px solid var(--mute);
+               transition: background .12s, opacity .12s; }
+.songs .lane > b { display: block; font-size: 12px; letter-spacing: .08em; margin-bottom: 4px; color: var(--mute); }
+.songs .lane.p0 { border-top-color: var(--p0); } .songs .lane.p0 > b { color: var(--p0); }
+.songs .lane.p1 { border-top-color: var(--p1); } .songs .lane.p1 > b { color: var(--p1); }
+.songs .lane.p2 { border-top-color: var(--p2); } .songs .lane.p2 > b { color: var(--p2); }
+.songs .lane.p3 { border-top-color: var(--p3); } .songs .lane.p3 > b { color: var(--p3); }
+.songs .lane.into { background: rgba(170, 255, 64, .08); outline: 1px dashed var(--lime); }
+.songs .lane.no { opacity: .35; }
+.songs .chip { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "hear what" "sel sel"; gap: 4px 8px;
+               align-items: start; background: var(--row); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px;
+               margin: 6px 0 0; cursor: grab; }
+.songs .chip.dragging { opacity: .5; }
+.songs .chip button.hear { grid-area: hear; padding: 1px 8px; }
+.songs .chip .what { grid-area: what; min-width: 0; font-size: 12.5px; }
+.songs .chip .nm { display: block; font-weight: 600; overflow-wrap: anywhere; }
+.songs .chip small { display: block; font-size: 10.5px; color: var(--mute); line-height: 1.3; }
+.songs .chip small.why { color: #c6f7ff; }
+.songs .chip select { grid-area: sel; width: 100%; }
+.songs .chip.out .nm { color: var(--mute); }
+.songs .chip.kitcard { grid-template-areas: "hear what" "sel sel" "list list"; }
+.songs .kittracks { grid-area: list; font-size: 12px; }
+.songs .kittracks summary { cursor: pointer; color: var(--mute); }
+.songs .kittracks .kt { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 6px; align-items: center;
+                         padding: 4px 0; border-top: 1px solid var(--line); cursor: pointer; }
+.songs .kittracks .kt input { accent-color: var(--lime); }
+.songs .kittracks .kn { min-width: 0; overflow-wrap: anywhere; }
+.songs .kittracks .kt button.hear { grid-area: auto; padding: 1px 7px; }
+.songs .chip.r0 select { border-color: var(--p0); color: var(--p0); } .songs .chip.r1 select { border-color: var(--p1); color: var(--p1); }
+.songs .chip.r2 select { border-color: var(--p2); color: var(--p2); } .songs .chip.r3 select { border-color: var(--p3); color: var(--p3); }
+@media (max-width: 760px) {
+  .songs .board { grid-template-columns: 1fr 1fr; }
+  .songs .pick .shead { grid-template-columns: 1fr 1fr; }
+  .songs .pick .tt, .songs .pick .tabs { grid-column: 1 / -1; }
+}
+/* In Studio's rows: a tick to send it, Set up when its file is kept */
+.songs .row { grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-areas: "tick main busy su" "tick sub busy su"; }
+.songs .row input.tick { grid-area: tick; align-self: center; width: 16px; height: 16px; accent-color: var(--lime); margin: 0 4px 0 0; }
+.songs .row button.setupbtn { grid-area: su; align-self: center; padding: 2px 10px; font-size: 11px; }
+.songs .drop { margin: 10px 0 0; padding: 10px; border: 1.5px dashed var(--line); border-radius: 10px; text-align: center;
+               color: var(--mute); font-size: 12px; }
+.browse .songs .panes { grid-template-columns: 1fr; }
+.songs .row.fm { grid-template-columns: minmax(0, 1fr) auto; }
 .songs .pick .auto { margin: 4px 0; font-size: 13px; }
 .songs .pick .auto b { font-weight: 600; }
 .songs .pick details { margin: 6px 0; }
@@ -312,20 +385,22 @@ footer small { font-size: 11px; opacity: .8; }
 <body>
 <main>
 <nav class="back"><a href="../../">← FM-1 Midi-Mania</a>
-  <span class="links"><button type="button" class="fm1status" id="fm1status" data-state="off"
+  <span class="links"><button type="button" class="themebtn" id="themebtn">◐ Auto</button><button type="button" class="fm1status" id="fm1status" data-state="off"
     title="Your FM-1 over USB: connect it to send songs"><i aria-hidden="true"></i><span id="fm1statustext">FM-1 not connected</span></button>
   <a class="install" href="../installer/">Install on your FM-1 →</a></span></nav>
 <header class="title">
   <h1><img class="logo" src="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%201024%201024%22%3E%3Ctitle%3EFM-1%20Midi-Mania%3C/title%3E%3Crect%20width=%221024%22%20height=%221024%22%20fill=%22%23F4F1E8%22/%3E%3Cg%20fill=%22%2317151F%22%3E%3Crect%20x=%22160%22%20y=%22181%22%20width=%22136%22%20height=%22662%22%20rx=%2228%22/%3E%3Crect%20x=%22331%22%20y=%22307%22%20width=%22136%22%20height=%22320%22%20rx=%2228%22/%3E%3Crect%20x=%22557%22%20y=%22307%22%20width=%22136%22%20height=%22320%22%20rx=%2228%22/%3E%3Crect%20x=%22728%22%20y=%22181%22%20width=%22136%22%20height=%22662%22%20rx=%2228%22/%3E%3C/g%3E%3Crect%20x=%22444%22%20y=%22536%22%20width=%22136%22%20height=%22306%22%20rx=%2228%22%20fill=%22%23FF4F8B%22/%3E%3C/svg%3E" alt="" width="28" height="28">FM-1 Midi-Mania Studio</h1>
   <p>Play the FM-1 in your browser, and load your own MIDI files as songs.</p>
 </header>
-<div class="stage">
+<div class="top">
+<div class="play">
 <div class="device" id="device">
-  <svg id="panel" viewBox="0 0 1000 624" aria-hidden="true"></svg>
+  <svg id="panel" viewBox="0 0 1000 488" aria-hidden="true"></svg>
   <canvas id="screen" width="240" height="240" role="img" aria-label="The screen"></canvas>
   <div class="start" id="start"><button id="go" type="button">Switch on</button><p id="status" hidden></p></div>
 </div>
 
+<p class="devhint" id="devhint" role="status" hidden><span id="devhinttext"></span> <button type="button" id="devhintskip">Skip</button></p>
 <p class="keys">
   <span><kbd>Z</kbd>–<kbd>'</kbd> <kbd>Q</kbd>–<kbd>O</kbd> keys</span>
   <span><kbd>1</kbd>–<kbd>=</kbd> FX … REC</span>
@@ -341,9 +416,10 @@ footer small { font-size: 11px; opacity: .8; }
     <option value="sign">relative sign bit</option>
   </select></span>
 </p>
+</div>
 
-<details class="quick" open>
-  <summary>Quick start</summary>
+<section class="quick" aria-labelledby="quick-h">
+  <h2 id="quick-h">Quick start</h2>
   <ol>
     <li>Press <b>Switch on</b>, then <b>SEQ</b> <kbd>0</kbd> for SONGS. Pick a song with <b>SELECT</b> <kbd>↑</kbd> <kbd>↓</kbd>
       and your part (KEYS, DRUMS, GUITAR, BASS) with <b>ALGORITHM</b> <kbd>←</kbd> <kbd>→</kbd>.</li>
@@ -354,15 +430,17 @@ footer small { font-size: 11px; opacity: .8; }
     <li>Press <b>PLAY</b> <kbd>-</kbd>. Play the keys <kbd>Z</kbd>–<kbd>'</kbd> <kbd>Q</kbd>–<kbd>O</kbd> as the notes
       reach the line. <b>PLAY</b> again stops; <b>HOME</b> <kbd>7</kbd> returns to the game.</li>
   </ol>
-  <p>Turn a knob with the mouse wheel or by dragging it. Your own MIDI files: drop them on this page (Your songs).</p>
+  <p>Turn a knob with the mouse wheel or by dragging it. Your own MIDI files: drop them on this page (In Studio, below).</p>
   <p><b>Rather play with your own MIDI keyboard or drum kit, in the browser only?</b>
     <a href="https://shan-sherif.github.io/muse-midi-dx/">Muse MIDI DX</a> is a rhythm game of the same idea made for
     that: connect a MIDI controller, load a MIDI file and play along.</p>
-</details>
+</section>
+</div>
 
+<div class="browse">
 <section class="songs" id="songs" aria-labelledby="songs-h">
   <div class="sh">
-    <h2 id="songs-h">Your songs</h2>
+    <h2 id="songs-h">In Studio</h2>
     <span class="count" id="songcount"></span>
     <button type="button" class="add" id="songpick" disabled title="Switch the FM-1 on first">+ Add MIDI files</button>
     <input type="file" id="songfile" accept=".mid,.midi,audio/midi" multiple hidden>
@@ -372,14 +450,10 @@ footer small { font-size: 11px; opacity: .8; }
       MIDI files.</span>
     <button type="button" class="primary" id="songson">Switch on</button>
   </div>
-  <p class="intro">Drop MIDI files anywhere on this page. Each is set up for you (its piano, drums, guitar and bass go
-    to the FM-1's four parts); press <b>Load</b> and it's in SONGS (the SEQ button), after the built-in songs.
-    <b>Advanced</b> lets you choose which instrument plays what. Your songs stay in this browser; have an FM-1? Send
-    them to it.</p>
-  <p class="intro">Notes each part keeps: <b>KEYS</b> C2–C7 (61 keys), <b>GUITAR</b> E2–E6, <b>BASS</b> E1–G4
-    (C4 is middle C). Notes outside are left out, and the card says how many. <b>DRUMS</b> keeps every hit on channel 10.</p>
+  <p class="intro">Your songs on this computer, in this browser: they play on the FM-1 above. Drop MIDI files anywhere
+    on this page; each opens set up for you (<b>Set up</b> changes it). Tick songs and press <b>→</b> to send them to
+    your FM-1.</p>
   <p class="msg" id="songmsg" role="status" aria-live="polite"></p>
-  <div id="songcards"></div>
   <div class="browser" id="songbrowser">
     <div class="tools">
       <input type="search" id="songq" placeholder="Search your songs" aria-label="Search your songs">
@@ -399,17 +473,22 @@ footer small { font-size: 11px; opacity: .8; }
       </div>
     </div>
     <div class="panes">
-      <ul id="songlist" class="rows" role="listbox" aria-label="Your songs"></ul>
+      <ul id="songlist" class="rows" role="listbox" aria-label="Your songs in Studio"></ul>
       <aside class="detail" id="songdetail" aria-live="polite"></aside>
     </div>
     <div class="mem"><div class="bar"><span id="songbar"></span></div><span id="songused"></span></div>
   </div>
-  <button type="button" class="morehint" id="songsmore" hidden>↓ More below</button>
+  <p class="drop">Drop MIDI files here, or anywhere on the page</p>
 </section>
+
+<div class="xfer">
+  <button type="button" id="xfer" disabled aria-describedby="xferwhat" title="Send the ticked songs to your FM-1">→</button>
+  <span id="xferwhat">Tick songs to send them</span>
+</div>
 
 <section class="songs fm1" id="fm1" aria-labelledby="fm1-h">
   <div class="sh">
-    <h2 id="fm1-h">Your FM-1</h2>
+    <h2 id="fm1-h">On your FM-1</h2>
     <span class="state" id="fm1state" data-state="off">Not connected</span>
     <button type="button" class="add" id="fm1connect">Connect the FM-1</button>
   </div>
@@ -425,10 +504,14 @@ footer small { font-size: 11px; opacity: .8; }
   <div id="fm1dev" hidden>
     <h3 class="sub">Songs on your FM-1</h3>
     <ul id="fm1list" class="rows"></ul>
-    <p><button type="button" class="primary" id="fm1all">Send all your songs to the FM-1</button></p>
   </div>
 </section>
 </div>
+
+<dialog class="songs setup" id="setup" aria-labelledby="setup-h">
+  <h2 class="vh" id="setup-h">Song setup</h2>
+  <div id="songcards"></div>
+</dialog>
 
 <footer>
   <small class="version">@VERSION@@PREVIEW@ · built @BUILT@</small><br>
@@ -463,11 +546,11 @@ const ROW1 = ["FX", "SCL", "ENV", "LFO", "EDIT", "GLO"], ROW2 = ["HOME", "SAVE",
 const KNOBS = ["MASTER", "SELECT", "PRESETS", "ALGORITHM", "KNOB 1", "KNOB 2", "KNOB 3", "KNOB 4"];
 const LAYOUTS = {
   wide: {
-    w: 1000, h: 624, screen: [292, 44, 256],
+    w: 1000, h: 488, screen: [292, 44, 256],
     knobs: [[105, 100, 24], [215, 100, 24], [105, 205, 24], [215, 205, 24], [610, 100, 22], [714, 100, 22], [818, 100, 22], [922, 100, 22]],
     trays: [[50, 250, 220, 50], [568, 160, 400, 140]],
     oct: [[60, 258, 90, 34], [170, 258, 90, 34]],
-    grid: [582, 174, 54, 48, 63, 62], keybed: [36, 332, 928, 256],
+    grid: [582, 174, 54, 48, 63, 62], keybed: [36, 324, 928, 128],   // (the keys short: Studio's page has the songs under it)
   },
   tall: {
     w: 600, h: 1070, screen: [130, 104, 340],
@@ -528,8 +611,8 @@ function build(name) {
   const button = ([x, y, w, h], n, sub) => {
     const g = el("g", {});
     el("rect", { x, y, width: w, height: h, rx: 8, fill: "var(--part)", stroke: "var(--edge)", "stroke-width": 1.5, class: "face btn" }, g);
-    const ink = n === "REC" ? "#ff453a" : undefined;
-    if (sub) { label(g, x + w / 2, y + h / 2 - 2, n, 10.8, SANS, ink); label(g, x + w / 2, y + h / 2 + 11, sub, 9.9); }
+    const ink = n === "REC" ? "#ff453a" : "var(--cap)";            // (the buttons dark in any theme: their labels light)
+    if (sub) { label(g, x + w / 2, y + h / 2 - 2, n, 10.8, SANS, ink); label(g, x + w / 2, y + h / 2 + 11, sub, 9.9, SANS, "var(--cap)"); }
     else label(g, x + w / 2, y + h / 2 + 4.5, n, 12.6, SANS, ink);
     buttons.push({ g, bit: B[n], name: sub ? `${n} / ${sub}` : n });
   };
@@ -574,13 +657,52 @@ function build(name) {
   syncButtons(true);
   syncKeys(true);
   drawLights(lastLeds);
+  drawHint();                                                     // (a hint shown: on the new drawing too)
 }
 
 // ------------------------------------------------------------------ input
+// The first steps, shown on the FM-1 here once it is on, until a song is played (or Skip) once in this browser, from
+// what its screen shows (the worklet's frames: fh_ui_state): SONGS not open, SEQ glows; open, SELECT blinks (pick a
+// song) until it is turned, then PLAY / STOP (start it); a song playing ends them. A line under the FM-1 says so
+const HINTS_DONE = "mm-hints-done", HINT_TEXT = ["Press <b>SEQ</b> (key <kbd>0</kbd>) to open SONGS, your songs",
+  "Turn <b>SELECT</b> (<kbd>↑</kbd> <kbd>↓</kbd>) to pick a song", "Press <b>PLAY</b> (key <kbd>-</kbd>) to start it"];
+let hintOn = false, hintPicked = false, uiState = 0, hint = -1;  // hint: -1 none; 0 SEQ, 1 SELECT, 2 PLAY
+function drawHint() {
+  hint = !hintOn ? -1 : !(uiState & 1) ? 0 : !hintPicked ? 1 : 2;
+  const seq = buttons.find((b) => b.bit === B.SEQ), play = buttons.find((b) => b.bit === B.PLAY), sel = knobs.find((k) => k.name === "SELECT");
+  if (seq) seq.g.classList.toggle("hintglow", hint === 0);
+  if (sel) sel.g.classList.toggle("hintblink", hint === 1);
+  if (play) play.g.classList.toggle("hintblink", hint === 2);
+  const line = document.getElementById("devhint");
+  if (!line) return;
+  line.hidden = hint < 0;
+  if (hint >= 0) document.getElementById("devhinttext").innerHTML = `<span class="n">${hint + 1} of 3</span> ${HINT_TEXT[hint]}`;
+}
+function hintEnd() {
+  if (!hintOn) return;
+  hintOn = false;
+  try { localStorage.setItem(HINTS_DONE, "1"); } catch { /* (again next time) */ }
+  drawHint();
+}
+function hintUi(state) {                                          // (each frame that changes it)
+  if (state === uiState) return;
+  uiState = state;
+  if (uiState & 4) { hintEnd(); return; }                        // (a song playing: done)
+  if (!(uiState & 1)) hintPicked = false;                        // (SONGS left: pick again there)
+  drawHint();
+}
+function hintStart() {
+  try { if (localStorage.getItem(HINTS_DONE)) return; } catch { /* (shown) */ }
+  hintOn = true;
+  drawHint();
+}
+document.getElementById("devhintskip").addEventListener("click", hintEnd);
 function syncButtons(redraw) {
   let m = latched;
   for (const b of btnBy.values()) m |= 1 << b;
-  if (m !== btnMask) { btnMask = m; send({ type: "buttons", mask: m }); }
+  if (m !== btnMask) {
+    btnMask = m; send({ type: "buttons", mask: m });
+  }
   else if (!redraw) return;
   for (const b of buttons) {
     const on = !!(m & (1 << b.bit));
@@ -637,6 +759,7 @@ function turn(k, n) {
   else {
     angle[k.name] = (angle[k.name] + n * 18) % 360;            // 20 detents a turn
     send({ type: "enc", role: k.role, n });
+    if (hint === 1 && k.name === "SELECT") { hintPicked = true; drawHint(); }   // (a song picked: PLAY next)
   }
   drawKnob(k);
 }
@@ -831,22 +954,50 @@ async function midiOn() {
 // writes it into the FM-1's song memory (worklet.js songsAdd) and the firmware lists it in SONGS; the flash it
 // changed is kept with the other saves
 const songBox = document.getElementById("songs"), songMsg = document.getElementById("songmsg");
-{   // "More below": shown while Your songs (a scrolling panel on wide screens) has more under what is in view
-  const more = document.getElementById("songsmore");
-  let queued = false;
-  const check = () => {
-    queued = false;
-    const scrolls = /auto|scroll/.test(getComputedStyle(songBox).overflowY);   // (narrow: the page scrolls, not the panel)
-    more.hidden = !scrolls || songBox.scrollHeight - songBox.scrollTop - songBox.clientHeight <= (more.hidden ? 4 : 4 + more.offsetHeight);
-  };
-  const later = () => { if (!queued) { queued = true; requestAnimationFrame(check); } };
-  songBox.addEventListener("scroll", later, { passive: true });
-  addEventListener("resize", later);
-  new MutationObserver(later).observe(songBox, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden", "open", "class"] });
-  more.addEventListener("click", () => songBox.scrollBy({ top: songBox.clientHeight * 0.8, behavior: "smooth" }));
-  later();
-}
 const songList = document.getElementById("songlist"), songUsed = document.getElementById("songused");
+// Each song's MIDI file, kept in this browser when it is loaded (IndexedDB "mm-midi", by its title), so Set up can open
+// it again: a song in Studio is stored as its chart, not its file. None kept (an older song, a private window): no Set up
+const midiDB = (() => {
+  let db = null;
+  const open = () => db || (db = new Promise((res, rej) => {
+    const r = indexedDB.open("mm-midi", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("files");
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  }));
+  const tx = async (mode, f) => {
+    const d = await open();
+    return new Promise((res, rej) => {
+      const t = d.transaction("files", mode), q = f(t.objectStore("files"));
+      t.oncomplete = () => res(q && q.result);
+      t.onerror = () => rej(t.error);
+    });
+  };
+  return { get: (k) => tx("readonly", (st) => st.get(k)), put: (k, v) => tx("readwrite", (st) => st.put(v, k)),
+           del: (k) => tx("readwrite", (st) => st.delete(k)), keys: () => tx("readonly", (st) => st.getAllKeys()) };
+})();
+let midiKept = new Set();
+try { midiDB.keys().then((k) => { midiKept = new Set(k); drawSongs(); }).catch(() => {}); } catch { /* none */ }
+async function setUpAgain(s) {                                    // a song in Studio, set up again from its MIDI file
+  try {
+    const r = await midiDB.get(s.title);
+    if (!r) { tell([`${s.title}: its MIDI file isn't kept in this browser: drop it again to set it up.`], true); return; }
+    const inst = midiInstruments(r.bytes);
+    pickCard(r.name, r.bytes, inst, s);
+  } catch (e) { tell([`${s.title}: could not open it again (${e.message})`], true); }
+}
+// the songs ticked to send to the FM-1 (by where they are stored here), and the arrow that sends them
+const ticked = new Set(), xfer = document.getElementById("xfer"), xferWhat = document.getElementById("xferwhat");
+function drawXfer() {
+  for (const off of [...ticked]) if (!browserSongs.some((s) => s.off === off && !onFm1(s))) ticked.delete(off);
+  const songs = browserSongs.filter((s) => ticked.has(s.off)), kb = songs.reduce((n, s) => n + Math.ceil(s.size / 4096) * 4, 0);
+  xfer.disabled = !fm1.list || !songs.length || fm1.busy;
+  xferWhat.textContent = fm1.busy ? (fm1.busyText || "Working…")
+    : !songs.length ? "Tick songs to send them"
+    : !fm1.list ? `${songs.length} ticked: connect your FM-1 to send`
+    : `Send ${songs.length} song${songs.length === 1 ? "" : "s"} (${kb} KB)`;
+}
+xfer.addEventListener("click", () => sendToFm1(browserSongs.filter((s) => ticked.has(s.off))));
 const songFile = document.getElementById("songfile");
 let songNotes = [];                                               // the lines about the files just loaded
 const tell = (lines, err) => { songMsg.textContent = lines.join("\n"); songMsg.classList.toggle("err", !!err); };
@@ -940,12 +1091,27 @@ function drawSongs() {
     li.tabIndex = 0;
     li.setAttribute("aria-selected", String(s.off === view.sel));
     main.append(mk("span", "t", s.title), partTags(s.parts));
-    sub.append(`${s.bpm} BPM · ${mmssF(s.length)} · ${s.notes} notes`);
+    sub.append(`${s.bpm} BPM · ${mmssF(s.length)} · ${Math.ceil(s.size / 4096) * 4} KB`);
     if (onFm1(s)) sub.append(mk("span", "onfm1", "on FM-1"));
+    const tick = document.createElement("input");                  // (to send it: not for one on the FM-1 already)
+    tick.type = "checkbox"; tick.className = "tick";
+    tick.checked = ticked.has(s.off);
+    tick.disabled = onFm1(s);
+    tick.setAttribute("aria-label", onFm1(s) ? `${s.title} is on your FM-1` : `Send ${s.title} to your FM-1`);
+    tick.title = onFm1(s) ? "On your FM-1 already" : "Tick to send it to your FM-1 (→)";
+    tick.addEventListener("click", (e) => e.stopPropagation());
+    tick.addEventListener("change", () => { if (tick.checked) ticked.add(s.off); else ticked.delete(s.off); drawXfer(); drawMeter(); });
+    li.append(tick);
     const meter = mk("span", "busy");
     meter.title = `How busy: ${busy(s).toFixed(1)} notes a second`;
     for (let k = 0; k < 5; k++) meter.append(mk("i", k < level(s) ? "on" : ""));
     li.append(main, sub, meter);
+    if (midiKept.has(s.title)) {
+      const su = songButton("Set up", (e) => { e.stopPropagation(); setUpAgain(s); });
+      su.className = "setupbtn";
+      su.title = `Set up ${s.title} again: its parts, where it starts and ends, its title`;
+      li.append(su);
+    }
     const pick = () => { view.sel = s.off; meterCard = null; drawSongs(); };
     li.addEventListener("click", pick);
     li.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
@@ -961,8 +1127,7 @@ function drawSongs() {
   if (!n) songList.append(mk("li", "none", "No songs yet. Drop a MIDI file on this page, or press + Add MIDI files."));
   drawDetail(browserSongs.find((s) => s.off === view.sel));
   drawMeter();
-  fm1All.hidden = !browserSongs.some((s) => !onFm1(s));
-  fm1All.disabled = fm1.busy;
+  drawXfer();
 }
 function drawDetail(s) {                                          // the selected song: its numbers, its parts, what to do
   songDetail.textContent = "";
@@ -1010,8 +1175,12 @@ function drawDetail(s) {                                          // the selecte
     clearTimeout(armed);
     songNotes = [`${s.title}: removed`];
     send({ type: "song-remove", off: s.off });
+    ticked.delete(s.off);
+    midiDB.del(s.title).catch(() => {});
+    midiKept.delete(s.title);
   });
   rm.className = "quiet";
+  if (midiKept.has(s.title)) { const su = songButton("Set up", () => setUpAgain(s)); acts.append(su); }
   acts.append(rm);
   songDetail.append(acts);
 }
@@ -1023,7 +1192,7 @@ function drawDetail(s) {                                          // the selecte
 const fm1 = { link: null, busy: false, busyText: "", lost: false, list: null, notes: [] };
 const fm1Box = document.getElementById("fm1"), fm1Msg = document.getElementById("fm1msg");
 const fm1Dev = document.getElementById("fm1dev"), fm1List = document.getElementById("fm1list");
-const fm1Bar = document.getElementById("fm1bar"), fm1All = document.getElementById("fm1all");
+const fm1Bar = document.getElementById("fm1bar");
 const fm1Connect = document.getElementById("fm1connect");
 const fm1Status = document.getElementById("fm1status"), fm1StatusText = document.getElementById("fm1statustext");
 const fm1State = document.getElementById("fm1state");
@@ -1056,7 +1225,9 @@ let meterCard = null;                                             // {card, titl
 function meterSong() {
   if (meterCard && meterCard.card.isConnected) return meterCard;
   meterCard = null;
-  const s = browserSongs.find((x) => x.off === view.sel);
+  const t = browserSongs.filter((x) => ticked.has(x.off));
+  if (t.length > 1) return { title: `${t.length} ticked songs`, bytes: t.reduce((n, x) => n + Math.ceil(x.size / 4096) * 4096, 0) };
+  const s = t[0] || browserSongs.find((x) => x.off === view.sel);
   return s ? { title: s.title, bytes: s.size, song: s } : null;
 }
 function drawMeter() {
@@ -1239,11 +1410,23 @@ async function sendToFm1(songs) {
   if (alive) fm1Say(ok ? [...notes, `Find ${ok > 1 ? "them" : "it"} in SONGS on the FM-1.`] : notes, ok < songs.length);
   fm1Lock(false);
 }
-fm1All.addEventListener("click", () => sendToFm1(browserSongs.filter((s) => !onFm1(s))));
 // A file dropped: its instruments listed (mm_songs.js midiInstruments), each with the part the converter gives it,
 // to change before it is loaded: KEYS GUITAR BASS (the drum channel: DRUMS) or left out. What the song will hold is
 // shown as you choose (convertMidi with your choices); Load converts it so and loads it into the FM-1 here
 const songCards = document.getElementById("songcards");
+// The pop-up: open while a song waits to be set up (several files dropped: one at a time, "1 of 3"); Esc is Cancel
+const setup = document.getElementById("setup");
+new MutationObserver(() => {
+  const cards = [...songCards.children];
+  cards.forEach((c, k) => { const q = c.querySelector(".qpos"); if (q) q.textContent = cards.length > 1 ? `${k + 1} of ${cards.length}` : ""; });
+  if (cards.length && !setup.open) { setup.showModal(); requestAnimationFrame(() => cards[0]._roll && cards[0]._roll()); }
+  else if (!cards.length && setup.open) setup.close();
+}).observe(songCards, { childList: true });
+setup.addEventListener("cancel", (e) => {
+  e.preventDefault();
+  const c = songCards.firstElementChild, skip = c && c.querySelector("button.skip");
+  if (skip) skip.click();
+});
 const PART_CHOICES = [[0, "KEYS"], [2, "GUITAR"], [3, "BASS"], [null, "Leave out"]];
 function loadSong(song) {                                         // a converted song into the FM-1's song memory
   const extra = [song.keys_from !== "piano" ? `KEYS from the ${song.keys_from}` : "",
@@ -1341,11 +1524,15 @@ function previewRefresh(card) {
 function rowPart(tr, role) {
   for (let r = 0; r < 4; r++) tr.classList.toggle(`r${r}`, role === r);
   tr.classList.toggle("out", role === null);
+  if (tr._lanes) tr._lanes[role === null ? 4 : role].append(tr);  // (the part board: into its lane)
 }
+let dragged = null;                                               // the part board's card being dragged: {card, i, sel}
 function previewEnded(id) { if (preview && preview.id === id) previewReset(); }
-function pickCard(name, bytes, inst) {
+function pickCard(name, bytes, inst, replaces = null) {   // replaces: a song in Studio this one takes the place of (Set up)
   const card = document.createElement("div"), roles = {};
   card.className = "pick";
+  const kit = inst.filter((i) => i.channel === 9), kitGroup = kit.length > 1;   // (drums split over tracks: one card)
+
   // the title as SONGS will show it: the file's name made tidy (convertMidi), yours to change (24 characters, the FM-1's
   // letters: plain ASCII, others become ?)
   const h = document.createElement("h3"), titleIn = document.createElement("input"), titleCount = mk("span", "tcount");
@@ -1371,7 +1558,7 @@ function pickCard(name, bytes, inst) {
   const readChoices = () => { try { return JSON.parse(localStorage.getItem(CHOICES) || "{}"); } catch { return {}; } };
   const saved = readChoices()[fileKey] || null;
   const choiceOk = (i, v) => v === null || (i.channel === 9 ? v === 1 : v === 0 || v === 2 || v === 3);
-  const startRole = (i) => saved && saved.roles && i.key in saved.roles && choiceOk(i, saved.roles[i.key]) ? saved.roles[i.key] : i.role;
+  const startRole = (i) => saved && saved.roles && i.key in saved.roles && choiceOk(i, saved.roles[i.key]) ? saved.roles[i.key] : i.auto;
   titleIn.value = saved && typeof saved.title === "string" && saved.title ? saved.title.slice(0, 24) : defTitle;
   countTitle();
   // the simple view: who plays each part (the converter's choice, or yours from Advanced), what is left out, what the
@@ -1380,15 +1567,12 @@ function pickCard(name, bytes, inst) {
   auto.className = "auto";
   const hint = document.createElement("p");
   hint.className = "m";
-  hint.textContent = "Choose a part for each instrument. The FM-1 has four: KEYS, DRUMS, GUITAR and BASS; the rest are left out.";
-  const tbl = document.createElement("div"), table = document.createElement("table");
-  tbl.className = "tbl";
-  table.innerHTML = "<thead><tr><th></th><th>Instrument</th><th>Ch</th><th class=n>Notes</th><th>Range</th><th>Part</th></tr></thead>";
-  const body = document.createElement("tbody"), sum = document.createElement("p");
+  hint.textContent = "The FM-1 has four parts: KEYS, DRUMS, GUITAR and BASS. Drag an instrument to another part, or use its menu; ▶ hears it alone.";
+  const sum = document.createElement("p");
   sum.className = "sum";
   const autoLine = () => {
     auto.textContent = "";
-    const parts = [0, 1, 2, 3].map((r) => [r, inst.filter((i) => roles[i.key] === r).map((i) => i.name)])
+    const parts = [0, 1, 2, 3].map((r) => [r, [...new Set(inst.filter((i) => roles[i.key] === r).map((i) => i.name))]])
       .filter(([, names]) => names.length);
     parts.forEach(([r, names], k) => {
       const b = document.createElement("b");
@@ -1396,8 +1580,8 @@ function pickCard(name, bytes, inst) {
       b.textContent = ROLE_NAME[r];
       auto.append(k ? " · " : "", b, ` ${names.join(" + ")}`);
     });
-    const out = inst.filter((i) => roles[i.key] === null).map((i) => i.name);
-    if (!parts.length) auto.append("No instrument plays a part yet: open Advanced and give one a part.");
+    const out = [...new Set(inst.filter((i) => roles[i.key] === null).map((i) => i.channel === 9 && kitGroup ? `${i.trackName || "a drum track"} (drums)` : i.name))];
+    if (!parts.length) auto.append("No instrument plays a part yet: give one a part (Parts).");
     if (out.length) auto.append(` · left out: ${out.join(", ")}`);
   };
   // Start and End: a shorter song (only the notes between, from the file's own time); the size it takes, and
@@ -1568,7 +1752,7 @@ function pickCard(name, bytes, inst) {
   };
   // your choices, kept for this file while they differ from Studio's own (the same as its own: none kept)
   const remember = () => {
-    const c = readChoices(), own = inst.every((i) => roles[i.key] === i.role) && trim.from === 0 && trim.to === whole &&
+    const c = readChoices(), own = inst.every((i) => roles[i.key] === i.auto) && trim.from === 0 && trim.to === whole &&
       songTitle() === defTitle;
     if (own) delete c[fileKey];
     else c[fileKey] = { roles: { ...roles }, from: trim.from, to: trim.to, title: titleIn.value, at: Date.now() };
@@ -1615,10 +1799,49 @@ function pickCard(name, bytes, inst) {
     } else return;
     sizeNote.hidden = false;
   };
+  // the part board: a lane for each part and one for Left out; each instrument a card in the lane of its part, with
+  // ▶ (it alone), its name, Studio's reason, and a menu (▾) for its part; or drag the card to another lane
+  const board = mk("div", "board"), lanes = [];
+  for (const [r, nm] of [[0, "KEYS"], [1, "DRUMS"], [2, "GUITAR"], [3, "BASS"], [null, "Left out"]]) {
+    const lane = mk("div", `lane ${r === null ? "out" : `p${r}`}`);
+    lane.dataset.part = r === null ? "" : String(r);
+    lane.append(mk("b", "", nm));
+    lane.addEventListener("dragover", (e) => {
+      const d = dragged && dragged.card === card ? dragged : null;
+      if (d && choiceOk(d.i, r)) { e.preventDefault(); lane.classList.add("into"); }
+    });
+    lane.addEventListener("dragleave", () => lane.classList.remove("into"));
+    lane.addEventListener("drop", (e) => {
+      lane.classList.remove("into");
+      const d = dragged && dragged.card === card ? dragged : null;
+      if (!d || !choiceOk(d.i, r)) return;
+      e.preventDefault();
+      d.sel.value = r === null ? "" : String(r);
+      d.sel.dispatchEvent(new Event("change"));
+    });
+    lanes[r === null ? 4 : r] = lane;
+    board.append(lane);
+  }
   const rowSels = [];
   for (const i of inst) {
-    const tr = document.createElement("tr"), sel = document.createElement("select");
+    if (kitGroup && i.channel === 9) continue;
+    const tr = mk("div", "chip"), sel = document.createElement("select");
+    tr._lanes = lanes;
+    tr.draggable = true;
+    tr.addEventListener("dragstart", (e) => {
+      dragged = { card, i, sel };
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", i.name);
+      tr.classList.add("dragging");
+      for (const [k, l] of lanes.entries()) l.classList.toggle("no", !choiceOk(i, k === 4 ? null : k));
+    });
+    tr.addEventListener("dragend", () => {
+      dragged = null;
+      tr.classList.remove("dragging");
+      for (const l of lanes) l.classList.remove("no", "into");
+    });
     sel.setAttribute("aria-label", `Part for ${i.name}, channel ${i.channel + 1}`);
+    sel.title = "Its part";
     for (const [v, label] of i.channel === 9 ? [[1, "DRUMS"], [null, "Leave out"]] : PART_CHOICES) {
       const o = document.createElement("option");
       o.value = v === null ? "" : String(v);
@@ -1634,7 +1857,6 @@ function pickCard(name, bytes, inst) {
       update();
       previewRefresh(card);                         // (playing: heard with the change, from where it was)
     });
-    rowPart(tr, roles[i.key]);
     {   // ▶: this instrument alone, on its part (left out: KEYS, or DRUMS for the drum channel, to hear what it is)
       const alone = () => {                         // (its part now, as it is changed)
         const only = {};
@@ -1642,7 +1864,7 @@ function pickCard(name, bytes, inst) {
         only[i.key] = roles[i.key] ?? (i.channel === 9 ? 1 : 0);
         return convertMidi(bytes, name, { ...opts(), roles: only });
       };
-      const td = document.createElement("td"), hear = songButton("▶", () => {
+      const hear = songButton("▶", () => {
         const was = preview && preview.btn === hear;
         try {
           if (!previewStart(alone, hear) && !was) {                // (nothing to hear: say why)
@@ -1657,23 +1879,111 @@ function pickCard(name, bytes, inst) {
       hear.dataset.compact = "1";
       hear.title = `Hear ${i.name} alone`;
       hear.setAttribute("aria-label", `Hear ${i.name}, channel ${i.channel + 1}, alone`);
-      td.append(hear);
-      tr.append(td);
+      tr.append(hear);
     }
-    for (const [text, cls] of [[i.name], [String(i.channel + 1)], [String(i.notes), "n"],
-                               [i.lo === i.hi ? noteName(i.lo) : `${noteName(i.lo)}–${noteName(i.hi)}`]]) {
-      const td = document.createElement("td");
-      td.textContent = text;
-      if (cls) td.className = cls;
-      tr.append(td);
+    const what = mk("div", "what");
+    what.append(mk("span", "nm", i.name),
+                mk("small", "", `ch ${i.channel + 1} · ${i.notes} notes · ${i.lo === i.hi ? noteName(i.lo) : `${noteName(i.lo)}–${noteName(i.hi)}`}`));
+    if (i.why) {                                    // (Studio's reason for its suggestion)
+      what.append(mk("small", "why", i.why));
+      tr.title = `Suggested: ${i.auto === null ? "leave out" : ROLE_NAME[i.auto]} (${i.why}). Drag to another part, or use the menu.`;
     }
-    const td = document.createElement("td");
-    td.append(sel);
-    tr.append(td);
-    body.append(tr);
+    tr.append(what, sel);
+    rowPart(tr, roles[i.key]);
   }
-  table.append(body);
-  tbl.append(table);
+  if (kitGroup) {   // the drum channel's tracks as one Drum kit card: its menu (or a drag) for all of them; inside it, each
+                    // track (a drum each, often) to keep or leave out, and ▶ to hear it alone
+    const tr = mk("div", "chip kitcard"), sel = document.createElement("select"), i0 = kit[0];
+    tr._lanes = lanes;
+    tr.draggable = true;
+    tr.addEventListener("dragstart", (e) => {
+      dragged = { card, i: i0, sel };
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", "Drum kit");
+      tr.classList.add("dragging");
+      for (const [k, l] of lanes.entries()) l.classList.toggle("no", !choiceOk(i0, k === 4 ? null : k));
+    });
+    tr.addEventListener("dragend", () => {
+      dragged = null;
+      tr.classList.remove("dragging");
+      for (const l of lanes) l.classList.remove("no", "into");
+    });
+    for (const [v, label] of [[1, "DRUMS"], [null, "Leave out"]]) {
+      const o = document.createElement("option");
+      o.value = v === null ? "" : String(v);
+      o.textContent = label;
+      sel.append(o);
+    }
+    sel.setAttribute("aria-label", "Part for the drum kit (every drum track)");
+    const keep = new Map(kit.map((i) => [i.key, startRole(i) === 1]));
+    let on = [...keep.values()].some(Boolean);
+    const head = mk("small", "");
+    const apply = () => {                                          // (the roles: a kept track on DRUMS while the kit is)
+      for (const i of kit) roles[i.key] = on && keep.get(i.key) ? 1 : null;
+      sel.value = on ? "1" : "";
+      const n = [...keep.values()].filter(Boolean).length;
+      head.textContent = `${kit.length} tracks · ${n} kept`;
+      rowPart(tr, on ? 1 : null);
+    };
+    const hearOf = (keys, btn) => () => {
+      const only = {};
+      for (const j of inst) only[j.key] = null;
+      for (const k of keys) only[k] = 1;
+      return convertMidi(bytes, name, { ...opts(), roles: only });
+    };
+    const kitHear = songButton("▶", () => {
+      const keys = kit.filter((i) => keep.get(i.key)).map((i) => i.key);
+      try { if (!previewStart(hearOf(keys.length ? keys : kit.map((i) => i.key)), kitHear)) tell(["Drum kit: nothing to hear between Start and End"], true); }
+      catch (e) { tell([`${name}: could not play it (${e.message})`], true); }
+    });
+    kitHear.className = "hear"; kitHear.dataset.compact = "1"; kitHear.title = "Hear the drums kept, alone";
+    const what = mk("div", "what");
+    what.append(mk("span", "nm", "Drum kit"), head, mk("small", "why", "the drum channel (10), over several tracks: one card"));
+    const list = document.createElement("details"), sumEl = document.createElement("summary");
+    list.className = "kittracks";
+    sumEl.textContent = "Drum tracks";
+    list.append(sumEl);
+    const ticks = [];
+    for (const i of kit) {
+      const row = mk("label", "kt"), cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = keep.get(i.key);
+      cb.addEventListener("change", () => {
+        keep.set(i.key, cb.checked);
+        if (cb.checked) on = true;                               // (a track kept: the kit plays)
+        apply(); update(); previewRefresh(card);
+      });
+      ticks.push([i, cb]);
+      const hear = songButton("▶", (e) => {
+        e.preventDefault();
+        try { if (!previewStart(hearOf([i.key]), hear)) tell([`${i.trackName || "This track"}: nothing to hear between Start and End`], true); }
+        catch (err) { tell([`${name}: could not play it (${err.message})`], true); }
+      });
+      hear.className = "hear"; hear.dataset.compact = "1";
+      hear.title = `Hear ${i.trackName || `track ${i.track + 1}`} alone`;
+      const t = mk("span", "kn");
+      t.append(mk("span", "", i.trackName || `Track ${i.track + 1}`),
+               mk("small", "", `${i.notes} hits · ${i.lo === i.hi ? noteName(i.lo) : `${noteName(i.lo)}–${noteName(i.hi)}`}` +
+                               (i.dupOf ? " · doubles another" : "")));
+      row.append(cb, t, hear);
+      list.append(row);
+    }
+    sel.addEventListener("change", () => {
+      on = sel.value === "1";
+      if (on && ![...keep.values()].some(Boolean)) for (const i of kit) keep.set(i.key, true);   // (none kept: all back)
+      for (const [i, cb] of ticks) cb.checked = keep.get(i.key);
+      apply(); update(); previewRefresh(card);
+    });
+    card._syncKit = () => {                                        // (Start over: the suggestion back)
+      for (const i of kit) keep.set(i.key, i.auto === 1);
+      on = kit.some((i) => i.auto === 1);
+      for (const [i, cb] of ticks) cb.checked = keep.get(i.key);
+      apply();
+    };
+    tr.title = "The drum channel (10): drag it, or use its menu; open Drum tracks to keep or leave out each one";
+    tr.append(kitHear, what, sel, list);
+    apply();
+  }
   const cardPreview = () => { if (preview && card.contains(preview.btn)) previewStop(); };   // (leaving: its sound stops)
   const load = songButton("Load", () => {
     songNotes = [];
@@ -1682,7 +1992,13 @@ function pickCard(name, bytes, inst) {
       if (!song.notes.length) { tell([`${name}: no notes to play: give an instrument a part`], true); return; }
       cardPreview();
       song.title = songTitle();
+      if (replaces) {                                              // (set up again: the old one out first)
+        send({ type: "song-remove", off: replaces.off });
+        ticked.delete(replaces.off);
+        if (replaces.title !== song.title) { midiDB.del(replaces.title).catch(() => {}); midiKept.delete(replaces.title); }
+      }
       loadSong(song);
+      midiDB.put(song.title, { name, bytes }).then(() => { midiKept.add(song.title); drawSongs(); }).catch(() => {});
       card.remove();
       drawMeter();
     } catch (e) { tell([`${name}: could not convert it (${e.message})`], true); }
@@ -1696,12 +2012,11 @@ function pickCard(name, bytes, inst) {
   skip.className = "quiet";
   hearAll.className = "hear";
   hearAll.title = "Hear it on the FM-1's sounds before you load it";
-  const btns = document.createElement("p");
-  btns.className = "acts";
-  btns.append(load, hearAll, skip);
-  const adv = document.createElement("details"), advSum = document.createElement("summary");
-  advSum.textContent = "Advanced: choose which instrument plays what";
-  adv.append(advSum, hint, tbl);
+  load.textContent = replaces ? "Done: update in Studio" : "Done: add to Studio";
+  load.title = replaces ? "Keep these changes: the song in Studio is replaced (send it to your FM-1 from the page)"
+                        : "Add it to your songs in Studio (SONGS on the FM-1 above); send it to your FM-1 from the page";
+  skip.textContent = "Cancel";
+  skip.classList.add("skip");
   const trimDet = document.createElement("details"), trimSum = document.createElement("summary");
   trimSum.textContent = "Start and End by the second";
   trimDet.append(trimSum, trimBox);
@@ -1709,7 +2024,8 @@ function pickCard(name, bytes, inst) {
   restored.hidden = !saved;
   if (saved) {
     const over = songButton("Start over", () => {
-      for (const { i, sel, tr } of rowSels) { roles[i.key] = i.role; sel.value = i.role === null ? "" : String(i.role); rowPart(tr, i.role); }
+      for (const { i, sel, tr } of rowSels) { roles[i.key] = i.auto; sel.value = i.auto === null ? "" : String(i.auto); rowPart(tr, i.auto); }
+      if (card._syncKit) card._syncKit();
       trim.from = 0; trim.to = whole;
       titleIn.value = defTitle;
       countTitle();
@@ -1721,7 +2037,30 @@ function pickCard(name, bytes, inst) {
     over.className = "quiet";
     restored.append("Your choices for this file from last time are back.", over);
   }
-  card.append(h, restored, auto, sum, ...(R ? [roll, rollHint] : []), trimLine, sizeNote, trimDet, adv, btns);
+  // the pop-up's card: the title and the buttons on top; two tabs, one screen at a time (Section: where it starts and
+  // ends; Parts: who plays what); Preview and what the song holds at the bottom
+  const head = mk("div", "shead"), tt = mk("div", "tt"), tabs = mk("div", "tabs");
+  tt.append(mk("span", "tg", replaces ? "SET UP AGAIN" : "SONG SETUP"), mk("span", "qpos"), h);
+  tabs.setAttribute("role", "tablist");
+  const secPane = mk("div", "pane"), partPane = mk("div", "pane");
+  secPane.append(auto, ...(R ? [roll, rollHint] : []), trimLine, trimDet);
+  partPane.append(hint, board);
+  const tabBtns = [["1 · Section", secPane], ["2 · Parts", partPane]].map(([t, pane], n) => {
+    const b = songButton(t, () => showTab(n));
+    b.setAttribute("role", "tab");
+    pane.setAttribute("role", "tabpanel");
+    tabs.append(b);
+    return b;
+  });
+  const showTab = (n) => {
+    tabBtns.forEach((b, k) => { b.setAttribute("aria-selected", String(k === n)); [secPane, partPane][k].hidden = k !== n; });
+    if (n === 0) requestAnimationFrame(() => drawRoll());        // (the roll drawn at its width, once shown)
+  };
+  showTab(0);
+  head.append(tt, tabs, skip, load);
+  const foot = mk("div", "sfoot");
+  foot.append(hearAll, sum);
+  card.append(head, restored, secPane, partPane, sizeNote, foot);
   songCards.append(card);
   update();
 }
@@ -1812,6 +2151,7 @@ async function switchOn() {
           if (m.preview) previewAt(m.preview);
           if (m.fb) drawScreen(m.fb);
           if (m.leds) drawLights(lastLeds = m.leds, m.anim);
+          if (m.ui !== undefined) hintUi(m.ui);
           if (m.sectors && !saveFlash(m.sectors) && !warned) {
             warned = true;
             console.warn("Midi-Mania: this browser does not keep the saves; they last until the page closes.");
@@ -1824,6 +2164,7 @@ async function switchOn() {
     document.getElementById("start").hidden = true;
     go.textContent = "On";
     songsReady();
+    hintStart();
     if (ac.sampleRate !== 44100) console.warn(`Midi-Mania: the browser plays at ${ac.sampleRate} Hz, the pitch is off by ${(1200 * Math.log2(ac.sampleRate / 44100)).toFixed(0)} cents.`);
     syncButtons();
     syncKeys();
@@ -1841,6 +2182,15 @@ async function switchOn() {
 }
 document.getElementById("go").addEventListener("click", switchOn);
 document.addEventListener("visibilitychange", () => send({ type: "visible", on: !document.hidden }));
+</script>
+<script>/* the theme toggle: Auto (the system's light or dark) -> Light -> Dark, kept for every page of the site */
+(function(){var b=document.getElementById("themebtn");if(!b)return;var r=document.documentElement,
+L={auto:"\u25D0 Auto",light:"\u2600 Light",dark:"\u263E Dark"},N={auto:"light",light:"dark",dark:"auto"};
+function cur(){return r.dataset.theme||"auto"}
+function draw(){var c=cur();b.textContent=L[c];b.title="Colours: "+(c==="auto"?"as your system's (light or dark)":c)+". Click to change";
+b.setAttribute("aria-label","Colour theme: "+(c==="auto"?"automatic, as your system":c)+". Change it")}
+b.addEventListener("click",function(){var n=N[cur()];if(n==="auto")delete r.dataset.theme;else r.dataset.theme=n;
+try{if(n==="auto")localStorage.removeItem("mm-theme");else localStorage.setItem("mm-theme",n)}catch(e){}draw()});draw()})();
 </script>
 </body>
 </html>

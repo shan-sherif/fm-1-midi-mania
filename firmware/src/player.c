@@ -32,7 +32,7 @@ typedef struct {
  * loaded from MIDI files on a computer (Midi-Mania Studio's page; the FM-1's over USB: editor_songs.c). Each starts on
  * a 4 KiB sector boundary and is read in place (mm_song_base: the region as the CPU sees it: the FM-1's XIP window,
  * the host's simulated flash; 0: none). mm_song_scan looks at every sector: a chart whose CRC holds and that is not
- * deleted is listed (after the built-in songs: mm_nsongs, mm_song(i)) and its sectors are in use; anything else is
+ * deleted is listed (before the built-in songs: mm_nsongs, mm_song(i)) and its sectors are in use; anything else is
  * free. A song is deleted by erasing its sectors and a new one goes into the first gap it fits (mm_song_room): songs
  * never move, so a power cut loses at most the one being written or deleted */
 #ifndef MM_SONG_BASE                             /* (Studio, the browser build: a region of its own, bigger than the
@@ -151,14 +151,18 @@ static uint32_t mm_song_largest_gap(void)        /* sectors */
     }
     return best;
 }
-static uint32_t mm_nsongs(void) { return MM_NSONGS + mm_nstored; }   /* built in, then stored */
+/* SONGS' order (after FREE PLAY): your stored songs first, the ones you loaded, then the built-in songs. (A best
+ * score is kept by the song, game_save.c hs_id, not by its place here, so the order can change.) */
+static uint32_t mm_nsongs(void) { return MM_NSONGS + mm_nstored; }   /* stored, then built in */
 static const mm_song_t *mm_song(uint32_t i)
 {
+    if (i < mm_nstored || !MM_NSONGS)
+        return &mm_stored[i % MM_SONG_MAX];
 #if MM_NSONGS
-    if (i < MM_NSONGS)
-        return &MM_SONGS[i];
+    return &MM_SONGS[(i - mm_nstored) % MM_NSONGS];
+#else
+    return &mm_stored[0];
 #endif
-    return &mm_stored[(i - MM_NSONGS) % MM_SONG_MAX];
 }
 
 #define PL_ON_MAX 32u                    /* notes the player holds at once (the chart keeps 8: room for overlaps) */

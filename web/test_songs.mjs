@@ -9,8 +9,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { convertMidi, chartBytes, crc32, summary, midiInstruments, noteName, GM_NAMES, DRUMS, KEYS, GUITAR, BASS } from "./mm_songs.js";
-import { testMidi } from "./test_midi.mjs";
+import { convertMidi, chartBytes, crc32, summary, midiInstruments, noteName, GM_NAMES, ROLE_NAME, DRUMS, KEYS, GUITAR, BASS } from "./mm_songs.js";
+import { testMidi, bandMidi } from "./test_midi.mjs";
 
 let bad = 0;
 const check = (name, ok) => { console.log(`songs.js: ${name.padEnd(100)} ${ok ? "ok" : "FAIL"}`); if (!ok) bad++; };
@@ -99,6 +99,34 @@ console.log(bad ? `songs.js: ${bad} FAILED` : "songs.js: all ok");
         t.notes.every((n) => inFile(n) >= Math.round(half * 44100) && inFile(n) + n[1] <= Math.round(fileEnd * 44100) + 882));
   const z = chartBytes(convertMidi(u8, "Test Song.mid", { roles: same, from: 0 }));
   check("Start 0 and no End: the same chart as the whole song, byte for byte", z.length === a.length && z.every((v, i) => v === a[i]));
+}
+// Studio's suggestion (midiInstruments' auto, why, dupOf): the parts from their own kind of instrument, a missing one
+// from the next most suitable, a doubling left out; the converter's own choice (role) unchanged
+{
+  const up = (a, d) => a.map((p) => p + d), line = [60, 62, 64, 65, 67, 69, 71, 72, 74, 72, 71, 69, 67, 65, 64, 62];
+  const sug = (parts) => { const i = midiInstruments(bandMidi(parts)); return Object.fromEntries(i.map((x) => [x.name, x])); };
+  let r = sug([{ ch: 0, program: 0, notes: line }, { ch: 1, program: 25, notes: up(line, -5) },
+               { ch: 2, program: 33, notes: up(line, -24) }, { ch: 9, program: null, notes: line.map(() => 36) }]);
+  check("suggestion: a piano, a guitar, a bass and drums each on their own part",
+        r["Grand Piano"].auto === KEYS && r["Steel Guitar"].auto === GUITAR && r["Finger Bass"].auto === BASS &&
+        r["Drum kit"].auto === DRUMS && r["Finger Bass"].why === "a bass");
+  r = sug([{ ch: 0, program: 73, notes: up(line, 12) }, { ch: 1, program: 48, notes: line, chord: true },
+           { ch: 2, program: 42, notes: up(line, -19) }, { ch: 3, program: 46, notes: up(line, -3) },
+           { ch: 4, program: 74, notes: up(line, 12).slice(0, 12) }]);
+  check(`no piano, guitar or bass: ${Object.values(r).map((x) => `${x.name} ${x.auto === null ? "out" : ROLE_NAME[x.auto]}`).join(", ")}`,
+        r["Cello"].auto === BASS && /lowest/.test(r["Cello"].why) &&
+        r["Harp"].auto === GUITAR && r["Strings 1"].auto === KEYS && r["Flute"].auto === null &&
+        r["Recorder"].auto === null && r["Recorder"].dupOf === r["Flute"].key);
+  check("the converter's own choice (role) stays as tools/gen_songs.py's",
+        r["Cello"].role === null && r["Harp"].role === null && r["Strings 1"].role === null);
+  // a kit over several tracks (one drum each, as GarageBand writes it), and a "guitar" whose notes no part keeps
+  const kitInst = midiInstruments(bandMidi([{ ch: 0, program: 0, notes: line }, { ch: 1, program: 30, notes: line.map((n) => n - 54) },
+    { ch: 9, program: null, notes: line.map(() => 36) }, { ch: 9, program: null, notes: line.map(() => 42) }]));
+  const kits = kitInst.filter((x) => x.channel === 9), fx = kitInst.find((x) => x.name === "Distortion Guitar");
+  check("a kit split over two tracks: both on DRUMS, each listed with its own key",
+        kits.length === 2 && kits.every((k) => k.auto === DRUMS) && kits[0].key !== kits[1].key);
+  check(`an instrument whose notes are outside every part's range left out (${fx && fx.why})`,
+        fx && fx.auto === null && /outside every part's range/.test(fx.why));
 }
 
 process.exit(bad ? 1 : 0);

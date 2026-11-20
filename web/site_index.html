@@ -7,6 +7,7 @@
      The colours are the logo's (assets/logo.svg): cream, ink, pink. -->
 <html lang="en">
 <head>
+<script>/* the colour theme chosen on any of the site's pages (Auto: the system's), before the page is drawn */try{var t=localStorage.getItem("mm-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FM-1 Midi-Mania</title>
@@ -17,10 +18,18 @@
           --pink-ink: #c21d5a; --btn-fg: #f4f1e8; color-scheme: light;
           /* the headings' marks: Studio's yellow (Muse MIDI DX's Neon), edged in ink on the light page */
           --mark: #ffe600; --mark-edge: rgba(23, 21, 31, .35); }
+  /* dark: the system's (unless Light is chosen), or Dark chosen (the theme toggle: <html data-theme>) */
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #17151f; --fg: #f4f1e8; --dim: #aaa6b5; --card: #211f2b; --rule: #34313f; --pink-ink: #ff7aa8;
-            --btn-fg: #17151f; --mark-edge: transparent; color-scheme: dark; }
+    :root:not([data-theme="light"]) { --bg: #17151f; --fg: #f4f1e8; --dim: #aaa6b5; --card: #211f2b; --rule: #34313f;
+            --pink-ink: #ff7aa8; --btn-fg: #17151f; --mark-edge: transparent; color-scheme: dark; }
   }
+  :root[data-theme="dark"] { --bg: #17151f; --fg: #f4f1e8; --dim: #aaa6b5; --card: #211f2b; --rule: #34313f;
+          --pink-ink: #ff7aa8; --btn-fg: #17151f; --mark-edge: transparent; color-scheme: dark; }
+  .themebar { position: absolute; top: 14px; right: 16px; }
+  .themebtn { font: 600 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; padding: 4px 11px;
+              border-radius: 999px; border: 1px solid var(--rule, #b2d0e7); background: transparent; color: inherit; cursor: pointer; }
+  .themebtn:hover, .themebtn:focus-visible { border-color: #ffe600; outline: none; }
+  
   body { margin: 0; background: var(--bg); color: var(--fg);
          font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
   main { max-width: 760px; margin: 0 auto; padding: 56px 20px 48px; }
@@ -85,6 +94,7 @@
 <script data-goatcounter="https://shan-sherif.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </head>
 <body>
+<div class="themebar"><button type="button" class="themebtn" id="themebtn">◐ Auto</button></div>
 <main>
   <section class="hero">
     <svg viewBox="0 0 1024 1024" role="img" aria-label="The FM-1 Midi-Mania logo: four keys, the middle one pink"><rect width="1024" height="1024" fill="#F4F1E8"/><g fill="#17151F"><rect x="160" y="181" width="136" height="662" rx="28"/><rect x="331" y="307" width="136" height="320" rx="28"/><rect x="557" y="307" width="136" height="320" rx="28"/><rect x="728" y="181" width="136" height="662" rx="28"/></g><rect x="444" y="536" width="136" height="306" rx="28" fill="#FF4F8B"/></svg>
@@ -121,22 +131,22 @@
   </div>
 
   <h2>Your MIDI, onto your FM&#8209;1</h2>
-  <p>Any MIDI file can be a song. Drop it on Studio, see it as a piano roll, and it's set up for you: the parts are chosen automatically, so you
-    can send it to your FM&#8209;1 over USB straight away, all from the browser. Want more control? The advanced
-    options are there too.</p>
+  <p>Any MIDI file can be a song. Drop it on Studio and it opens set up for you: the parts are chosen automatically,
+    even when the file has no piano, guitar or bass, so you can send it to your FM&#8209;1 over USB straight away, all
+    from the browser. Want more control? It's all in the same pop-up.</p>
   <div class="studio">
-    <figure><img src="media/midi-roll.png" alt="Studio's song card for FM Keys: its parts (KEYS on a grand piano, DRUMS on the drum kit), the number of notes and length, and a piano roll of the whole song, the piano in amber and the drums in pink, with a yellow handle at each end" loading="lazy">
-      <figcaption><b>1. See your song</b>Drop a MIDI file and Studio shows it as a piano roll: every note, each part in
-        its colour. Drag the handles to choose where it starts and ends, click to hear it from there, and press Preview
-        to hear it on the FM&#8209;1's sounds before you load it.</figcaption></figure>
-    <figure><img src="media/midi-advance-selection.png" alt="Studio's song card: Start and End sliders to shorten the song, and Advanced, a table of the file's instruments, each with a play button, its notes and range, and the part it plays: KEYS, GUITAR, BASS, DRUMS or Leave out" loading="lazy">
-      <figcaption><b>2. Choose what plays (optional)</b>Studio picks the piano, drums, guitar and bass automatically, so
-        there's nothing you have to set. These are the advanced options: open Advanced to hear each instrument alone and
-        choose its part, or leave it out, and shorten the song with Start and End.</figcaption></figure>
-    <figure><img src="media/midi-load.png" alt="Studio's Your FM-1 panel, connected: the song space bar with the song about to be sent shown in green, 8 KB, and Send all your songs to the FM-1" loading="lazy">
-      <figcaption><b>3. Send it to your FM&#8209;1</b>Connect by USB (Chrome or Edge). The bar shows the room on your
-        FM&#8209;1 and what the song will take: green if it fits, red if not. Then find it in SONGS (the SEQ
-        button).</figcaption></figure>
+    <figure><img src="media/midi-roll.png" alt="Studio's Song setup pop-up, its Section tab: the parts found (KEYS Grand Piano, DRUMS Drum kit, GUITAR Steel Guitar, BASS Finger Bass) and a piano roll of the whole file, each part in its colour, a yellow handle at each end" loading="lazy">
+      <figcaption><b>1. See your song</b>A file you drop opens in a pop-up. <strong>Section</strong> shows it as a piano roll:
+        every note, each part in its colour. Drag the handles to choose where it starts and ends, click to hear it from
+        there, and press Preview to hear it on the FM&#8209;1's sounds.</figcaption></figure>
+    <figure><img src="media/midi-advance-selection.png" alt="The pop-up's Parts tab: a column for KEYS, DRUMS, GUITAR, BASS and Left out; each instrument a card with its reason: Strings on KEYS, Harp on GUITAR, Cello on BASS, the drum kit over two tracks as one card, a doubled recorder left out" loading="lazy">
+      <figcaption><b>2. Who plays what (optional)</b>Studio picks the parts for you, and says why: no bass in the file? The
+        lowest instrument plays it. <strong>Parts</strong> shows each instrument as a card in its part's column: drag it to
+        another, or leave it out, and hear it alone with ▶.</figcaption></figure>
+    <figure><img src="media/midi-load.png" alt="Studio's songs: In Studio on the left with two songs ticked, a yellow arrow (Send 2 songs, 16 KB), and On your FM-1 on the right, connected, its song space with the ticked songs in green and its own two songs" loading="lazy">
+      <figcaption><b>3. Send it to your FM&#8209;1</b>Your songs <strong>In Studio</strong> on the left, <strong>On your FM&#8209;1</strong> on
+        the right (connect by USB, Chrome or Edge). Tick songs and press the arrow: the bar shows the room they'll take,
+        green if they fit. Then find them in SONGS (the SEQ button).</figcaption></figure>
   </div>
   <p class="studio-cta"><a class="btn main" href="webapp/studio/">Open Studio</a></p>
 
@@ -192,5 +202,14 @@
     M-VAVE and FM-1 are trademarks of their respective owners; Midi-Mania is not affiliated with or endorsed by them.
   </footer>
 </main>
+<script>/* the theme toggle: Auto (the system's light or dark) -> Light -> Dark, kept for every page of the site */
+(function(){var b=document.getElementById("themebtn");if(!b)return;var r=document.documentElement,
+L={auto:"\u25D0 Auto",light:"\u2600 Light",dark:"\u263E Dark"},N={auto:"light",light:"dark",dark:"auto"};
+function cur(){return r.dataset.theme||"auto"}
+function draw(){var c=cur();b.textContent=L[c];b.title="Colours: "+(c==="auto"?"as your system's (light or dark)":c)+". Click to change";
+b.setAttribute("aria-label","Colour theme: "+(c==="auto"?"automatic, as your system":c)+". Change it")}
+b.addEventListener("click",function(){var n=N[cur()];if(n==="auto")delete r.dataset.theme;else r.dataset.theme=n;
+try{if(n==="auto")localStorage.removeItem("mm-theme");else localStorage.setItem("mm-theme",n)}catch(e){}draw()});draw()})();
+</script>
 </body>
 </html>

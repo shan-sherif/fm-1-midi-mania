@@ -80,7 +80,7 @@ function parse(u8) {
   const hl = d.u32be(4), ntrk = d.u16be(10), div = d.u16be(12);
   if (div & 0x8000) throw new Error("SMPTE time division is not supported");
   let i = 8 + hl;
-  const tempos = [], notes = [], progs = new Map(), sigs = [];
+  const tempos = [], notes = [], progs = new Map(), sigs = [], names = [];   // (names: each track's, for Studio's lists)
   for (let t = 0; t < ntrk; t++) {
     if (String.fromCharCode(...u8.subarray(i, i + 4)) !== "MTrk") throw new Error(`track ${t}: no MTrk`);
     const ln = d.u32be(i + 4);
@@ -101,6 +101,8 @@ function parse(u8) {
           tempos.push([tick, v]);
         } else if (d.at(j + 1) === 0x58 && n >= 1) {
           sigs.push([tick, d.at(k)]);
+        } else if (d.at(j + 1) === 0x03 && names[t] === undefined) {
+          names[t] = Array.from(u8.subarray(k, k + n)).map((c) => (c >= 32 && c < 127 ? String.fromCharCode(c) : "")).join("").trim();
         }
         j = k + n;
         continue;
@@ -144,7 +146,7 @@ function parse(u8) {
   tempos.sort(cmp2);
   sigs.sort(cmp2);
   const bpb = sigs.length && sigs[0][1] >= 1 && sigs[0][1] <= 16 ? sigs[0][1] : 4;
-  return { div, tempos, notes, progs, bpb };
+  return { div, tempos, notes, progs, bpb, names };
 }
 
 function tickToSample(div, tempos) {
@@ -230,18 +232,97 @@ function defaultRoles(units, progs) {
 const roleOk = (channel, r) => r === null || (channel === 9 ? r === DRUMS : r === KEYS || r === GUITAR || r === BASS);
 
 // a MIDI file's instruments, for choosing their parts before converting (Studio, Your songs): [{key "track,channel",
-// track, channel (0..15), program (null: none), name, notes, lo, hi (MIDI notes), role (the part convertMidi gives
-// it by itself: KEYS DRUMS GUITAR BASS, null left out)}], by their first note
+// track, channel (0..15), program (null: none), name, notes, lo, hi (MIDI notes), mid (the middle note: half above,
+// half below), trackName (its track's name in the file, or ""), role (the part convertMidi gives it by itself: KEYS
+// DRUMS GUITAR BASS, null left out), auto (Studio's
+// suggestion, suggestRoles: what Studio starts with), why (a line on the suggestion), dupOf (the key of the busier
+// instrument it doubles, or null)}], by their first note
 export function midiInstruments(u8) {
-  const { notes: raw, progs } = parse(u8);
+  const { div, notes: raw, progs, names } = parse(u8);
   const units = unitsOf(raw), { role } = defaultRoles(units, progs);
-  return [...units].map(([key, ns]) => {
+  const inst = [...units].map(([key, ns]) => {
     const [track, channel] = uk(key), program = programOf(progs, track, channel);
     let lo = 127, hi = 0;
     for (const n of ns) { lo = Math.min(lo, n[4]); hi = Math.max(hi, n[4]); }
+    const ps = ns.map((n) => n[4]).sort((a, b) => a - b);
     return { key, track, channel, program, name: channel === 9 ? "Drum kit" : GM_NAMES[program == null ? 0 : program],
-             notes: ns.length, lo, hi, role: role.get(key), first: ns.reduce((m, n) => Math.min(m, n[0]), Infinity) };
+             trackName: names[track] || "",
+             notes: ns.length, lo, hi, mid: ps[ps.length >> 1], role: role.get(key),
+             first: ns.reduce((m, n) => Math.min(m, n[0]), Infinity) };
   }).sort((a, b) => a.first - b.first || a.channel - b.channel).map(({ first, ...i }) => i);
+  suggestRoles(inst, units, div);
+  return inst;
+}
+
+// Studio's suggestion of who plays what (as muse-midi-dx chooses its parts): the drum channel on DRUMS; a doubling (an
+// instrument whose notes are mostly a busier one's: the same line written twice) left out; then each part from its own
+// kind of instrument (General MIDI's families: pianos for KEYS, guitars for GUITAR, basses for BASS), and a part the
+// file has none of from the next most suitable instrument left: BASS the lowest one (a cello, tuba, bassoon ...),
+// KEYS (the part most play: it chooses first) chromatic percussion, else organ, else the busiest left,
+// GUITAR a plucked one, else a lead, else whatever sits in a guitar's range. An instrument whose notes are nearly all
+// outside every part's range is left out (it would play nothing). Sets inst[].auto, .why, .dupOf. convertMidi's own
+// choice (role) is not changed
+const DUP_SHARE = 0.8;
+const BASS_LIKE = [43, 58, 70, 67, 87, 42, 32];          // contrabass, tuba, bassoon, baritone sax, bass + lead, cello
+const PLUCKED = [104, 105, 106, 107, 46, 45, 15, 108];    // sitar, banjo, shamisen, koto, harp, pizzicato, dulcimer, kalimba
+function suggestRoles(inst, units, div) {
+  const fam = (i) => (i.program == null ? 0 : i.program) >> 3;
+  const prog = (i) => (i.program == null ? 0 : i.program);
+  const slot = Math.max(1, Math.round(div / 32));         // (two notes within a 128th of a beat: together)
+  const sets = new Map(inst.map((i) => [i.key, new Set(units.get(i.key).map((n) => `${Math.round(n[0] / slot)}:${n[4]}`))]));
+  for (const i of inst) {                                 // doublings: of a busier one (of two the same: the first stays)
+    i.dupOf = null;
+    let best = 0;
+    for (const j of inst) {
+      if (j === i || (j.channel === 9) !== (i.channel === 9) || j.notes < i.notes ||
+          (j.notes === i.notes && inst.indexOf(j) > inst.indexOf(i))) continue;
+      const s = sets.get(j.key);
+      let same = 0;
+      for (const n of units.get(i.key)) {
+        const t = Math.round(n[0] / slot);
+        if (s.has(`${t}:${n[4]}`) || s.has(`${t - 1}:${n[4]}`) || s.has(`${t + 1}:${n[4]}`)) same++;
+      }
+      const share = same / i.notes;
+      if (share >= DUP_SHARE && share > best) { best = share; i.dupOf = j.key; }
+    }
+  }
+  const named = (k) => inst.find((x) => x.key === k).name;
+  const free = () => inst.filter((i) => i.auto === undefined && i.channel !== 9 && !i.dupOf);
+  const busiest = (l) => l.slice().sort((a, b) => b.notes - a.notes);
+  const inRange = (i, r) => i.mid >= RANGE[r][0] && i.mid <= RANGE[r][1];
+  const LOW = Math.min(...Object.values(RANGE).map((r) => r[0])), HIGH = Math.max(...Object.values(RANGE).map((r) => r[1]));
+  for (const i of inst) {
+    if (i.dupOf) { i.auto = null; i.why = `left out: it doubles ${named(i.dupOf)}`; }
+    else if (i.channel === 9) { i.auto = DRUMS; i.why = "the drum channel (10)"; }
+    else {                                               // (notes no part keeps: an effects track, a sampler's own map)
+      const ns = units.get(i.key), inside = ns.filter((n) => n[4] >= LOW && n[4] <= HIGH).length;
+      if (inside < ns.length * 0.2) {
+        i.auto = null;
+        i.why = `left out: its notes (${noteName(i.lo)}–${noteName(i.hi)}) are outside every part's range`;
+      }
+    }
+  }
+  const native = { [KEYS]: (i) => fam(i) === 0, [GUITAR]: (i) => fam(i) === 3, [BASS]: (i) => fam(i) === 4 };
+  for (const r of [BASS, GUITAR, KEYS])
+    for (const i of free()) if (native[r](i)) { i.auto = r; i.why = { [KEYS]: "a piano", [GUITAR]: "a guitar", [BASS]: "a bass" }[r]; }
+  const has = (r) => inst.some((i) => i.auto === r);
+  if (!has(BASS)) {                                        // no bass: the lowest instrument left, bass-like ones first
+    const c = free().filter((i) => i.mid <= 52 && inRange(i, BASS));
+    const pick = c.find((i) => BASS_LIKE.includes(prog(i))) || c.sort((a, b) => a.mid - b.mid)[0];
+    if (pick) { pick.auto = BASS; pick.why = `no bass in the file: ${pick.name} is the lowest instrument (around ${noteName(pick.mid)})`; }
+  }
+  if (!has(KEYS)) {                                        // no piano: the nearest kind, else the busiest left
+    const c = busiest(free());
+    const pick = c.find((i) => fam(i) === 1) || c.find((i) => fam(i) === 2) || c[0];   // (keyboard-like, else busiest)
+    if (pick) { pick.auto = KEYS; pick.why = `no piano in the file: ${pick.name}, the closest left`; }
+  }
+  if (!has(GUITAR)) {                                      // no guitar: plucked, else a lead, else one in a guitar's range
+    const c = busiest(free().filter((i) => inRange(i, GUITAR) && i.mid >= 50));
+    const pick = c.find((i) => PLUCKED.includes(prog(i))) || c.find((i) => fam(i) === 10) ||
+                 c.find((i) => fam(i) >= 7 && fam(i) <= 9) || c.find((i) => fam(i) === 5 || fam(i) === 6) || c[0];
+    if (pick) { pick.auto = GUITAR; pick.why = `no guitar in the file: ${pick.name}, the closest left`; }
+  }
+  for (const i of inst) if (i.auto === undefined) { i.auto = null; i.why = "left out: the FM-1 plays four parts"; }
 }
 
 // The whole file for Studio's piano roll (its Start and End handles): every note in the file's own time, samples,

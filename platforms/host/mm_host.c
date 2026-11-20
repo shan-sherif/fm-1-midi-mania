@@ -469,6 +469,10 @@ FH_API uint32_t fh_breath_keys(void) { return led_keys(fm1_led_breath); }
 FH_API uint32_t fh_mid_keys(void) { return led_keys(fm1_led_mid); }   /* the DRUM grid's beats: a steady mid level */
 /* the power-on sweep (or 1.2's idle animation) running: each LED's level now (bsp/boards/fm1/fm1_led_anim.h: 0..64 /64 of lit, | 0x80 the glow under
  * it), 0..13 the buttons by label, 14..40 the keys F3..G5; 0 when it is not */
+FH_API uint32_t fh_ui_state(void)
+{
+    return (songs_on() && !game_on() ? 1u : 0u) | (game_on() ? 2u : 0u) | (player_busy() ? 4u : 0u);
+}
 FH_API uint8_t *fh_anim_levels(void)
 {
     static uint8_t lv[FM1_ANIM_NBTN + FM1_ANIM_NKEY];

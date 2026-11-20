@@ -70,6 +70,9 @@ FH_API uint32_t fh_breath_buttons(void);
 FH_API uint32_t fh_breath_keys(void);
 FH_API uint32_t fh_mid_keys(void);
 FH_API uint8_t *fh_anim_levels(void);
+/* what the screen shows, for the page's first-steps hints (Studio): bit 0 SONGS (the list: SEQ), bit 1 GAME (SEQ again),
+ * bit 2 a song playing (or starting) */
+FH_API uint32_t fh_ui_state(void);
 
 /* ---------------------------------------------------------------- flash --- */
 /* the FM-1's 1 MiB NOR (settings, projects, user presets, user samples): the platform keeps the bytes and gives them

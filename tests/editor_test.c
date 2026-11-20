@@ -1281,9 +1281,9 @@ static int stored_songs(void)
                  n == 12u && host_wire[5] == MM_NSONGS && !host_wire[6] && host_wire[7] == 16u && host_wire[8] == 60u &&
                  host_wire[9] == 60u && host_wire[10] == 60u);
     big = sg_make(1000u, "Big One", 1);              /* 12,104 bytes: 3 sectors */
-    bad += check("an upload (BEGIN, 47 WRITEs, END): rc 0, listed after the built-in songs, read in place",
+    bad += check("an upload (BEGIN, 47 WRITEs, END): rc 0, listed first, before the built-in songs, read in place",
                  sg_upload(big, 999u, 1) == 0u && mm_nstored == 1u && mm_stored_off[0] == 0u &&
-                 !strcmp(mm_song(MM_NSONGS)->title, "Big One") && !memcmp(host_samples[0], sg_chart, big));
+                 !strcmp(mm_song(0)->title, "Big One") && !memcmp(host_samples[0], sg_chart, big));
     small = sg_make(5u, "Tiny", 2);                  /* under 256 bytes: END alone */
     bad += check("a chart under 256 bytes: BEGIN and END only, into the next free sector",
                  sg_upload(small, 999u, 1) == 0u && mm_nstored == 2u && mm_stored_off[1] == 3u * 4096u);
@@ -1358,7 +1358,7 @@ static int stored_songs(void)
     bad += check("END of a header whose size is not BEGIN's: rc 2", host_wire[5] == 2u && mm_nstored == 2u);
     sg_make(10u, "Third", 7);
     sg_upload(sg_make(10u, "Third", 7), 999u, 1);    /* sector 4 */
-    pl.playing = 1; pl.free = 0; pl.song = (uint8_t)(MM_NSONGS + 1u); host_progress = 0;
+    pl.playing = 1; pl.free = 0; pl.song = 1u; host_progress = 0;
     a[0] = 3;
     bad += check("DELETE while a song plays and the audio cannot stop it: rc 5, nothing erased",
                  request(ED_SONG_DELETE, a, 1) == 8u && host_wire[5] == 5u && !sg_sec_erased(3) && mm_nstored == 3u);
@@ -1372,7 +1372,7 @@ static int stored_songs(void)
     sg_make(5u, "Into The Gap", 8);
     bad += check("the next upload goes into the gap the deleted song left",
                  sg_upload(small, 999u, 1) == 0u && mm_nstored == 3u && mm_stored_off[1] == 3u * 4096u &&
-                 !strcmp(mm_song(MM_NSONGS + 1u)->title, "Into The Gap"));
+                 !strcmp(mm_song(1u)->title, "Into The Gap"));
     bad += check("BEGIN of a chart bigger than the largest gap: rc 2; smaller than a header: rc 1",
                  sg_upload(MM_SONG_SIZE, 0u, 1) == 102u && sg_upload(10u, 0u, 1) == 101u);
     for (i = mm_nstored; i < MM_SONG_MAX; i++)
